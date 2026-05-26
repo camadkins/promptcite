@@ -6,7 +6,7 @@
   "minFileChanges": 1,
   "signature": {
     "type": "cla",
-    "url": "https://github.com/camadkins/promptcite/blob/main/CLA.md"
+    "url": "https://gist.github.com/camadkins/3352e3d4cbe9c250f3d39ed0db0f8c52"
   },
   "form": {
     "fields": [
@@ -48,8 +48,7 @@
       }
     ]
   },
-  "comment": "Welcome — thanks for your contribution to PromptCite. PromptCite is dual-licensed (AGPL v3 + commercial); we require every contributor (including the maintainer) to sign a CLA so the project can remain durably dual-licensable. The CLA text is in CLA.md and is adapted verbatim from the Harmony Agreement HA-CLA-I-LIST 1.0. Click the link below to sign — once recorded, this PR (and all your future PRs) will be unblocked.",
-  "logo": "https://raw.githubusercontent.com/camadkins/promptcite/main/docs/assets/logo.png",
+  "comment": "Welcome — thanks for your contribution to PromptCite. PromptCite is dual-licensed (AGPL v3 + commercial); we require every contributor (including the maintainer) to sign a CLA so the project can remain durably dual-licensable. The signing CLA is the gist linked below (adapted verbatim from the Harmony Agreement HA-CLA-I-LIST 1.0). Click to sign — once recorded, this PR and all your future PRs are unblocked.",
   "stickyComment": true,
   "_notes": "This file is consumed by cla-assistant.io. The bot must be installed on the repo for this config to take effect. The 'preventContributorsFromExternalCommit' flag enforces that contributors must sign before their commits land on main, which together with required-status-check branch protection closes the audit-trail gap."
 }
