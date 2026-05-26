@@ -1,0 +1,63 @@
+═══════════════════════════════════════════════════════════════════
+  DRAFT — NOT FOR EXECUTION
+  This file is a stub published as part of the dual-license model
+  declaration. The final commercial license agreement is issued
+  bilaterally per deployment; this document does not by itself
+  constitute an offer, contract, or representation that a commercial
+  license is available on any specific terms. Counterparties may not
+  rely on this draft for any purpose. Real terms are issued after
+  contact via the email below.
+═══════════════════════════════════════════════════════════════════
+
+PromptCite Commercial License
+=============================
+
+PromptCite is dual-licensed:
+
+  1. AGPL v3 (see LICENSE) for community use — individual students, developers,
+     researchers, hobbyists, and non-commercial open-source projects.
+
+  2. A separate commercial license is required for institutional and commercial
+     deployment, as described in NOTICE.md.
+
+A commercial license is REQUIRED for:
+
+  - Universities, colleges, school districts, and academic-integrity offices
+    that deploy PromptCite as part of any institutional service or
+    recommended toolchain.
+  - Edtech companies, LMS vendors, or any vendor bundling or integrating
+    PromptCite into a paid product.
+  - Any organization offering PromptCite as a managed or hosted service.
+
+Commercial licenses preserve the AGPL v3 community license alongside —
+purchasing a commercial license does not deprive the community of the AGPL
+version, and AGPL contributions remain AGPL.
+
+------------------------------------------------------------
+TO REQUEST A COMMERCIAL LICENSE
+------------------------------------------------------------
+
+Email:  cam@camadkins.com
+
+Include in your inquiry:
+
+  - Organization name and type (university / edtech vendor / LMS / SaaS / other)
+  - Intended deployment scope (single department, full institution, embedded
+    product, hosted service, etc.)
+  - Expected number of seats or student users
+  - Any required modifications to the AGPL terms
+
+Commercial license terms are negotiated per deployment. Pricing varies by
+scope; standard institutional pricing ranges and embedded-vendor pricing are
+published once the program is live.
+
+------------------------------------------------------------
+NOTE
+------------------------------------------------------------
+
+This file is a placeholder stub. The full commercial license agreement is
+issued bilaterally upon execution. This file's purpose is to declare the
+dual-license model publicly and direct interested parties to the maintainer.
+
+Commercial licensing inquiries are routed to the email above; that
+mailbox is monitored by the project maintainer listed in `MAINTAINERS.md`.

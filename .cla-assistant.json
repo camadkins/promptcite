@@ -1,0 +1,55 @@
+{
+  "name": "PromptCite Contributor License Agreement",
+  "preventContributorsFromContacting": false,
+  "preventContributorsFromExternalCommit": true,
+  "useBranchPattern": "main",
+  "minFileChanges": 1,
+  "signature": {
+    "type": "cla",
+    "url": "https://github.com/camadkins/promptcite/blob/main/CLA.md"
+  },
+  "form": {
+    "fields": [
+      {
+        "key": "fullName",
+        "title": "Full legal name",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "key": "email",
+        "title": "Email address",
+        "required": true,
+        "type": "email"
+      },
+      {
+        "key": "githubLogin",
+        "title": "GitHub login (auto-filled)",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "key": "employer",
+        "title": "Employer (if contributing as part of employment)",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "key": "employerApproved",
+        "title": "If you listed an employer above, confirm they have approved this contribution under the CLA",
+        "required": false,
+        "type": "boolean"
+      },
+      {
+        "key": "ageConfirm",
+        "title": "I confirm I am 18 years of age or older, or have parent/guardian consent",
+        "required": true,
+        "type": "boolean"
+      }
+    ]
+  },
+  "comment": "Welcome — thanks for your contribution to PromptCite. PromptCite is dual-licensed (AGPL v3 + commercial); we require every contributor (including the maintainer) to sign a CLA so the project can remain durably dual-licensable. The CLA text is in CLA.md and is adapted verbatim from the Harmony Agreement HA-CLA-I-LIST 1.0. Click the link below to sign — once recorded, this PR (and all your future PRs) will be unblocked.",
+  "logo": "https://raw.githubusercontent.com/camadkins/promptcite/main/docs/assets/logo.png",
+  "stickyComment": true,
+  "_notes": "This file is consumed by cla-assistant.io. The bot must be installed on the repo for this config to take effect. The 'preventContributorsFromExternalCommit' flag enforces that contributors must sign before their commits land on main, which together with required-status-check branch protection closes the audit-trail gap."
+}

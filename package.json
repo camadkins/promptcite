@@ -1,0 +1,44 @@
+{
+  "name": "promptcite",
+  "version": "0.1.0",
+  "description": "Cross-agent skill that adds /receipt — a structured AI-use disclosure command for student assignments",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "bin/install.js",
+  "bin": {
+    "promptcite": "bin/install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/camadkins/promptcite.git"
+  },
+  "homepage": "https://github.com/camadkins/promptcite",
+  "bugs": {
+    "url": "https://github.com/camadkins/promptcite/issues"
+  },
+  "keywords": [
+    "ai",
+    "education",
+    "academic-integrity",
+    "disclosure",
+    "citation",
+    "claude-code",
+    "gemini-cli",
+    "cursor",
+    "skill"
+  ],
+  "scripts": {
+    "dev": "node bin/install.js",
+    "list": "node bin/install.js --list",
+    "dry-run": "node bin/install.js --dry-run --all",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}
