@@ -21,13 +21,3 @@ yarn-error.log*
 *.swp
 *.swo
 *~
-
-# defensive — sibling private dir holds dev artifacts; never let them slip in
-ISA.md
-promptcite-spec.md
-Plans/
-.agents/
-.codex/
-.cursor/
-.windsurf/
-.claude/
