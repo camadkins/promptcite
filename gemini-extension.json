@@ -1,0 +1,6 @@
+{
+  "name": "promptcite",
+  "description": "Generate a structured AI-use receipt for academic assignments. The /receipt command conducts a short interview (under 2 minutes) and emits a citation, disclosure paragraph, and JSON receipt validated against schema.yaml.",
+  "version": "0.1.0",
+  "contextFileName": "GEMINI.md"
+}
