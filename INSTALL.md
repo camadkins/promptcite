@@ -46,12 +46,12 @@ runs under the hood), use the table below. Every row also works as
 | **Claude Code** | `claude plugin marketplace add camadkins/promptcite && claude plugin install promptcite@promptcite` | Yes |
 | **Gemini CLI** | `gemini extensions install https://github.com/camadkins/promptcite` | Yes |
 | **Codex CLI** | `npx skills add camadkins/promptcite -a codex` | Per-session: `/receipt` |
-| **Cursor** | `npx skills add camadkins/promptcite -a cursor` | Per-session by default; `--with-init` for an always-on rule file |
-| **Windsurf** | `npx skills add camadkins/promptcite -a windsurf` | Per-session by default; `--with-init` for an always-on rule file |
-| **Cline** | `npx skills add camadkins/promptcite -a cline` | Per-session by default; `--with-init` for an always-on rule file |
+| **Cursor** | `npx -y github:camadkins/promptcite -- --only cursor --with-init` | Per-project rule file at `.cursor/rules/promptcite-receipt.md` |
+| **Windsurf** | `npx -y github:camadkins/promptcite -- --only windsurf --with-init` | Per-project rule file at `.windsurf/rules/promptcite-receipt.md` |
+| **Cline** | `npx -y github:camadkins/promptcite -- --only cline --with-init` | Per-project rule file at `.clinerules/promptcite-receipt.md` |
 | **GitHub Copilot** | `npx -y github:camadkins/promptcite -- --only copilot --with-init` | Repo-wide instructions via `--with-init` |
-| **Continue** | `npx skills add camadkins/promptcite -a continue` | No — say `/receipt` |
-| **Roo Code** | `npx skills add camadkins/promptcite -a roo` | No |
+| **Continue** | `npx -y github:camadkins/promptcite -- --only continue --with-init` | Per-project rule file at `.continue/rules/promptcite-receipt.md` |
+| **Roo Code** | `npx -y github:camadkins/promptcite -- --only roo --with-init` | Per-project rule file at `.roo/rules/promptcite-receipt.md` |
 | **Aider** | `npx skills add camadkins/promptcite -a aider` | No |
 
 The full agent matrix lives in `bin/install.js` under the `PROVIDERS`
