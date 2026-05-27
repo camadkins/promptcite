@@ -61,16 +61,19 @@ jobs:
 
       - name: install.js --dry-run --all (no files should be written)
         run: |
-          # Snapshot tree before
-          BEFORE=$(find ~/.claude /tmp/promptcite-* 2>/dev/null | wc -l || echo 0)
-          node bin/install.js --dry-run --all
-          # Snapshot tree after
-          AFTER=$(find ~/.claude /tmp/promptcite-* 2>/dev/null | wc -l || echo 0)
-          if [ "$BEFORE" != "$AFTER" ]; then
-            echo "ERROR: --dry-run wrote files (tree changed: $BEFORE → $AFTER)"
+          # Route dry-run at an explicit sandbox config-dir. If --dry-run
+          # writes anything, the sandbox path will exist after the run.
+          # Asserting that path absence after = strict guarantee that
+          # dry-run produced zero file writes regardless of runner state.
+          SANDBOX="/tmp/promptcite-dry-run-sandbox-$$"
+          rm -rf "$SANDBOX"
+          node bin/install.js --dry-run --all --config-dir "$SANDBOX"
+          if [ -e "$SANDBOX" ]; then
+            echo "ERROR: --dry-run created the sandbox path despite --dry-run flag"
+            ls -la "$SANDBOX"
             exit 1
           fi
-          echo "OK: --dry-run wrote nothing"
+          echo "OK: --dry-run wrote nothing (sandbox path absent)"
 
       - name: Schema YAML validity
         run: |

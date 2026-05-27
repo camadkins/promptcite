@@ -23,6 +23,11 @@ jobs:
     steps:
       - name: Checkout PR
         uses: actions/checkout@v4
+        with:
+          # Full history so `git log origin/main..HEAD` and
+          # `git diff origin/main..HEAD` work for the commit-message and
+          # CHANGELOG/INSTALL.md-sync warning checks. Depth=0 = full clone.
+          fetch-depth: 0
 
       - name: Run checks
         id: checks
@@ -148,35 +153,35 @@ jobs:
           fi
 
           # =============================================================
-          # Build sticky comment
+          # Build sticky comment — only show what NEEDS attention.
+          # Do not expose the full checklist of what passed — contributors
+          # don't need our complete review surface.
           # =============================================================
           {
             echo "## PromptCite PR Checks"
             echo ""
-            echo "Bot ran the project's checklist on this PR. Address any **fail** items before merge; **warn** items are informational."
-            echo ""
-            if [ ${#PASS[@]} -gt 0 ]; then
-              echo "### Passed"
-              for item in "${PASS[@]}"; do echo "- ✅ $item"; done
-              echo ""
-            fi
-            if [ ${#WARN[@]} -gt 0 ]; then
-              echo "### Warnings"
-              for item in "${WARN[@]}"; do echo "- ⚠️ $item"; done
-              echo ""
-            fi
-            if [ ${#FAIL[@]} -gt 0 ]; then
-              echo "### Blockers"
-              for item in "${FAIL[@]}"; do echo "- ❌ $item"; done
-              echo ""
-              echo "**This PR is blocked from merge until the failures above are resolved.**"
+            if [ ${#FAIL[@]} -eq 0 ] && [ ${#WARN[@]} -eq 0 ]; then
+              echo "✅ **Looks good.** No blockers, no warnings — ready for maintainer review."
             else
-              echo "### Blockers"
-              echo "_None._"
-              echo ""
+              if [ ${#FAIL[@]} -gt 0 ]; then
+                echo "### ❌ Blockers — must fix before merge"
+                echo ""
+                for item in "${FAIL[@]}"; do echo "- $item"; done
+                echo ""
+              fi
+              if [ ${#WARN[@]} -gt 0 ]; then
+                echo "### ⚠️ Warnings — please review"
+                echo ""
+                for item in "${WARN[@]}"; do echo "- $item"; done
+                echo ""
+              fi
+              if [ ${#FAIL[@]} -gt 0 ]; then
+                echo "_This PR is blocked from merge until the blockers above are resolved._"
+              fi
             fi
+            echo ""
             echo "---"
-            echo "_Automated PR-checks bot. See \`.github/workflows/pr-checks.yml\` for the full checklist. Fail items are required status checks; warn items are informational._"
+            echo "_Automated PR-checks bot._"
           } > /tmp/pr-checks-comment.md
 
           # Save comment for next step
