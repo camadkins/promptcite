@@ -34,6 +34,31 @@ fields:
     description: ISO-8601 timestamp at which the receipt was generated.
     format: iso8601
 
+  metadata_source:
+    type: string
+    required: true
+    description: |
+      How the tool/model/date fields under `ai_use` were filled.
+
+      - `"agent_reported"` — the AI agent itself filled `tool`, `model`,
+        and `date` based on its own self-knowledge (student answered
+        "this session" in Step 0 of the interview). This is the
+        verifiable-provenance path: the student cannot lie about which
+        AI they used because the AI fills those fields itself.
+
+      - `"student_claimed"` — the student filled `tool`, `model`, and
+        `date` themselves because they were disclosing AI use from a
+        previous session or a different tool (student answered
+        "previous session" in Step 0). Self-disclosure without agent
+        verification.
+
+      Note: this field qualifies the metadata fields ONLY. The content
+      fields (`prompt_summary`, `revision_statement`, etc.) are always
+      student-authored regardless of metadata_source.
+    enum:
+      - agent_reported
+      - student_claimed
+
   student:
     type: string
     required: true

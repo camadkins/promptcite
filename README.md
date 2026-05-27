@@ -18,6 +18,48 @@ and makes no claims about whether the work is "AI-written." It is a
 transparency artifact for the (large and growing) class of assignments
 where AI use is **permitted** and **disclosure is required**.
 
+## How metadata gets filled
+
+PromptCite asks one question at the start of the interview: are you
+disclosing AI use from **this current session**, or from a
+**previous/different session**?
+
+**This session:** the AI fills in `tool`, `model`, and `date` from its
+own self-knowledge. The student doesn't have to remember the exact
+model version. The receipt records `metadata_source: "agent_reported"`.
+
+**Previous session:** the student fills in `tool`, `model`, and `date`
+from memory. The receipt records `metadata_source: "student_claimed"`.
+
+### What `agent_reported` is and isn't
+
+The `metadata_source` field is a **transparency marker, not a
+tamper-proof signature.** After the receipt is generated, it lands on
+the student's local disk as a JSON file — and like any local file, the
+student can edit it before submitting. PromptCite is a skill that runs
+inside the agent; it has no server, no signing key, no transparency
+log. The same trust model applies as for any citation: the author
+writes it, the reader evaluates it, the artifact is a transparency
+record — not a lie detector.
+
+What the `agent_reported` path *does* give you for free is **reduced
+friction for honest disclosure**: the student doesn't have to remember
+"Claude Opus 4.7" or format today's date in ISO 8601. For students
+disclosing in good faith — which is the vast majority — the metadata
+fields just work, and the agent-reported flag tells the instructor
+those fields came from the agent's mouth rather than the student's
+typing.
+
+### Future direction
+
+Closing the post-generation editability gap — cryptographic signing,
+inclusion in a transparency log, instructor-side verification — is on
+the roadmap as part of an institutional integration layer. The MVP
+intentionally stops at the agent-skill layer so it can ship without a
+server-side dependency. Anything beyond agent-reported metadata
+provenance requires that future layer; PromptCite v1 does not claim to
+provide it.
+
 ## Status
 
 **v0.1.0 — initial release.** The installer scaffolding and the `/receipt`
