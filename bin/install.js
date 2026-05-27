@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Cam Adkins
+// PromptCite installer — github.com/camadkins/promptcite
 
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';

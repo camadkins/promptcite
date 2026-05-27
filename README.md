@@ -20,8 +20,11 @@ where AI use is **permitted** and **disclosure is required**.
 
 ## Status
 
-> 🚧 Pre-release. The repository is **private** until the release-gate
-> checklist is complete. Do not assume any file in this tree is final.
+**v0.1.0 — initial release.** The installer scaffolding and the `/receipt`
+interview rule are functional. The native Claude Code adapter installs the
+skill and the rule produces schema-conformant output end-to-end. Adapters
+for Gemini CLI and the long-tail `npx skills add` registry path are tracked
+for the next release.
 
 ## Install
 
@@ -57,13 +60,13 @@ Harmony HA-CLA-I-LIST 1.0 template).
 
 ## Contributing
 
-Once the repo is public:
-
-1. Read `CLA.md` and sign via the cla-assistant.io bot on your first PR.
+1. Read [`CLA.md`](./CLA.md) and sign via the cla-assistant.io bot on
+   your first PR. Branch protection enforces this — PRs cannot merge
+   without a signature on file.
 2. Open an issue before substantive changes — the design is opinionated
    and `src/rules/receipt.md` is the contract every agent depends on.
 3. Trivial contributions (typo fixes, doc tweaks) still require CLA
    signature. No "small change" exemption.
 
-Until the repo is public, contributions are not accepted via PR. Reach
-out to the maintainer if you have early feedback on the spec.
+Bug reports and feature requests are welcome via GitHub Issues. Security
+vulnerabilities should be reported per [`SECURITY.md`](./SECURITY.md).

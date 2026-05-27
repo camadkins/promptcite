@@ -43,7 +43,7 @@ Out-of-scope (per design):
 
 - AI-content detection accuracy — PromptCite is not a detector.
 - Verification of student-authored fields — receipts are self-disclosure
-  artifacts, not lie detectors. This is explicit in the design (spec §6).
+  artifacts, not lie detectors.
 
 ## Patch and disclosure
 
