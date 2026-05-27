@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# Release — on v* tag push, create a GitHub Release with auto-generated
+# notes and a sigstore build-provenance attestation. Users can verify
+# the release wasn't tampered with by checking the attestation.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write       # sigstore attestation needs OIDC
+  attestations: write   # required for actions/attest-build-provenance
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Verify install.js runs
+        run: |
+          node bin/install.js --version
+          node bin/install.js --list
+          node bin/install.js --dry-run --all
+
+      - name: Build release tarball
+        run: |
+          # Exclude dev cruft from the release artifact
+          tar -czf promptcite-${{ github.ref_name }}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='*.tar.gz' \
+            .
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'promptcite-${{ github.ref_name }}.tar.gz'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            promptcite-${{ github.ref_name }}.tar.gz
+          body: |
+            ## PromptCite ${{ github.ref_name }}
+
+            **Install:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/${{ github.ref_name }}/install.sh | bash
+            ```
+
+            **Verify the release** (cosign required):
+            ```bash
+            gh attestation verify promptcite-${{ github.ref_name }}.tar.gz \
+              --repo camadkins/promptcite
+            ```
+
+            See [INSTALL.md](https://github.com/camadkins/promptcite/blob/${{ github.ref_name }}/INSTALL.md) for per-agent install paths.

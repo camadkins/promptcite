@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# CODEOWNERS — auto-assigns review to maintainers when these paths change.
+# Currently solo-maintained; this file formalizes that for future contributors.
+
+# Everything defaults to the maintainer.
+*                       @camadkins
+
+# Sensitive paths get explicit ownership flagged.
+/LICENSE*               @camadkins
+/CLA*.md                @camadkins
+/NOTICE.md              @camadkins
+/SECURITY.md            @camadkins
+/MAINTAINERS.md         @camadkins
+/.github/               @camadkins
+/.cla-assistant.json    @camadkins
+/src/rules/receipt.md   @camadkins
+/src/schema.yaml        @camadkins

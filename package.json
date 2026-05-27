@@ -30,12 +30,28 @@
     "cursor",
     "skill"
   ],
+  "files": [
+    "bin/",
+    "src/",
+    "GEMINI.md",
+    "gemini-extension.json",
+    "install.sh",
+    "install.ps1",
+    "LICENSE",
+    "LICENSE-COMMERCIAL",
+    "NOTICE.md",
+    "CLA.md",
+    "README.md",
+    "INSTALL.md",
+    "SECURITY.md"
+  ],
   "scripts": {
     "dev": "node bin/install.js",
     "list": "node bin/install.js --list",
     "dry-run": "node bin/install.js --dry-run --all",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "prepublishOnly": "node bin/install.js --version && node bin/install.js --list && node bin/install.js --help && node bin/install.js --dry-run --all"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

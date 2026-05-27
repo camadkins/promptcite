@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# Dependabot — keeps devDeps current and surfaces security advisories.
+# PromptCite has zero runtime deps; this scans devDeps + GitHub Actions
+# versions weekly.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    # PRs still require CLA signature per branch protection — Dependabot's
+    # CLA signing is handled via cla-assistant's allowlist (configured
+    # separately via the bot's web UI).
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"

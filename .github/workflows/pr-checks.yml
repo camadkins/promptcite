@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# PR Checks — Obsidian-style review bot. Runs a project-specific
+# checklist on every PR, posts a sticky comment with pass/warn/fail
+# per item, and hard-fails the workflow on any breaker so it shows up
+# as a required status check.
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  checklist:
+    name: PR checklist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Run checks
+        id: checks
+        run: |
+          set +e
+          PASS=()
+          WARN=()
+          FAIL=()
+
+          # Helper: record pass/warn/fail
+          mark_pass() { PASS+=("$1"); }
+          mark_warn() { WARN+=("$1"); }
+          mark_fail() { FAIL+=("$1"); }
+
+          # =============================================================
+          # FAIL-level checks (block merge)
+          # =============================================================
+
+          # 1. SPDX header on every source file in bin/ src/ install.sh install.ps1
+          MISSING_SPDX=""
+          for f in bin/install.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml; do
+            if [ -f "$f" ] && ! grep -q "SPDX-License-Identifier" "$f"; then
+              MISSING_SPDX="$MISSING_SPDX $f"
+            fi
+          done
+          if [ -n "$MISSING_SPDX" ]; then
+            mark_fail "SPDX header missing on:$MISSING_SPDX"
+          else
+            mark_pass "SPDX header present on all source files"
+          fi
+
+          # 2. GEMINI.md synced from src/rules/receipt.md
+          if diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) > /dev/null 2>&1; then
+            mark_pass "GEMINI.md is synced from src/rules/receipt.md"
+          else
+            mark_fail "GEMINI.md has drifted from src/rules/receipt.md — see CI gemini-sync job"
+          fi
+
+          # 3. No network calls in bin/install.js (no-network rule)
+          if grep -qE "fetch\(|http\.|axios|undici|node-fetch" bin/install.js; then
+            mark_fail "bin/install.js imports a network-call library or uses fetch/http — installer must not make network calls"
+          else
+            mark_pass "No network calls in bin/install.js (no-network rule)"
+          fi
+
+          # 4. No telemetry / install_id / analytics in actual code
+          TELEMETRY_HITS=$(grep -rE "telemetry|install_id|analytics|phone_home" bin/install.js install.sh install.ps1 2>/dev/null | grep -vE "no telemetry|never collect|no analytics" || true)
+          if [ -n "$TELEMETRY_HITS" ]; then
+            mark_fail "Telemetry-related strings found outside prohibition prose"
+          else
+            mark_pass "No telemetry / analytics / install-id strings in code"
+          fi
+
+          # 5. schema.yaml parses (basic check)
+          if [ -s src/schema.yaml ] && head -1 src/schema.yaml | grep -q "^#"; then
+            mark_pass "src/schema.yaml present and well-formed"
+          else
+            mark_fail "src/schema.yaml malformed or missing"
+          fi
+
+          # 6. package.json license unchanged
+          LICENSE=$(node -e "console.log(require('./package.json').license)" 2>/dev/null)
+          if [ "$LICENSE" = "AGPL-3.0-only" ]; then
+            mark_pass "package.json license is AGPL-3.0-only"
+          else
+            mark_fail "package.json license changed (now '$LICENSE') — must remain AGPL-3.0-only"
+          fi
+
+          # 7. package.json dependencies still empty
+          DEPS=$(node -e "const d = require('./package.json').dependencies; console.log(d ? Object.keys(d).length : 0)" 2>/dev/null)
+          if [ "$DEPS" = "0" ]; then
+            mark_pass "package.json.dependencies is empty (zero runtime deps)"
+          else
+            mark_fail "package.json.dependencies has $DEPS entries — runtime deps must remain empty"
+          fi
+
+          # 8. All 7 use_category values present in receipt.md
+          CATS=$(grep -oE "brainstorm|outline|draft|edit|debug|explain|search" src/rules/receipt.md | sort -u | wc -l)
+          if [ "$CATS" -ge 7 ]; then
+            mark_pass "All 7 use_category values present in receipt.md"
+          else
+            mark_fail "use_category coverage incomplete ($CATS/7 found in receipt.md)"
+          fi
+
+          # =============================================================
+          # WARN-level checks (note for maintainer, do not block)
+          # =============================================================
+
+          # 9. Detection-language warning (only if outside known prohibition contexts)
+          DETECTION_HITS=$(grep -rE "originality.score|detection.score|AI.probability" bin/ src/ 2>/dev/null || true)
+          if [ -n "$DETECTION_HITS" ]; then
+            mark_warn "Detection-related language appears in code/rules — verify it's in a prohibition context"
+          else
+            mark_pass "No detection-language outside prohibition contexts"
+          fi
+
+          # 10. Commit message convention (informational)
+          COMMITS_BAD=$(git log origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
+          if [ "$COMMITS_BAD" -gt 0 ]; then
+            mark_warn "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:)"
+          else
+            mark_pass "All commits use conventional prefix"
+          fi
+
+          # 11. INSTALL.md updated if PROVIDERS array changed
+          if git diff origin/main..HEAD -- bin/install.js | grep -q "PROVIDERS\|providers ="; then
+            if ! git diff origin/main..HEAD -- INSTALL.md | grep -q "^+"; then
+              mark_warn "bin/install.js providers array changed but INSTALL.md not updated — verify the agent matrix table is current"
+            else
+              mark_pass "INSTALL.md updated alongside provider changes"
+            fi
+          fi
+
+          # 12. CHANGELOG updated for user-facing changes (only when src/ or bin/ touched + CHANGELOG.md exists)
+          if [ -f CHANGELOG.md ]; then
+            if git diff origin/main..HEAD -- src/ bin/ | grep -q "^+"; then
+              if ! git diff origin/main..HEAD -- CHANGELOG.md | grep -q "^+"; then
+                mark_warn "User-facing changes in src/ or bin/ but CHANGELOG.md not updated"
+              else
+                mark_pass "CHANGELOG.md updated for user-facing changes"
+              fi
+            fi
+          fi
+
+          # =============================================================
+          # Build sticky comment
+          # =============================================================
+          {
+            echo "## PromptCite PR Checks"
+            echo ""
+            echo "Bot ran the project's checklist on this PR. Address any **fail** items before merge; **warn** items are informational."
+            echo ""
+            if [ ${#PASS[@]} -gt 0 ]; then
+              echo "### Passed"
+              for item in "${PASS[@]}"; do echo "- ✅ $item"; done
+              echo ""
+            fi
+            if [ ${#WARN[@]} -gt 0 ]; then
+              echo "### Warnings"
+              for item in "${WARN[@]}"; do echo "- ⚠️ $item"; done
+              echo ""
+            fi
+            if [ ${#FAIL[@]} -gt 0 ]; then
+              echo "### Blockers"
+              for item in "${FAIL[@]}"; do echo "- ❌ $item"; done
+              echo ""
+              echo "**This PR is blocked from merge until the failures above are resolved.**"
+            else
+              echo "### Blockers"
+              echo "_None._"
+              echo ""
+            fi
+            echo "---"
+            echo "_Automated PR-checks bot. See \`.github/workflows/pr-checks.yml\` for the full checklist. Fail items are required status checks; warn items are informational._"
+          } > /tmp/pr-checks-comment.md
+
+          # Save comment for next step
+          echo 'comment<<EOF' >> $GITHUB_OUTPUT
+          cat /tmp/pr-checks-comment.md >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+          # Exit non-zero if any blockers
+          if [ ${#FAIL[@]} -gt 0 ]; then
+            echo ""
+            echo "::error::PR checklist found ${#FAIL[@]} blocker(s)"
+            exit 1
+          fi
+
+      - name: Post sticky PR comment
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-checks
+          message: ${{ steps.checks.outputs.comment }}

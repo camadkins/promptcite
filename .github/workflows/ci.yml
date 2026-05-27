@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# CI — typecheck + install dry-run across Linux and macOS runners.
+# Runs on every PR + every push to main.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install devDeps
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+  install-dry-run:
+    name: Install dry-run (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: install.js --list
+        run: node bin/install.js --list
+
+      - name: install.js --help
+        run: node bin/install.js --help
+
+      - name: install.js --version
+        run: node bin/install.js --version
+
+      - name: install.js --dry-run --all (no files should be written)
+        run: |
+          # Snapshot tree before
+          BEFORE=$(find ~/.claude /tmp/promptcite-* 2>/dev/null | wc -l || echo 0)
+          node bin/install.js --dry-run --all
+          # Snapshot tree after
+          AFTER=$(find ~/.claude /tmp/promptcite-* 2>/dev/null | wc -l || echo 0)
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "ERROR: --dry-run wrote files (tree changed: $BEFORE → $AFTER)"
+            exit 1
+          fi
+          echo "OK: --dry-run wrote nothing"
+
+      - name: Schema YAML validity
+        run: |
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('src/schema.yaml', 'utf8');
+            if (content.length < 100) { console.error('schema.yaml suspiciously small'); process.exit(1); }
+            console.log('schema.yaml present and non-trivial (' + content.length + ' bytes)');
+          "
+
+  gemini-extension-valid:
+    name: Gemini extension manifest valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate gemini-extension.json
+        run: |
+          node -e "
+            const p = JSON.parse(require('fs').readFileSync('gemini-extension.json', 'utf8'));
+            if (!p.name || !p.description || !p.version || !p.contextFileName) {
+              console.error('gemini-extension.json missing required field');
+              process.exit(1);
+            }
+            console.log('gemini-extension.json valid:', p);
+          "
+
+  gemini-sync:
+    name: GEMINI.md synced from receipt.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify sync
+        run: |
+          # GEMINI.md should match receipt.md body (skip GEMINI's 4 sync-header lines + blank, skip receipt's 3 SPDX lines)
+          if diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) > /dev/null; then
+            echo "OK: GEMINI.md is in sync with src/rules/receipt.md"
+          else
+            echo "ERROR: GEMINI.md has drifted from src/rules/receipt.md"
+            echo "Run: { head -4 GEMINI.md; echo; tail -n +4 src/rules/receipt.md; } > GEMINI.md.new && mv GEMINI.md.new GEMINI.md"
+            diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) | head -40
+            exit 1
+          fi
