@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Cam Adkins
 #
-# PR Checks — Obsidian-style review bot. Runs a project-specific
-# checklist on every PR, posts a sticky comment with pass/warn/fail
-# per item, and hard-fails the workflow on any breaker so it shows up
-# as a required status check.
+# PR Checks — automated review bot. Runs a project-specific checklist
+# on every PR, posts a sticky comment with fail/warn items only (or
+# "looks good" when clean), and hard-fails the workflow on any breaker
+# so it shows up as a required status check.
 
 name: PR Checks
 
@@ -116,16 +116,21 @@ jobs:
           # WARN-level checks (note for maintainer, do not block)
           # =============================================================
 
-          # 9. Detection-language warning (only if outside known prohibition contexts)
-          DETECTION_HITS=$(grep -rE "originality.score|detection.score|AI.probability" bin/ src/ 2>/dev/null || true)
+          # 9. Detection-language warning — scan code surfaces only.
+          # receipt.md / SECURITY.md / NOTICE.md / README.md contain
+          # prohibition statements by design ("Do not produce originality
+          # scores"); we explicitly do NOT scan those.
+          DETECTION_HITS=$(grep -rEn "originality.score|detection.score|AI.probability" bin/install.js install.sh install.ps1 src/schema.yaml 2>/dev/null || true)
           if [ -n "$DETECTION_HITS" ]; then
-            mark_warn "Detection-related language appears in code/rules — verify it's in a prohibition context"
+            mark_warn "Detection-related language in code surface (bin/install.js / install scripts / schema.yaml) — these surfaces must not reference detection concepts"
           else
-            mark_pass "No detection-language outside prohibition contexts"
+            mark_pass "No detection-language in code surfaces"
           fi
 
-          # 10. Commit message convention (informational)
-          COMMITS_BAD=$(git log origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
+          # 10. Commit message convention — exclude merge commits, which
+          # GitHub Actions creates synthetically for PR builds and don't
+          # follow conventional-commits (subject is "Merge X into Y").
+          COMMITS_BAD=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
           if [ "$COMMITS_BAD" -gt 0 ]; then
             mark_warn "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:)"
           else
