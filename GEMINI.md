@@ -1,5 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <!-- Copyright (c) 2026 Cam Adkins -->
+<!-- AUTO-SYNCED FROM src/rules/receipt.md — do not edit directly. -->
+<!-- Source of truth lives in src/rules/receipt.md; this file is the Gemini CLI extension context surface. -->
 
 # PromptCite — `/receipt` Interview Rule
 

@@ -9,6 +9,7 @@ import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+import { execSync, spawn } from 'node:child_process';
 import process from 'node:process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -276,7 +277,7 @@ const providers = [
       const targetPath = join(ctx.configDir, 'skills', 'promptcite', 'SKILL.md');
       const ruleBody = await readRuleSource(ctx);
       const frontmatter = `---
-name: promptcite
+name: receipt
 description: Generate a structured AI-use receipt for academic assignments. Conducts a short interview (under 2 minutes) and emits a citation string, plain-language disclosure paragraph, and JSON receipt validated against schema.yaml. Use when the student types /receipt, "generate my AI receipt", or any variant indicating they want to disclose AI use on coursework.
 ---`;
       const content = `${frontmatter}\n\n${ruleBody}`;
@@ -298,7 +299,55 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
     autoActivates: true,
     targetPaths: ['~/.claude/skills/promptcite/SKILL.md'],
   },
-  createStubProvider('gemini'),
+  {
+    id: 'gemini',
+    name: 'Gemini CLI',
+    detect: () => {
+      try {
+        execSync('command -v gemini', { stdio: 'ignore' });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async install(ctx) {
+      const repoUrl = 'https://github.com/camadkins/promptcite';
+      if (ctx.dryRun) {
+        ctx.adapter.log(`[DRY-RUN] would run: gemini extensions install ${repoUrl}`);
+        return;
+      }
+      ctx.adapter.log(`running: gemini extensions install ${repoUrl}`);
+      await new Promise((resolve, reject) => {
+        const proc = spawn('gemini', ['extensions', 'install', repoUrl], {
+          stdio: 'inherit',
+        });
+        proc.on('error', reject);
+        proc.on('exit', (code) => {
+          if (code === 0) resolve(undefined);
+          else reject(new Error(`gemini extensions install exited with code ${code}`));
+        });
+      });
+    },
+    async uninstall(ctx) {
+      if (ctx.dryRun) {
+        ctx.adapter.log('[DRY-RUN] would run: gemini extensions uninstall promptcite');
+        return;
+      }
+      ctx.adapter.log('running: gemini extensions uninstall promptcite');
+      await new Promise((resolve, reject) => {
+        const proc = spawn('gemini', ['extensions', 'uninstall', 'promptcite'], {
+          stdio: 'inherit',
+        });
+        proc.on('error', reject);
+        proc.on('exit', (code) => {
+          if (code === 0) resolve(undefined);
+          else reject(new Error(`gemini extensions uninstall exited with code ${code}`));
+        });
+      });
+    },
+    autoActivates: true,
+    targetPaths: ['(gemini CLI extension store)'],
+  },
   {
     id: 'cursor',
     name: 'Cursor',
