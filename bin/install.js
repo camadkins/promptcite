@@ -14,6 +14,20 @@ import process from 'node:process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * @typedef {(text: string) => string} ColorFn
+ * @typedef {Object} ColorMap
+ * @property {ColorFn} bold
+ * @property {ColorFn} dim
+ * @property {ColorFn} red
+ * @property {ColorFn} green
+ * @property {ColorFn} yellow
+ * @property {ColorFn} blue
+ * @property {ColorFn} cyan
+ * @property {ColorFn} gray
+ */
+
+/** @type {ColorMap} */
 const c = {
   bold: (text) => `\x1b[1m${text}\x1b[22m`,
   dim: (text) => `\x1b[2m${text}\x1b[22m`,
@@ -26,6 +40,7 @@ const c = {
 };
 
 class UserError extends Error {
+  /** @param {string} message */
   constructor(message) {
     super(message);
     this.name = 'UserError';
@@ -67,6 +82,7 @@ class UserError extends Error {
  * @property {Adapter} adapter
  */
 
+/** @param {string} target */
 async function pathExists(target) {
   try {
     await access(target);
@@ -76,6 +92,7 @@ async function pathExists(target) {
   }
 }
 
+/** @param {string} target @returns {Promise<string | null>} */
 async function readFileIfPresent(target) {
   try {
     return await readFile(target, 'utf8');
@@ -244,6 +261,7 @@ class StubSkipError extends Error {
   }
 }
 
+/** @param {string} id */
 const STUB_MESSAGE = (id) =>
   `[${id}] adapter coming in next release — for now use 'npx skills add camadkins/promptcite -a ${id}' (validates against vercel-labs/skills registry once promptcite is added)`;
 
@@ -254,7 +272,7 @@ const STUB_MESSAGE = (id) =>
 function createStubProvider(id) {
   return {
     id,
-    name: id[0].toUpperCase() + id.slice(1),
+    name: id.charAt(0).toUpperCase() + id.slice(1),
     detect: () => false,
     async install() {
       throw new StubSkipError(id);
@@ -539,9 +557,9 @@ function parseCli(argv) {
   }
 
   if (values['no-color'] === true || process.env.NO_COLOR) {
-    for (const key of Object.keys(c)) {
-      c[key] = (text) => text;
-    }
+    /** @type {ColorFn} */
+    const identity = (text) => text;
+    c.bold = c.dim = c.red = c.green = c.yellow = c.blue = c.cyan = c.gray = identity;
   }
 
   return {
@@ -564,6 +582,7 @@ function parseCli(argv) {
  * @returns {InstallContext}
  */
 function buildContext(parsed) {
+  /** @type {(msg: string) => void} */
   const log = (msg) => console.log(msg);
   const adapter = parsed.dryRun ? createDryRunAdapter(log) : createRealAdapter(log);
   const configDir = parsed.configDir
@@ -598,7 +617,11 @@ function formatError(error) {
  */
 function selectProviders(parsed) {
   if (parsed.only) {
-    return [providerById.get(parsed.only)];
+    const provider = providerById.get(parsed.only);
+    if (!provider) {
+      throw new UserError(`unknown provider "${parsed.only}"`);
+    }
+    return [provider];
   }
   return providers;
 }
