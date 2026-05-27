@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
 # PromptCite installer shim — thin PowerShell bootstrap that hands off to bin/install.js.
 #
 # All detection, merge, and install logic lives in bin/install.js. This shim

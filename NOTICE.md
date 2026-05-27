@@ -1,8 +1,14 @@
 # PromptCite — Notice & License Summary
 
-PromptCite is **dual-licensed**. This file explains, in plain language, what
-that means for you. The legally binding text lives in `LICENSE` (AGPL v3) and
-`LICENSE-COMMERCIAL` — read those for the formal terms.
+**Copyright (c) 2026 Cam Adkins**
+
+PromptCite is open-source infrastructure for AI-use disclosure in education,
+dual-licensed under the GNU Affero General Public License v3.0 (community)
+and a separate commercial license (institutional / hosted-service use).
+
+This file explains, in plain language, what that means for you. The legally
+binding text lives in `LICENSE` (AGPL v3) and `LICENSE-COMMERCIAL` — read
+those for the formal terms.
 
 ## TL;DR
 

@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!-- Copyright (c) 2026 Cam Adkins -->
+
 # PromptCite — `/receipt` Interview Rule
 
 > **This file is the single source of truth for PromptCite's behavior.**
