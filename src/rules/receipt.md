@@ -34,8 +34,13 @@ problem to solve.
 1. **Under 2 minutes.** Total interview should take a student under two
    minutes from `/receipt` to artifacts in hand. Ask the minimum
    questions for the chosen `use_category`. Do not over-interview.
-2. **One question at a time.** Wait for an answer before asking the
-   next. Conversational, not a form.
+2. **Pack independent questions, isolate branching ones.** Multiple
+   fields that share no dependency → ask in one turn (numbered list,
+   student answers all at once). A question whose answer determines
+   what gets asked next → solo turn. The test: "if the student answered
+   wrong on A, would B still be asked?" — if yes, pack with A; if no,
+   separate from A. Conversational, not a form, but not bureaucratic
+   either — burn the fewest turns possible while keeping branches clean.
 3. **The student authors the receipt.** You record their answers; you
    do not embellish. Do not invent details. If they decline a field,
    leave it empty rather than guessing.
@@ -52,26 +57,64 @@ problem to solve.
 
 ## Interview flow
 
-### Step 1 — Assignment metadata
+### Step 0 — Provenance gate (SOLO — branches the flow)
 
-Ask the student, one at a time:
+Ask exactly this:
 
-- Course name and number (e.g. "ENGL 251" or "CS 161")
-- Instructor name (e.g. "Dr. Martinez")
-- Assignment title (e.g. "Policy Analysis Essay" or "Lab 5 — Sorting")
+> Are you disclosing AI use from **this current session**, or from a
+> **previous/different session** (different tool or a prior conversation)?
 
-If they've answered any of these in a previous turn, infer and confirm
-rather than re-asking.
+This is the **provenance gate** — the answer determines whether `tool`,
+`model`, and `date` are agent-reported (you auto-fill them) or
+student-claimed (you ask the student).
 
-### Step 2 — Tool and model
+**Branch A — "this session":**
+- You ARE the AI being disclosed. Auto-fill:
+  - `tool` = the product name (e.g. "Claude" if you're running in
+    Claude Code, "Gemini" if you're Gemini CLI, "ChatGPT" if you're
+    ChatGPT, "Cursor" if running in Cursor's agent, etc.)
+  - `model` = your best self-identified model name + version (e.g.
+    "Claude Opus 4.7", "GPT-4o", "Gemini 2.5 Pro")
+  - `date` = today's ISO 8601 date in the student's timezone if
+    inferable, otherwise UTC date
+- Set `metadata_source: "agent_reported"` in the JSON
+- **Skip the tool/model/date questions in Step 1.**
 
-Ask:
+**Branch B — "previous session" or "different tool":**
+- The student must answer for the tool they used.
+- Set `metadata_source: "student_claimed"` in the JSON.
+- **Include the tool/model/date questions in Step 1.**
 
-- Which AI tool did you use? (ChatGPT / Claude / Gemini / Copilot / Cursor / Codex / other)
-- Which model? (e.g. "GPT-4o", "Claude Sonnet 4.6", "Gemini 2.5 Pro" — best guess is fine)
-- What was the date of use? (default to today; accept any past date)
+### Step 1 — Identity batch (PACKED)
 
-### Step 3 — Use category
+Ask the student, in **one packed turn** (numbered list), to answer all at once:
+
+**If Branch A (this session):**
+> A few quick details — answer all at once:
+> 1. Course name and number (e.g. "ENGL 251" or "CS 161")
+> 2. Instructor name (e.g. "Dr. Martinez")
+> 3. Assignment title (e.g. "Policy Analysis Essay")
+> 4. Your name or institutional ID for this receipt (first initial +
+>    last name, full name, or student ID — whatever your instructor
+>    expects)
+> 5. Citation style: MLA / APA / Chicago? (default: MLA)
+
+**If Branch B (previous session / different tool):**
+> A few quick details — answer all at once:
+> 1. Course name and number (e.g. "ENGL 251" or "CS 161")
+> 2. Instructor name (e.g. "Dr. Martinez")
+> 3. Assignment title (e.g. "Policy Analysis Essay")
+> 4. Your name or institutional ID for this receipt
+> 5. Citation style: MLA / APA / Chicago? (default: MLA)
+> 6. Which AI tool did you use? (ChatGPT / Claude / Gemini / Copilot / Cursor / Codex / other)
+> 7. Which model? (e.g. "GPT-4o", "Claude Sonnet 4.6" — best guess is fine)
+> 8. Date of use (default today)
+
+Parse the student's reply (numbered or freeform). If any field is
+missing or ambiguous, ask only for the missing ones in a tight
+follow-up turn — do not re-ask fields they already gave.
+
+### Step 2 — Use category (SOLO — branches the follow-ups)
 
 Ask exactly this:
 
@@ -88,14 +131,14 @@ Definitions for the student if asked:
 - `explain` — having a concept clarified that the student didn't keep in the submission
 - `search` — using AI to find sources, references, or background information
 
-### Step 4 — Category-specific follow-ups
+### Step 3 — Category-specific follow-ups (PACKED within category)
 
-Ask only the questions relevant to the chosen category. Use the
-**disclosure depth table** below. Each row specifies *only* the
-questions to ask for that category — do not import questions from
-other rows.
+Pack the category's questions into **one turn** — the questions within
+each row are independent, so ask them all together (numbered list).
+Each row below specifies *only* the questions for that category — do
+not import from other rows.
 
-| Category | Follow-ups (ask only these) | `source_verification` asked? |
+| Category | Pack these into one turn | `source_verification` asked? |
 |---|---|:-:|
 | `brainstorm` | (1) One-sentence summary of what you asked the AI to brainstorm. (2) Did any AI-generated text appear verbatim in your submission? (almost always "no" for brainstorm) | no — field is null |
 | `outline` | (1) Summary of the outline you asked for. (2) Did the structure of your submission follow the AI's outline closely, loosely, or not at all? (3) Did any AI-generated text appear verbatim? | no — field is null |
@@ -105,42 +148,31 @@ other rows.
 | `debug` | (1) Summary of the bug or problem you asked about. (2) Did the AI generate any code you kept, or only explain what was wrong? (3) For high-stakes assignments: would you like to attach a diff or test output? (opt-in only) | no — field is null |
 | `draft` | (1) Summary of what you asked the AI to draft. (2) What percentage roughly appears verbatim in your submission? (3) What did you change, reject, or rewrite? (4) For high-stakes writing: would you like to attach a share link or excerpt? (opt-in only) | optional — ask only if the student says AI text appears verbatim AND the section contains factual claims |
 
-**`source_verification` scope (Gap 1 fix):** the field is `true`/`false`
-only for `search` (required) and `draft` with factual claims (optional);
-**null** for all other categories. The disclosure paragraph's "I
-independently verified ..." sentence renders only when the field is `true`.
-For categories where the AI did not provide sources or factual claims
+**`source_verification` scope:** the field is `true`/`false` only for
+`search` (required) and `draft` with factual claims (optional); **null**
+for all other categories. The disclosure paragraph's "I independently
+verified ..." sentence renders only when the field is `true`. For
+categories where the AI did not provide sources or factual claims
 (brainstorm, outline, explain, edit, debug, draft without claims), the
 sentence does not render and the field stays null.
 
-For every category, finish with:
+### Step 4 — Revision statement (SOLO — optional add-on)
 
-- (Final) Anything else you want to add to the revision statement?
-  (One sentence — the student-author's own words about what they
-  changed, rejected, or rewrote.)
+Ask one final question:
 
-### Step 5 — Identifier
+> Anything else you want to add about what you did with the AI's output?
+> (One sentence — your own words about what you changed, rejected, or
+> rewrote. Say "nothing" to skip.)
 
-Ask:
+Capture the student's response verbatim into the `revision_statement`
+field. If they say "nothing" or similar, leave the field empty and
+move on.
 
-- Your name or institutional ID for this receipt? (Minimal — first
-  initial + last name is fine, or full name, or student ID number —
-  whatever your instructor expects.)
-
-### Step 6 — Citation style
-
-Ask:
-
-> Which citation style does this assignment use? **MLA** / **APA** /
-> **Chicago**?
-
-If the student doesn't know, default to MLA and note this.
-
-### Step 7 — Output
+### Step 5 — Output
 
 Generate all three artifacts in this exact order:
 
-#### 7a — Citation string
+#### 5a — Citation string
 
 Render the citation in the chosen style. Templates audited against
 **MLA 9th edition (MLA Style Center 2023 guidance)**, **APA 7th
@@ -204,7 +236,7 @@ notes-bibliography, use:
 <Publisher>. <YYYY>. "<prompt summary>." <Tool> <Model>, <Month DD>. <share_link if present>.
 ```
 
-#### 7b — Disclosure paragraph (category-specific templates)
+#### 5b — Disclosure paragraph (category-specific templates)
 
 One paragraph, 2–4 sentences, plain English. Use the template matching
 the chosen `use_category`. Wording within each template can be varied
@@ -262,12 +294,22 @@ locks in.
 > true AND the draft contained factual claims: "I independently verified
 > the factual claims against <readings / primary sources>." >
 
+**Provenance addendum (agent_reported only):** if `metadata_source ==
+"agent_reported"`, append ONE additional sentence to the disclosure
+paragraph after the category-specific text:
+
+> "This receipt was generated inside <Tool> itself, so the tool, model,
+> and date fields above were agent-verified rather than student-reported."
+
+Do NOT append this sentence for `student_claimed` receipts — they are
+self-reported and should read as such.
+
 **Output discipline:** prose only — no markdown bullets or headers in
 the disclosure paragraph itself. The paragraph is what the student
 pastes into their submission header; it should read like writing, not a
 form.
 
-#### 7c — Receipt JSON
+#### 5c — Receipt JSON
 
 Generate the JSON object matching `src/schema.yaml`. Required fields:
 
@@ -275,7 +317,8 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 {
   "schema_version": "1.0",
   "generated_at": "<ISO 8601 timestamp>",
-  "student": "<identifier from Step 5>",
+  "metadata_source": "agent_reported | student_claimed",
+  "student": "<identifier from Step 1>",
   "assignment": {
     "course": "...",
     "instructor": "...",
@@ -300,7 +343,21 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 }
 ```
 
-Optional appendix fields (include only if the student opted in during Step 4):
+**`metadata_source` is set in Step 0:**
+- `"agent_reported"` if the student answered "this session" — the agent
+  filled `tool`, `model`, `date` from its own self-knowledge. This is the
+  verifiable-provenance path; the student did not author those fields.
+- `"student_claimed"` if the student answered "previous session" — the
+  student filled `tool`, `model`, `date` from memory. Self-disclosure
+  without agent verification.
+
+Instructors read this field to understand whether the tool/model/date
+came from the AI itself (verifiable) or from the student's recollection
+(self-reported). It does not change the trust model for the *content*
+fields (`prompt_summary`, `revision_statement` etc.) — those are always
+student-authored.
+
+Optional appendix fields (include only if the student opted in during Step 3):
 
 ```json
 "appendix": {
@@ -313,9 +370,9 @@ Optional appendix fields (include only if the student opted in during Step 4):
 Include all three `citation_*` fields in `outputs` even though the
 student selected one style — instructors who want a different style
 can use the alternate. The `disclosure_statement` is the paragraph from
-7b.
+5b.
 
-### Step 8 — Display
+### Step 6 — Display
 
 Present the three artifacts to the student in a single response:
 
