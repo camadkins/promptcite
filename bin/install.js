@@ -445,16 +445,79 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
     targetPaths: ['AGENTS.md'],
   },
   {
-    ...createStubProvider('cline'),
-    targetPaths: ['.clinerules'],
+    id: 'cline',
+    name: 'Cline',
+    detect: () => existsSync(join(process.cwd(), '.clinerules')) || existsSync(join(process.cwd(), '.cline')),
+    async install(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('cline');
+      }
+      const targetPath = join(ctx.cwd, '.clinerules', 'promptcite-receipt.md');
+      const ruleBody = await readRuleSource(ctx);
+      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
+      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
+    },
+    async uninstall(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('cline');
+      }
+      const targetPath = join(ctx.cwd, '.clinerules', 'promptcite-receipt.md');
+      if (await ctx.adapter.pathExists(targetPath)) {
+        await ctx.adapter.deleteFile(targetPath);
+      }
+    },
+    autoActivates: true,
+    targetPaths: ['.clinerules/promptcite-receipt.md'],
   },
   {
-    ...createStubProvider('continue'),
-    targetPaths: ['.continue/rules/promptcite.md'],
+    id: 'continue',
+    name: 'Continue',
+    detect: () => existsSync(join(process.cwd(), '.continue')),
+    async install(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('continue');
+      }
+      const targetPath = join(ctx.cwd, '.continue', 'rules', 'promptcite-receipt.md');
+      const ruleBody = await readRuleSource(ctx);
+      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
+      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
+    },
+    async uninstall(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('continue');
+      }
+      const targetPath = join(ctx.cwd, '.continue', 'rules', 'promptcite-receipt.md');
+      if (await ctx.adapter.pathExists(targetPath)) {
+        await ctx.adapter.deleteFile(targetPath);
+      }
+    },
+    autoActivates: true,
+    targetPaths: ['.continue/rules/promptcite-receipt.md'],
   },
   {
-    ...createStubProvider('roo'),
-    targetPaths: ['.roo/rules/promptcite.md'],
+    id: 'roo',
+    name: 'Roo Code',
+    detect: () => existsSync(join(process.cwd(), '.roo')),
+    async install(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('roo');
+      }
+      const targetPath = join(ctx.cwd, '.roo', 'rules', 'promptcite-receipt.md');
+      const ruleBody = await readRuleSource(ctx);
+      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
+      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
+    },
+    async uninstall(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('roo');
+      }
+      const targetPath = join(ctx.cwd, '.roo', 'rules', 'promptcite-receipt.md');
+      if (await ctx.adapter.pathExists(targetPath)) {
+        await ctx.adapter.deleteFile(targetPath);
+      }
+    },
+    autoActivates: true,
+    targetPaths: ['.roo/rules/promptcite-receipt.md'],
   },
   {
     ...createStubProvider('aider'),
@@ -613,7 +676,7 @@ function formatError(error) {
 
 /**
  * @param {{ only: string | null }} parsed
- * @returns {Provider[]}
+ * @returns {{ selected: Provider[], skipped: Provider[] }}
  */
 function selectProviders(parsed) {
   if (parsed.only) {
@@ -621,9 +684,15 @@ function selectProviders(parsed) {
     if (!provider) {
       throw new UserError(`unknown provider "${parsed.only}"`);
     }
-    return [provider];
+    // --only is an explicit user choice — install regardless of detection.
+    return { selected: [provider], skipped: [] };
   }
-  return providers;
+  // --all mode: only install for agents actually detected on this machine
+  // (per spec sect 3.1 "auto-detects installed agents"). Undetected agents
+  // are reported via the skipped list and the user is informed.
+  const selected = providers.filter((p) => p.detect());
+  const skipped = providers.filter((p) => !p.detect());
+  return { selected, skipped };
 }
 
 /**
@@ -655,11 +724,18 @@ async function main(argv) {
   }
 
   const ctx = buildContext(parsed);
-  const selectedProviders = selectProviders(parsed);
+  const { selected: selectedProviders, skipped: undetectedProviders } = selectProviders(parsed);
   const allMode = parsed.all === true;
   const action = parsed.uninstall ? 'uninstall' : 'install';
   let successCount = 0;
   let skipCount = 0;
+
+  // Inform user about agents we're skipping because they're not detected.
+  // Only relevant in --all mode; --only never produces skipped entries.
+  for (const provider of undetectedProviders) {
+    skipCount += 1;
+    ctx.log(`${c.dim('not detected')} ${provider.id} (skipping)`);
+  }
 
   for (const provider of selectedProviders) {
     try {
