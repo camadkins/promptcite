@@ -12,21 +12,25 @@ on:
     tags:
       - 'v*'
 
+# Top-level defaults to read-only. The release job below scopes up to
+# write what it actually needs.
 permissions:
-  contents: write
-  id-token: write       # sigstore attestation needs OIDC
-  attestations: write   # required for actions/attest-build-provenance
+  contents: read
 
 jobs:
   release:
     name: Release ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the GitHub Release
+      id-token: write       # sigstore attestation needs OIDC
+      attestations: write   # required for actions/attest-build-provenance
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '18'
 
@@ -47,12 +51,12 @@ jobs:
             .
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: 'promptcite-${{ github.ref_name }}.tar.gz'
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           generate_release_notes: true
           files: |

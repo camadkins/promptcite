@@ -6,7 +6,21 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-(nothing pending)
+### Added
+
+- `tests/verify.test.js`: 18 unit tests covering `canonicalize`,
+  `computeHash`, and `runVerify` (all exit code paths).
+- New CI job `Test`: runs `node --test tests/*.test.js` on Linux.
+- `pr-checks` bot: two new blocker rules (examples/*.json schema
+  validation, verify-against-example sanity check).
+
+### Changed
+
+- `bin/verify.js`: exported `canonicalize`, `computeHash`, `runVerify`
+  for testability. CLI entry now only runs when invoked directly.
+- README hero block: switched the sample names to the same fictional
+  values as `examples/brainstorm-receipt.json` (ENGL 251, Dr. Martinez,
+  C. Hawkins).
 
 ## [1.0.0] — 2026-05-28
 
