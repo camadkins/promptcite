@@ -441,7 +441,29 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
     targetPaths: ['.github/copilot-instructions.md'],
   },
   {
-    ...createStubProvider('codex'),
+    id: 'codex',
+    name: 'Codex CLI',
+    detect: () => existsSync(join(process.cwd(), 'AGENTS.md')) || existsSync(join(homedir(), '.codex')),
+    async install(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('codex');
+      }
+      // AGENTS.md uses surgical begin/end block append, like Copilot's
+      // .github/copilot-instructions.md, because AGENTS.md is a
+      // shared-convention file (multiple agents respect it) and we must
+      // preserve any existing content the user has there.
+      const targetPath = join(ctx.cwd, 'AGENTS.md');
+      const ruleBody = await readRuleSource(ctx);
+      await appendCopilotBlock({ adapter: ctx.adapter, targetPath, ruleBody });
+    },
+    async uninstall(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('codex');
+      }
+      const targetPath = join(ctx.cwd, 'AGENTS.md');
+      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
+    },
+    autoActivates: true,
     targetPaths: ['AGENTS.md'],
   },
   {
@@ -520,8 +542,30 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
     targetPaths: ['.roo/rules/promptcite-receipt.md'],
   },
   {
-    ...createStubProvider('aider'),
-    targetPaths: ['.aider.conf.yml'],
+    id: 'aider',
+    name: 'Aider',
+    detect: () => existsSync(join(process.cwd(), '.aider.conf.yml')) || existsSync(join(homedir(), '.aider.conf.yml')) || existsSync(join(process.cwd(), 'CONVENTIONS.md')),
+    async install(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('aider');
+      }
+      // Aider loads CONVENTIONS.md when configured via .aider.conf.yml
+      // ('read: CONVENTIONS.md') or via --read CONVENTIONS.md at startup.
+      // We drop CONVENTIONS.md and use surgical begin/end block append
+      // to preserve any existing convention content the user has there.
+      const targetPath = join(ctx.cwd, 'CONVENTIONS.md');
+      const ruleBody = await readRuleSource(ctx);
+      await appendCopilotBlock({ adapter: ctx.adapter, targetPath, ruleBody });
+    },
+    async uninstall(ctx) {
+      if (!ctx.withInit) {
+        throw new StubSkipError('aider');
+      }
+      const targetPath = join(ctx.cwd, 'CONVENTIONS.md');
+      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
+    },
+    autoActivates: true,
+    targetPaths: ['CONVENTIONS.md'],
   },
 ];
 
