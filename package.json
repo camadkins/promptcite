@@ -54,7 +54,7 @@
     "prepublishOnly": "node bin/install.js --version && node bin/install.js --list && node bin/install.js --help && node bin/install.js --dry-run --all"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^25.9.1",
     "typescript": "^6.0.3"
   }
 }
