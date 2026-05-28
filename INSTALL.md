@@ -3,8 +3,11 @@
 One install. Adds `/receipt` to every supported AI coding/writing agent
 on your machine.
 
-> 🚧 The repository is pre-release. The one-liner URLs below resolve
-> after the public push.
+> The one-liner URLs below resolve against the `main` branch by default.
+> For maximum determinism, install from a tagged release (e.g.,
+> `…/main/install.sh` → `…/v1.0.0/install.sh`) — tagged releases include
+> a sigstore build-provenance attestation you can verify with
+> `gh attestation verify <tarball> --repo camadkins/promptcite`.
 
 ## One-liner
 

@@ -1,5 +1,9 @@
-# PromptCite Contributor License Agreement
+# PromptCite Contributor License Agreement (Individual)
 
+> This is the **individual-contributor** CLA. If you are contributing
+> on behalf of a company or other legal entity that holds the
+> copyright, see [`CLA-ENTITY.md`](./CLA-ENTITY.md) instead.
+>
 > This CLA is adapted from the **Harmony Agreement HA-CLA-I-LIST 1.0**
 > ([harmonyagreements.org](http://harmonyagreements.org)), an open, widely-used
 > contributor license template. Only the project-name and maintainer-name
@@ -9,10 +13,10 @@
 > the right to update this CLA to a newer Harmony version with notice to
 > contributors; substantive changes will require re-signing.
 
-This Contributor License Agreement ("Agreement") is between **You** (the
-contributor — an individual or a legal entity You represent) and the
-PromptCite Project ("**Us**"), as represented by the current maintainer
-listed in `MAINTAINERS.md`.
+This Contributor License Agreement ("Agreement") is between **You** (an
+individual contributor) and the PromptCite Project ("**Us**"), as
+represented by the current maintainer listed in
+[`MAINTAINERS.md`](./MAINTAINERS.md).
 
 By signing this Agreement (via the cla-assistant.io bot on a pull request,
 or by other written means), You accept and agree to the terms below for

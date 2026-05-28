@@ -45,13 +45,22 @@ exactly when the commercial license applies.
 ## Contribution
 
 All contributions to PromptCite require a signed Contributor License
-Agreement (CLA). See `CLA.md` for the agreement and the project's CLA bot
-(cla-assistant.io) for the automated signing flow.
+Agreement (CLA). Two versions exist depending on who holds the
+contribution's copyright:
 
-The CLA grants the maintainer the right to relicense your contribution under
-commercial terms while preserving your right to use your own contribution
-under AGPL v3. This is what makes dual-licensing legally durable as the
-project grows.
+- **Individuals** — see [`CLA.md`](./CLA.md) (Harmony HA-CLA-I-LIST 1.0)
+- **Entities / Companies / Organizations** — see [`CLA-ENTITY.md`](./CLA-ENTITY.md) (Harmony HA-CLA-E 1.0)
+
+The project's CLA bot (cla-assistant.io) automates signing on every
+pull request.
+
+The CLA grants the maintainer the right to relicense your contribution
+under commercial terms while preserving your right to use your own
+contribution under AGPL v3. This is what makes dual-licensing legally
+durable as the project grows.
+
+For complete contribution guidelines (PR flow, what's welcome, what's
+not), see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Trademarks
 
