@@ -813,6 +813,12 @@ async function main(argv) {
 
   const summary = `${c.green('installed.')} ${successCount} agent(s) processed.`;
   ctx.log(skipCount > 0 ? `${summary} ${skipCount} skipped.` : summary);
+
+  if (successCount > 0) {
+    ctx.log('');
+    ctx.log(`${c.bold('next:')} open a fresh session in your agent and type ${c.cyan('/receipt')} to try it.`);
+    ctx.log(`docs: https://github.com/camadkins/promptcite`);
+  }
   return 0;
 }
 

@@ -38,26 +38,51 @@ fields:
     type: string
     required: true
     description: |
-      How the tool/model/date fields under `ai_use` were filled.
+      How the tool/model/date fields under `ai_use` were filled at
+      generation time.
 
-      - `"agent_reported"` — the AI agent itself filled `tool`, `model`,
-        and `date` based on its own self-knowledge (student answered
-        "this session" in Step 0 of the interview). This is the
-        verifiable-provenance path: the student cannot lie about which
-        AI they used because the AI fills those fields itself.
+      - `"agent_reported"`: the AI agent filled `tool`, `model`, and
+        `date` based on its own self-knowledge (student answered "this
+        session" in Step 0 of the interview). Reduces friction for
+        honest disclosure since the student doesn't have to remember
+        the exact model version or look up today's date.
 
-      - `"student_claimed"` — the student filled `tool`, `model`, and
+      - `"student_claimed"`: the student filled `tool`, `model`, and
         `date` themselves because they were disclosing AI use from a
-        previous session or a different tool (student answered
-        "previous session" in Step 0). Self-disclosure without agent
-        verification.
+        previous session or a different tool.
 
-      Note: this field qualifies the metadata fields ONLY. The content
-      fields (`prompt_summary`, `revision_statement`, etc.) are always
-      student-authored regardless of metadata_source.
+      Important: the receipt JSON is locally editable after generation.
+      `metadata_source` is a transparency marker at generation time,
+      not a cryptographic claim. See `content_hash` for the tamper-
+      evident speed bump.
     enum:
       - agent_reported
       - student_claimed
+
+  content_hash:
+    type: string
+    required: false
+    nullable: true
+    description: |
+      SHA-256 of the canonical serialization of all other fields in this
+      receipt (sorted keys, no whitespace, UTF-8). Lets a reviewer
+      verify the receipt hasn't been edited since the agent emitted it.
+
+      Computed by the agent at generation time if the agent has code
+      execution available (Python interpreter, bash, etc.). If the
+      agent has no code-execution tool, this field is `null` and the
+      receipt is unverifiable beyond self-disclosure.
+
+      Honest framing: tamper-evident, not tamper-proof. A determined
+      student can recompute the hash after editing; the algorithm is
+      public. The speed bump matters because most casual editing won't
+      bother. Real cryptographic non-repudiation requires server-side
+      signing or transparency-log inclusion, which is integration-
+      phase work, not skill work.
+
+      Verification: `npx -y github:camadkins/promptcite verify <file>`
+      returns exit 0 on match, 1 on mismatch, 2 on missing/null hash.
+    pattern: '^[a-f0-9]{64}$'
 
   student:
     type: string

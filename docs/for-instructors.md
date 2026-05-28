@@ -78,10 +78,35 @@ not independently verified.
 
 ### Either way
 
-The **content fields** — `prompt_summary`, `direct_content_used`,
-`revision_statement`, `source_verification` — are always
-student-authored. PromptCite captures what the student writes; it
-does not interpret or verify it.
+The **content fields** (`prompt_summary`, `direct_content_used`,
+`revision_statement`, `source_verification`) are always student-
+authored. PromptCite captures what the student writes; it does not
+interpret or verify it.
+
+## Verifying the receipt hasn't been edited
+
+Receipts include a `content_hash` field: SHA-256 of the canonical
+serialization of all other fields. You can detect casual editing
+by running:
+
+```bash
+npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
+```
+
+Exit codes:
+- `0` hash matches (receipt unmodified since emission)
+- `1` hash mismatch (receipt was edited)
+- `2` no `content_hash` field, or null (the agent had no code-execution
+  tool when emitting, OR an older receipt format)
+- `3` user error (file missing, bad JSON, etc.)
+
+**Honest limits:** this is tamper-evident, not tamper-proof. A
+determined student can recompute the hash after editing since the
+algorithm is public and the verify tool is open source. The check
+matters because casual editing won't bother recomputing. Real
+cryptographic non-repudiation needs server-side signing or
+transparency-log inclusion, which is on the roadmap for institutional
+integrations.
 
 ## Use categories — what to look for per category
 

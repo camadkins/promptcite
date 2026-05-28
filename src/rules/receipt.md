@@ -318,6 +318,7 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
   "schema_version": "1.0",
   "generated_at": "<ISO 8601 timestamp>",
   "metadata_source": "agent_reported | student_claimed",
+  "content_hash": "<sha256 of canonical other-fields, or null>",
   "student": "<identifier from Step 1>",
   "assignment": {
     "course": "...",
@@ -343,19 +344,40 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 }
 ```
 
-**`metadata_source` is set in Step 0:**
-- `"agent_reported"` if the student answered "this session" — the agent
-  filled `tool`, `model`, `date` from its own self-knowledge. This is the
-  verifiable-provenance path; the student did not author those fields.
-- `"student_claimed"` if the student answered "previous session" — the
-  student filled `tool`, `model`, `date` from memory. Self-disclosure
-  without agent verification.
+**Computing `content_hash`:** if you have a code-execution tool
+(Python, bash, JavaScript runtime), compute SHA-256 of the canonical
+JSON serialization of all other fields:
 
-Instructors read this field to understand whether the tool/model/date
-came from the AI itself (verifiable) or from the student's recollection
-(self-reported). It does not change the trust model for the *content*
-fields (`prompt_summary`, `revision_statement` etc.) — those are always
-student-authored.
+1. Build the receipt object with `content_hash` field absent (or null).
+2. Serialize with sorted keys, no whitespace, UTF-8 (e.g.,
+   `json.dumps(receipt, sort_keys=True, separators=(",",":"))`
+   in Python, or `JSON.stringify` with a sorted-key replacer in JS).
+3. SHA-256 the resulting bytes.
+4. Hex-encode the digest (64 lowercase chars).
+5. Set `content_hash` to that string.
+
+If you have NO code-execution tool, set `content_hash: null` and
+emit a short note in the conversation explaining that this receipt
+is unverifiable beyond self-disclosure.
+
+Honest framing of what the hash buys: tamper-evident, not tamper-
+proof. A reviewer (or a tool the reviewer uses) can detect casual
+editing. A determined student can recompute the hash after editing
+since the algorithm is public. Real cryptographic non-repudiation
+needs server-side signing or a transparency log, which is
+integration-phase work.
+
+**`metadata_source` is set in Step 0:**
+- `"agent_reported"` if the student answered "this session": the agent
+  filled `tool`, `model`, `date` from its own self-knowledge.
+- `"student_claimed"` if the student answered "previous session": the
+  student filled `tool`, `model`, `date` from memory.
+
+Instructors read this field to see whether the tool/model/date came
+from the AI at generation time or from the student's recollection. It
+does not make the receipt tamper-resistant on its own; see
+`content_hash` for the speed bump. Content fields (`prompt_summary`,
+`revision_statement`, etc.) are always student-authored.
 
 Optional appendix fields (include only if the student opted in during Step 3):
 

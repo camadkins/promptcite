@@ -26,8 +26,15 @@ infrastructure + supply-chain hardening, all shipped together.
 - **Step 0 provenance gate** with `metadata_source` field
   (`agent_reported` when the AI fills its own tool/model/date,
   `student_claimed` when the student types them in)
-- Token-clumped interview flow — brainstorm path drops from 11 turns
+- Token-clumped interview flow: brainstorm path drops from 11 turns
   to ~5 with no information loss
+- **`content_hash` field** (sha256 of canonical other-fields) for
+  tamper-evident receipts. Agent computes it at generation time if it
+  has a code-execution tool, sets null otherwise. Honest framing:
+  speed bump, not signature.
+- **`promptcite-verify` CLI** (`bin/verify.js`) for instructors:
+  recomputes the hash and reports match / mismatch / null / user error
+  with distinct exit codes (0 / 1 / 2 / 3).
 
 **Install matrix (10 native adapters)**
 - **Global install:** Claude Code (`~/.claude/skills/promptcite/SKILL.md`),
@@ -42,8 +49,10 @@ infrastructure + supply-chain hardening, all shipped together.
 - Installer flags: `--dry-run`, `--only <id>`, `--all`, `--with-init`,
   `--uninstall`, `--non-interactive`, `--no-color`, `--config-dir`,
   `--force`, `--list`, `--version`, `--help`
-- `--all` filters by `detect()` — only installs for agents actually
+- `--all` filters by `detect()`: only installs for agents actually
   present on the user's machine
+- Post-install message guides the user to a fresh agent session and
+  the `/receipt` command, with a docs link.
 
 **Licensing & contributor governance**
 - AGPL-3.0-only community license + commercial license available

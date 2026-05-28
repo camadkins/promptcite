@@ -6,7 +6,8 @@
   "type": "module",
   "main": "bin/install.js",
   "bin": {
-    "promptcite": "bin/install.js"
+    "promptcite": "bin/install.js",
+    "promptcite-verify": "bin/verify.js"
   },
   "engines": {
     "node": ">=18"
