@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, unlinkSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonicalize, computeHash, runVerify } from '../bin/verify.js';
@@ -81,12 +81,16 @@ test('computeHash differs when content changes', () => {
 });
 
 async function withTempReceipt(receipt, fn) {
-  const path = join(tmpdir(), `pc-test-${process.pid}-${Date.now()}-${Math.random()}.json`);
+  // mkdtempSync creates a unique directory with 0o700 perms, avoiding
+  // the symlink-attack window of constructing a path in tmpdir() and
+  // writing to it.
+  const dir = mkdtempSync(join(tmpdir(), 'pc-test-'));
+  const path = join(dir, 'receipt.json');
   writeFileSync(path, JSON.stringify(receipt));
   try {
     return await fn(path);
   } finally {
-    try { unlinkSync(path); } catch {}
+    try { rmSync(dir, { recursive: true, force: true }); } catch {}
   }
 }
 
