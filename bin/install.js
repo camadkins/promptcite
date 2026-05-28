@@ -172,11 +172,10 @@ function createDryRunAdapter(log) {
 async function readRuleSource(ctx) {
   const target = join(ctx.repoRoot, 'src', 'rules', 'receipt.md');
   try {
-    await access(target);
+    return await readFile(target, 'utf8');
   } catch {
     throw new Error(`rule source missing at ${target}`);
   }
-  return readFile(target, 'utf8');
 }
 
 /**
@@ -264,26 +263,6 @@ class StubSkipError extends Error {
 /** @param {string} id */
 const STUB_MESSAGE = (id) =>
   `[${id}] adapter coming in next release — for now use 'npx skills add camadkins/promptcite -a ${id}' (validates against vercel-labs/skills registry once promptcite is added)`;
-
-/**
- * @param {string} id
- * @returns {Provider}
- */
-function createStubProvider(id) {
-  return {
-    id,
-    name: id.charAt(0).toUpperCase() + id.slice(1),
-    detect: () => false,
-    async install() {
-      throw new StubSkipError(id);
-    },
-    async uninstall() {
-      throw new StubSkipError(id);
-    },
-    autoActivates: false,
-    targetPaths: [id],
-  };
-}
 
 /** @type {Provider[]} */
 const providers = [

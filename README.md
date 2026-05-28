@@ -20,7 +20,7 @@ where AI use is **permitted** and **disclosure is required**.
 
 ## See it in action
 
-Student finishes a PHIL 212 assignment in Claude Code. Fresh session.
+Student finishes a policy essay in Claude Code. Fresh session.
 
 ```
 > /receipt
@@ -32,7 +32,7 @@ A few quick details, answer all:
   1. course, instructor, assignment title
   2. your name or ID for this receipt
   3. citation style (MLA / APA / Chicago)
-> PHIL 212, Mr Yu, Assignment 1, C. Hawkins, MLA
+> ENGL 251, Dr. Martinez, Policy Analysis Essay, C. Hawkins, MLA
 
 What did you use the AI for?
   brainstorm / outline / draft / edit / debug / explain / search
@@ -40,26 +40,26 @@ What did you use the AI for?
 
   (1) one-sentence summary of what you asked the AI to brainstorm
   (2) did any AI-generated text appear verbatim?
-> counterarguments to utilitarianism / no
+> counterarguments to carbon tax policies / no
 
 Anything to add for the revision statement?
-> Integrated the counterarguments in my own words.
+> Used the list to structure my own outline, rewrote arguments in my own words.
 
 ══════ AI Use Receipt ══════
 
 CITATION (MLA):
-  "Counterarguments to utilitarianism." prompt. *Claude*, Opus 4.7
-  version, Anthropic, 27 May 2026.
+  "Counterarguments to carbon tax policies." prompt. *Claude*,
+  Opus 4.7 version, Anthropic, 14 May 2026.
 
 DISCLOSURE:
-  I used Claude (Opus 4.7) on 2026-05-27 to brainstorm counterarguments
-  to utilitarianism for this assignment. No AI-generated text appears
-  in the final submission. I integrated the counterarguments in my own
-  words. This receipt was generated inside Claude itself, so the tool,
-  model, and date fields above were agent-verified rather than student-
-  reported.
+  I used Claude (Opus 4.7) on 2026-05-14 to brainstorm counterarguments
+  to carbon tax policies for this assignment. No AI-generated text
+  appears in the final submission. I used the list to structure my own
+  outline and rewrote the arguments in my own words. This receipt was
+  generated inside Claude itself, so the tool, model, and date fields
+  above were agent-verified rather than student-reported.
 
-JSON receipt saved as ai-receipt.json (content_hash 9ce7..4d2a).
+JSON receipt saved as ai-receipt.json (content_hash dc84..4ed1).
 Paste citation in your Works Cited. Paste disclosure in your paper's
 header. Attach ai-receipt.json to your submission.
 

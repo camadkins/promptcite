@@ -13,7 +13,7 @@ import process from 'node:process';
  * @param {unknown} value
  * @returns {string}
  */
-function canonicalize(value) {
+export function canonicalize(value) {
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
   }
@@ -32,7 +32,7 @@ function canonicalize(value) {
  * @param {Record<string, unknown>} receipt
  * @returns {string} hex-encoded sha256
  */
-function computeHash(receipt) {
+export function computeHash(receipt) {
   const { content_hash: _ignored, ...rest } = receipt;
   const canonical = canonicalize(rest);
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
@@ -58,7 +58,7 @@ casual editing won't bother.`);
  * @param {string[]} argv
  * @returns {Promise<number>}
  */
-async function main(argv) {
+export async function runVerify(argv) {
   const args = argv.filter((/** @type {string} */ a) => !a.startsWith('-'));
   if (argv.includes('-h') || argv.includes('--help') || args.length === 0) {
     printHelp();
@@ -110,5 +110,8 @@ async function main(argv) {
   return 1;
 }
 
-const code = await main(process.argv.slice(2));
-process.exit(code);
+// Only auto-run if invoked directly (not via test imports)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const code = await runVerify(process.argv.slice(2));
+  process.exit(code);
+}
