@@ -168,12 +168,15 @@ jobs:
             mark_pass "All commits use conventional prefix"
           fi
 
-          # 11. INSTALL.md updated if PROVIDERS array changed
-          if git diff origin/main..HEAD -- bin/install.js | grep -q "PROVIDERS\|providers ="; then
+          # 11. INSTALL.md updated if an actual provider entry was added
+          # or removed. Match only `id: '<word>'` lines being added or
+          # removed in bin/install.js, not generic mentions of "providers".
+          PROVIDER_DIFF=$(git diff origin/main..HEAD -- bin/install.js | grep -E "^[+-]\s*id: ['\"][a-z]+['\"]" || true)
+          if [ -n "$PROVIDER_DIFF" ]; then
             if ! git diff origin/main..HEAD -- INSTALL.md | grep -q "^+"; then
-              mark_warn "bin/install.js providers array changed but INSTALL.md not updated — verify the agent matrix table is current"
+              mark_warn "an entry was added or removed from the providers array but INSTALL.md not updated — verify the agent matrix is current"
             else
-              mark_pass "INSTALL.md updated alongside provider changes"
+              mark_pass "INSTALL.md updated alongside provider entry changes"
             fi
           fi
 
