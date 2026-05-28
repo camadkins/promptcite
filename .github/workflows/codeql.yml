@@ -8,17 +8,14 @@
 name: CodeQL
 
 on:
+  # Run on every PR — path filters create a deadlock with branch
+  # protection: if a required check is skipped (not failed, just
+  # didn't run), the PR is permanently BLOCKED. Cheap to always run
+  # (CodeQL on a no-code PR completes in ~30s as a no-op success).
   pull_request:
     branches: [main]
-    paths:
-      - 'bin/**'
-      - 'src/**'
-      - '.github/workflows/codeql.yml'
   push:
     branches: [main]
-    paths:
-      - 'bin/**'
-      - 'src/**'
   schedule:
     - cron: '17 9 * * 3'   # Wednesdays at 09:17 UTC
 
