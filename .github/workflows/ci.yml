@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -43,7 +43,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -88,7 +88,7 @@ jobs:
     name: Gemini extension manifest valid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate gemini-extension.json
         run: |
           node -e "
@@ -104,7 +104,7 @@ jobs:
     name: GEMINI.md synced from receipt.md
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify sync
         run: |
           # GEMINI.md should match receipt.md body (skip GEMINI's 4 sync-header lines + blank, skip receipt's 3 SPDX lines)
