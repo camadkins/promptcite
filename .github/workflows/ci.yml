@@ -29,7 +29,14 @@ jobs:
           bun-version: latest
 
       - name: Install devDeps
-        run: bun install --frozen-lockfile
+        # Dropped --frozen-lockfile because Dependabot updates package.json
+        # without updating bun.lock (Dependabot's npm ecosystem doesn't
+        # know about bun's lockfile format). With --frozen-lockfile, every
+        # Dependabot npm-deps PR would be permanently blocked.
+        # Trade-off: CI may resolve fresh versions if a non-frozen
+        # range allows it. Deterministic-build matters less here because
+        # bin/install.js has zero runtime deps; only devDeps are at stake.
+        run: bun install
 
       - name: Typecheck
         run: bun run typecheck
