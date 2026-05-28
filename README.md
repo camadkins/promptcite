@@ -91,14 +91,32 @@ Harmony HA-CLA-I-LIST 1.0 template).
 
 ## Project files
 
+**Product**
 - [`src/rules/receipt.md`](./src/rules/receipt.md) — the `/receipt`
   interview rule file (single source of truth across all agents)
 - [`src/schema.yaml`](./src/schema.yaml) — receipt JSON schema
 - [`bin/install.js`](./bin/install.js) — the Node installer brain
 - [`INSTALL.md`](./INSTALL.md) — install instructions
-- [`SECURITY.md`](./SECURITY.md) — vulnerability reporting
+
+**For instructors**
+- [`docs/for-instructors.md`](./docs/for-instructors.md) — how to read
+  a receipt, what `metadata_source` means, policy patterns
+- [`examples/`](./examples/) — sample receipts (currently `brainstorm`;
+  other categories follow the same pattern)
+
+**Contributors**
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute, CLA flow,
+  scope of welcome changes
+- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) — Contributor Covenant 2.1
+- [`CHANGELOG.md`](./CHANGELOG.md) — release notes per version
+- [`CLA.md`](./CLA.md) — contributor license agreement (individual)
+- [`CLA-ENTITY.md`](./CLA-ENTITY.md) — contributor license agreement
+  (entity, for corporate contributors)
+
+**Governance**
+- [`SECURITY.md`](./SECURITY.md) — vulnerability reporting + threat model
 - [`MAINTAINERS.md`](./MAINTAINERS.md) — chain of custody
-- [`CLA.md`](./CLA.md) — contributor license agreement
+- [`NOTICE.md`](./NOTICE.md) — plain-language dual-license summary
 
 ## Contributing
 

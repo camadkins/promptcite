@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-05-14T16:32:00Z",
+  "metadata_source": "agent_reported",
+  "student": "C. Hawkins",
+  "assignment": {
+    "course": "ENGL 251",
+    "instructor": "Dr. Martinez",
+    "title": "Policy Analysis Essay"
+  },
+  "ai_use": {
+    "tool": "ChatGPT",
+    "model": "GPT-4o",
+    "date": "2026-05-14",
+    "category": "brainstorm",
+    "prompt_summary": "Asked for five counterarguments to carbon tax policies",
+    "direct_content_used": false,
+    "revision_statement": "Used the list to structure my own outline; rewrote all arguments in my own words.",
+    "source_verification": null
+  },
+  "outputs": {
+    "citation_mla": "\"Counterarguments to carbon tax policies.\" prompt. *ChatGPT*, GPT-4o version, OpenAI, 14 May 2026.",
+    "citation_apa": "OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].",
+    "citation_chicago": "ChatGPT, GPT-4o, response to \"Counterarguments to carbon tax policies,\" May 14, 2026, OpenAI.",
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on May 14, 2026 to brainstorm counterarguments to carbon tax policies for this assignment. No AI-generated text appears in the final submission. I used the list to structure my own outline and rewrote all arguments in my own words. This receipt was generated inside ChatGPT itself, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}
