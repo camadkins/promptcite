@@ -143,6 +143,16 @@ jobs:
             mark_fail "bin/verify.js failed to verify examples/brainstorm-receipt.json (algorithm drift or hash mismatch)"
           fi
 
+          # 8d. Conventional commits required. Excludes merge commits,
+          # which GitHub Actions creates synthetically for PR builds.
+          COMMITS_BAD=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
+          if [ "$COMMITS_BAD" -gt 0 ]; then
+            BAD_LIST=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | head -3 | sed 's/^/    /')
+            mark_fail "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:). First few:\n$BAD_LIST"
+          else
+            mark_pass "All commits use conventional prefix"
+          fi
+
           # =============================================================
           # WARN-level checks (note for maintainer, do not block)
           # =============================================================
@@ -158,15 +168,7 @@ jobs:
             mark_pass "No detection-language in code surfaces"
           fi
 
-          # 10. Commit message convention — exclude merge commits, which
-          # GitHub Actions creates synthetically for PR builds and don't
-          # follow conventional-commits (subject is "Merge X into Y").
-          COMMITS_BAD=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
-          if [ "$COMMITS_BAD" -gt 0 ]; then
-            mark_warn "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:)"
-          else
-            mark_pass "All commits use conventional prefix"
-          fi
+          # (conventional commits moved up to FAIL section as rule 8d)
 
           # 11. INSTALL.md updated if an actual provider entry was added
           # or removed. Match only `id: '<word>'` lines being added or

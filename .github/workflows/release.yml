@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Cam Adkins
 #
-# Release — on v* tag push, create a GitHub Release with auto-generated
-# notes and a sigstore build-provenance attestation. Users can verify
-# the release wasn't tampered with by checking the attestation.
+# Release pipeline. v* tag push triggers two jobs in sequence:
+#   1. verify: runs typecheck, unit tests, install dry-run on the tagged
+#      commit. if any of those fail, no release happens.
+#   2. release: only runs if verify succeeded. builds tarball, sigstore-
+#      attests it, creates a DRAFT GitHub Release with the matching
+#      CHANGELOG section as the body (plus auto-generated PR list).
+#      maintainer reviews the draft and clicks publish.
 
 name: Release
 
@@ -12,14 +16,62 @@ on:
     tags:
       - 'v*'
 
-# Top-level defaults to read-only. The release job below scopes up to
-# write what it actually needs.
+# Top-level defaults to read-only. Per-job perms scoped up as needed.
 permissions:
   contents: read
 
 jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '18'
+
+      - name: Install devDeps
+        run: bun install
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: node --test tests/*.test.js
+
+      - name: install.js --list
+        run: node bin/install.js --list
+
+      - name: install.js --help
+        run: node bin/install.js --help
+
+      - name: install.js --version
+        run: node bin/install.js --version
+
+      - name: install.js --dry-run --all (no files should be written)
+        run: |
+          SANDBOX="/tmp/promptcite-release-sandbox-$$"
+          rm -rf "$SANDBOX"
+          node bin/install.js --dry-run --all --config-dir "$SANDBOX"
+          if [ -e "$SANDBOX" ]; then
+            echo "ERROR: --dry-run created the sandbox path"
+            exit 1
+          fi
+
+      - name: Verifier passes on example receipt
+        run: node bin/verify.js examples/brainstorm-receipt.json
+
   release:
     name: Release ${{ github.ref_name }}
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write       # create the GitHub Release
@@ -29,17 +81,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: '18'
-
-      - name: Verify install.js runs
-        run: |
-          node bin/install.js --version
-          node bin/install.js --list
-          node bin/install.js --dry-run --all
-
       - name: Build release tarball
         run: |
           # Exclude dev cruft from the release artifact
@@ -47,6 +88,7 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
+            --exclude='tests' \
             --exclude='*.tar.gz' \
             .
 
@@ -55,24 +97,66 @@ jobs:
         with:
           subject-path: 'promptcite-${{ github.ref_name }}.tar.gz'
 
-      - name: Create GitHub Release
+      - name: Extract CHANGELOG section for this version
+        id: changelog
+        run: |
+          # The tag is v1.0.0. CHANGELOG section header is "## [1.0.0] ..."
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            const md = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const lines = md.split('\n');
+            // Build a regex that escapes dots in the version number
+            const re = new RegExp('^## \\\\[' + version.replace(/\\./g, '\\\\.') + '\\\\]');
+            const start = lines.findIndex((l) => re.test(l));
+            if (start === -1) {
+              console.error('no changelog section for version ' + version);
+              process.exit(0);  // not fatal; release body falls back to auto-gen
+            }
+            const after = lines.slice(start + 1);
+            const nextStart = after.findIndex((l) => /^## \\[/.test(l));
+            const section = after.slice(0, nextStart === -1 ? after.length : nextStart).join('\n').trim();
+            fs.writeFileSync('/tmp/release-body.md', section);
+          " || true
+          if [ -s /tmp/release-body.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "body<<EOF"
+              cat /tmp/release-body.md
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Create GitHub Release (draft)
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
+          draft: true
           generate_release_notes: true
           files: |
             promptcite-${{ github.ref_name }}.tar.gz
           body: |
-            ## PromptCite ${{ github.ref_name }}
+            # PromptCite ${{ github.ref_name }}
 
-            **Install:**
+            ${{ steps.changelog.outputs.body }}
+
+            ---
+
+            ## Install
+
             ```bash
             curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/${{ github.ref_name }}/install.sh | bash
             ```
 
-            **Verify the release** (cosign required):
+            See [INSTALL.md](https://github.com/camadkins/promptcite/blob/${{ github.ref_name }}/INSTALL.md) for per-agent install paths.
+
+            ## Verify the release
+
             ```bash
             gh attestation verify promptcite-${{ github.ref_name }}.tar.gz \
               --repo camadkins/promptcite
             ```
-
-            See [INSTALL.md](https://github.com/camadkins/promptcite/blob/${{ github.ref_name }}/INSTALL.md) for per-agent install paths.
