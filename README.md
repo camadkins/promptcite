@@ -18,6 +18,57 @@ and makes no claims about whether the work is "AI-written." It is a
 transparency artifact for the (large and growing) class of assignments
 where AI use is **permitted** and **disclosure is required**.
 
+## See it in action
+
+Student finishes a PHIL 212 assignment in Claude Code. Fresh session.
+
+```
+> /receipt
+
+Are you disclosing AI use from this current session, or previous?
+> this session
+
+A few quick details, answer all:
+  1. course, instructor, assignment title
+  2. your name or ID for this receipt
+  3. citation style (MLA / APA / Chicago)
+> PHIL 212, Mr Yu, Assignment 1, C. Hawkins, MLA
+
+What did you use the AI for?
+  brainstorm / outline / draft / edit / debug / explain / search
+> brainstorm
+
+  (1) one-sentence summary of what you asked the AI to brainstorm
+  (2) did any AI-generated text appear verbatim?
+> counterarguments to utilitarianism / no
+
+Anything to add for the revision statement?
+> Integrated the counterarguments in my own words.
+
+══════ AI Use Receipt ══════
+
+CITATION (MLA):
+  "Counterarguments to utilitarianism." prompt. *Claude*, Opus 4.7
+  version, Anthropic, 27 May 2026.
+
+DISCLOSURE:
+  I used Claude (Opus 4.7) on 2026-05-27 to brainstorm counterarguments
+  to utilitarianism for this assignment. No AI-generated text appears
+  in the final submission. I integrated the counterarguments in my own
+  words. This receipt was generated inside Claude itself, so the tool,
+  model, and date fields above were agent-verified rather than student-
+  reported.
+
+JSON receipt saved as ai-receipt.json (content_hash 9ce7..4d2a).
+Paste citation in your Works Cited. Paste disclosure in your paper's
+header. Attach ai-receipt.json to your submission.
+
+Five turns. Under two minutes. Receipt is yours to submit.
+```
+
+Full sample receipt: [`examples/brainstorm-receipt.json`](./examples/brainstorm-receipt.json).
+Instructor-side reading guide: [`docs/for-instructors.md`](./docs/for-instructors.md).
+
 ## How metadata gets filled
 
 PromptCite asks one question at the start of the interview: are you

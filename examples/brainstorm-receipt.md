@@ -57,6 +57,16 @@ See [`brainstorm-receipt.json`](./brainstorm-receipt.json). Attach to
 your submission as a file, or paste the JSON block at the end of your
 paper.
 
+The receipt includes a `content_hash` field (sha256 of the other
+fields, canonically serialized). Instructors can verify the receipt
+hasn't been edited:
+
+```bash
+npx -y github:camadkins/promptcite promptcite-verify brainstorm-receipt.json
+```
+
+Tamper-evident speed bump, not tamper-proof. Honest about its limits.
+
 ---
 
 ## What this example demonstrates

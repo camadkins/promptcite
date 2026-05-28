@@ -48,14 +48,14 @@ runs under the hood), use the table below. Every row also works as
 |---|---|:-:|
 | **Claude Code** | `claude plugin marketplace add camadkins/promptcite && claude plugin install promptcite@promptcite` | Yes |
 | **Gemini CLI** | `gemini extensions install https://github.com/camadkins/promptcite` | Yes |
-| **Codex CLI** | `npx -y github:camadkins/promptcite -- --only codex --with-init` | Surgical block in `AGENTS.md` at project root |
-| **Cursor** | `npx -y github:camadkins/promptcite -- --only cursor --with-init` | Per-project rule file at `.cursor/rules/promptcite-receipt.md` |
-| **Windsurf** | `npx -y github:camadkins/promptcite -- --only windsurf --with-init` | Per-project rule file at `.windsurf/rules/promptcite-receipt.md` |
-| **Cline** | `npx -y github:camadkins/promptcite -- --only cline --with-init` | Per-project rule file at `.clinerules/promptcite-receipt.md` |
-| **GitHub Copilot** | `npx -y github:camadkins/promptcite -- --only copilot --with-init` | Repo-wide instructions via `--with-init` |
-| **Continue** | `npx -y github:camadkins/promptcite -- --only continue --with-init` | Per-project rule file at `.continue/rules/promptcite-receipt.md` |
-| **Roo Code** | `npx -y github:camadkins/promptcite -- --only roo --with-init` | Per-project rule file at `.roo/rules/promptcite-receipt.md` |
-| **Aider** | `npx -y github:camadkins/promptcite -- --only aider --with-init` | Surgical block in `CONVENTIONS.md` at project root (load via `--read CONVENTIONS.md` or `.aider.conf.yml`) |
+| **Codex CLI** | `npx -y github:camadkins/promptcite --only codex --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Cursor** | `npx -y github:camadkins/promptcite --only cursor --with-init` | Per-project rule file at `.cursor/rules/promptcite-receipt.md` |
+| **Windsurf** | `npx -y github:camadkins/promptcite --only windsurf --with-init` | Per-project rule file at `.windsurf/rules/promptcite-receipt.md` |
+| **Cline** | `npx -y github:camadkins/promptcite --only cline --with-init` | Per-project rule file at `.clinerules/promptcite-receipt.md` |
+| **GitHub Copilot** | `npx -y github:camadkins/promptcite --only copilot --with-init` | Repo-wide instructions via `--with-init` |
+| **Continue** | `npx -y github:camadkins/promptcite --only continue --with-init` | Per-project rule file at `.continue/rules/promptcite-receipt.md` |
+| **Roo Code** | `npx -y github:camadkins/promptcite --only roo --with-init` | Per-project rule file at `.roo/rules/promptcite-receipt.md` |
+| **Aider** | `npx -y github:camadkins/promptcite --only aider --with-init` | Surgical block in `CONVENTIONS.md` at project root (load via `--read CONVENTIONS.md` or `.aider.conf.yml`) |
 
 The full agent matrix lives in `bin/install.js` under the `PROVIDERS`
 array. `npx skills add` covers ~25 long-tail agents via the
