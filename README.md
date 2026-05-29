@@ -1,22 +1,38 @@
 # PromptCite
 
-> **A `/receipt` command for AI use in academic work.**
-> Open-source. Cross-agent. Self-disclosure, not detection.
+> Cross-agent `/receipt` for honest AI use disclosure on student work.
 
-PromptCite installs into Claude Code, Gemini CLI, Cursor, Windsurf, Codex,
-Copilot, and 20+ other AI coding/writing agents and adds a single command:
-`/receipt`. After working with AI on an assignment, a student runs
-`/receipt`, answers a few questions in under two minutes, and gets back
-three things ready to paste into their submission:
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL_v3-blue.svg)](./LICENSE)
+[![CI](https://github.com/camadkins/promptcite/actions/workflows/ci.yml/badge.svg)](https://github.com/camadkins/promptcite/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/camadkins/promptcite/actions/workflows/codeql.yml/badge.svg)](https://github.com/camadkins/promptcite/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/camadkins/promptcite)](https://github.com/camadkins/promptcite/releases)
+[![OSSF Scorecard](https://api.scorecard.dev/projects/github.com/camadkins/promptcite/badge)](https://scorecard.dev/viewer/?uri=github.com/camadkins/promptcite)
 
-- A properly formatted **citation** (MLA, APA, or Chicago)
-- A plain-language **disclosure paragraph** for the paper's header
-- A structured **JSON receipt** for instructor review and archival
+## Install
 
-PromptCite is **not** an AI detector. It produces no originality scores
-and makes no claims about whether the work is "AI-written." It is a
-transparency artifact for the (large and growing) class of assignments
-where AI use is **permitted** and **disclosure is required**.
+**macOS, Linux, WSL, Git Bash**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/main/install.sh | bash
+```
+
+**Windows (PowerShell 5.1+)**
+
+```powershell
+irm https://raw.githubusercontent.com/camadkins/promptcite/main/install.ps1 | iex
+```
+
+Installs into every supported AI agent on your machine. ~30 seconds, idempotent, safe to re-run. Per-agent commands and flags in [INSTALL.md](./INSTALL.md).
+
+## What it is
+
+PromptCite installs into 10 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider) and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
+
+- A formatted **citation** (MLA, APA, or Chicago).
+- A plain-language **disclosure paragraph** for the paper's header.
+- A structured **JSON receipt** for instructor review and archival.
+
+It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
 
 ## See it in action
 
@@ -66,118 +82,33 @@ header. Attach ai-receipt.json to your submission.
 Five turns. Under two minutes. Receipt is yours to submit.
 ```
 
-Full sample receipt: [`examples/brainstorm-receipt.json`](./examples/brainstorm-receipt.json).
-Instructor-side reading guide: [`docs/for-instructors.md`](./docs/for-instructors.md).
+A real sample receipt is in [examples/brainstorm-receipt.json](./examples/brainstorm-receipt.json). The full instructor-side reading guide is in [docs/for-instructors.md](./docs/for-instructors.md).
 
-## How metadata gets filled
+## Verifying a receipt
 
-PromptCite asks one question at the start of the interview: are you
-disclosing AI use from **this current session**, or from a
-**previous/different session**?
+Each receipt includes a `content_hash` field (sha256 of the canonical other fields). Instructors can verify the receipt was not edited between generation and submission:
 
-**This session:** the AI fills in `tool`, `model`, and `date` from its
-own self-knowledge. The student doesn't have to remember the exact
-model version. The receipt records `metadata_source: "agent_reported"`.
+```bash
+npx -y github:camadkins/promptcite promptcite-verify receipt.json
+```
 
-**Previous session:** the student fills in `tool`, `model`, and `date`
-from memory. The receipt records `metadata_source: "student_claimed"`.
-
-### What `agent_reported` is and isn't
-
-The `metadata_source` field is a **transparency marker, not a
-tamper-proof signature.** After the receipt is generated, it lands on
-the student's local disk as a JSON file — and like any local file, the
-student can edit it before submitting. PromptCite is a skill that runs
-inside the agent; it has no server, no signing key, no transparency
-log. The same trust model applies as for any citation: the author
-writes it, the reader evaluates it, the artifact is a transparency
-record — not a lie detector.
-
-What the `agent_reported` path *does* give you for free is **reduced
-friction for honest disclosure**: the student doesn't have to remember
-"Claude Opus 4.7" or format today's date in ISO 8601. For students
-disclosing in good faith — which is the vast majority — the metadata
-fields just work, and the agent-reported flag tells the instructor
-those fields came from the agent's mouth rather than the student's
-typing.
-
-### Future direction
-
-Closing the post-generation editability gap — cryptographic signing,
-inclusion in a transparency log, instructor-side verification — is on
-the roadmap as part of an institutional integration layer. The MVP
-intentionally stops at the agent-skill layer so it can ship without a
-server-side dependency. Anything beyond agent-reported metadata
-provenance requires that future layer; PromptCite v1 does not claim to
-provide it.
-
-## Status
-
-**v0.1.0 — initial release.** The installer scaffolding and the `/receipt`
-interview rule are functional. The native Claude Code adapter installs the
-skill and the rule produces schema-conformant output end-to-end. Adapters
-for Gemini CLI and the long-tail `npx skills add` registry path are tracked
-for the next release.
-
-## Install
-
-See [`INSTALL.md`](./INSTALL.md) for the one-liner and per-agent install
-matrix. The architecture: a Node.js installer (`bin/install.js`) wrapped
-by thin shell shims (`install.sh`, `install.ps1`) that bootstrap Node and
-delegate. One Node brain, two shell shims, no parallel re-implementation.
+Exit `0` means the hash matches. Tamper-evident, not tamper-proof: the algorithm is public and a determined student can recompute the hash after editing. For most disclosures this is a meaningful speed bump. Full discussion in [docs/for-instructors.md](./docs/for-instructors.md).
 
 ## License
 
-PromptCite is **dual-licensed**:
+PromptCite is **dual-licensed**: **AGPL v3** for individual students, contributors, researchers, and non-commercial open-source use. A separate **commercial license** is required for universities, edtech vendors, LMS integrations, and any hosted-service deployment.
 
-- **AGPL v3** for individual students, contributors, researchers, and
-  non-commercial open-source use. See [`LICENSE`](./LICENSE).
-- **Commercial license** required for universities, edtech vendors, LMS
-  integrations, and any hosted-service deployment. See
-  [`LICENSE-COMMERCIAL`](./LICENSE-COMMERCIAL) and [`NOTICE.md`](./NOTICE.md).
+- Community use: [LICENSE](./LICENSE) (AGPL v3 verbatim)
+- Commercial inquiries: [LICENSE-COMMERCIAL](./LICENSE-COMMERCIAL)
+- Plain-language summary: [NOTICE.md](./NOTICE.md)
 
-All contributions require a signed CLA via the cla-assistant.io bot.
-See [`CLA.md`](./CLA.md) for the agreement (adapted from the
-Harmony HA-CLA-I-LIST 1.0 template).
+All contributions require a signed CLA. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contributor flow.
 
-## Project files
+## Docs
 
-**Product**
-- [`src/rules/receipt.md`](./src/rules/receipt.md) — the `/receipt`
-  interview rule file (single source of truth across all agents)
-- [`src/schema.yaml`](./src/schema.yaml) — receipt JSON schema
-- [`bin/install.js`](./bin/install.js) — the Node installer brain
-- [`INSTALL.md`](./INSTALL.md) — install instructions
-
-**For instructors**
-- [`docs/for-instructors.md`](./docs/for-instructors.md) — how to read
-  a receipt, what `metadata_source` means, policy patterns
-- [`examples/`](./examples/) — sample receipts (currently `brainstorm`;
-  other categories follow the same pattern)
-
-**Contributors**
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute, CLA flow,
-  scope of welcome changes
-- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) — Contributor Covenant 2.1
-- [`CHANGELOG.md`](./CHANGELOG.md) — release notes per version
-- [`CLA.md`](./CLA.md) — contributor license agreement (individual)
-- [`CLA-ENTITY.md`](./CLA-ENTITY.md) — contributor license agreement
-  (entity, for corporate contributors)
-
-**Governance**
-- [`SECURITY.md`](./SECURITY.md) — vulnerability reporting + threat model
-- [`MAINTAINERS.md`](./MAINTAINERS.md) — chain of custody
-- [`NOTICE.md`](./NOTICE.md) — plain-language dual-license summary
-
-## Contributing
-
-1. Read [`CLA.md`](./CLA.md) and sign via the cla-assistant.io bot on
-   your first PR. Branch protection enforces this — PRs cannot merge
-   without a signature on file.
-2. Open an issue before substantive changes — the design is opinionated
-   and `src/rules/receipt.md` is the contract every agent depends on.
-3. Trivial contributions (typo fixes, doc tweaks) still require CLA
-   signature. No "small change" exemption.
-
-Bug reports and feature requests are welcome via GitHub Issues. Security
-vulnerabilities should be reported per [`SECURITY.md`](./SECURITY.md).
+- [INSTALL.md](./INSTALL.md) per-agent install commands and flags
+- [docs/for-instructors.md](./docs/for-instructors.md) instructor reading guide
+- [CONTRIBUTING.md](./CONTRIBUTING.md) how to contribute
+- [SECURITY.md](./SECURITY.md) vulnerability reporting and threat model
+- [CHANGELOG.md](./CHANGELOG.md) release notes
+- [examples/](./examples/) sample receipt artifacts
