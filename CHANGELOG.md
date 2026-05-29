@@ -4,6 +4,13 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1](https://github.com/camadkins/promptcite/compare/v1.0.0...v1.0.1) (2026-05-29)
+
+
+### Docs
+
+* readme rewrite for clearer install + marketing scan ([#25](https://github.com/camadkins/promptcite/issues/25)) ([9574492](https://github.com/camadkins/promptcite/commit/95744927e7e959e48a8069102d6e13d9038ff5d6))
+
 ## [Unreleased]
 
 ### Added
