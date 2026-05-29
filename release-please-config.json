@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "promptcite",
+      "changelog-path": "CHANGELOG.md",
+      "draft": false,
+      "prerelease": false,
+      "include-component-in-tag": false,
+      "changelog-sections": [
+        { "type": "feat", "section": "Added" },
+        { "type": "fix", "section": "Fixed" },
+        { "type": "perf", "section": "Changed" },
+        { "type": "refactor", "section": "Changed" },
+        { "type": "docs", "section": "Docs", "hidden": false },
+        { "type": "chore", "section": "Chore", "hidden": true },
+        { "type": "ci", "section": "Chore", "hidden": true },
+        { "type": "test", "section": "Chore", "hidden": true },
+        { "type": "build", "section": "Chore", "hidden": true },
+        { "type": "style", "section": "Chore", "hidden": true },
+        { "type": "revert", "section": "Reverted" }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "promptcite",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Cross-agent skill that adds /receipt — a structured AI-use disclosure command for student assignments",
   "license": "AGPL-3.0-only",
   "type": "module",
