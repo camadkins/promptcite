@@ -64,6 +64,39 @@ see the registry for the up-to-date list.
 
 For "auto-activates? No" agents, type `/receipt` once per session.
 
+## Any other agent (universal install)
+
+Using an agent that isn't in the matrix above? PromptCite still works —
+the `/receipt` behavior is a single rule file, so any agent that reads a
+custom-instructions / rules / system-prompt file can run it. Print the
+rule and drop it wherever that agent looks:
+
+```bash
+npx -y github:camadkins/promptcite --print-rule > my-agent-rules.md
+# then paste/point your agent at my-agent-rules.md
+```
+
+`--print-rule` (alias `--manual`) writes nothing and makes no network
+calls — it just emits the rule to stdout.
+
+## Settings (skip the repeat questions)
+
+`/receipt` reads an optional `promptcite.config.json` in the current
+directory for the things that don't change between assignments — your
+citation style, your name/ID, your default course and instructor. When
+present, `/receipt` uses them and stops asking; `/receipt quick` uses
+them to run the fastest possible flow.
+
+Scaffold one:
+
+```bash
+npx -y github:camadkins/promptcite --init-config   # writes promptcite.config.json
+```
+
+Or just run `/receipt settings` inside your agent to set them
+conversationally. Settings are local config — never hashed, never part of
+a receipt, never sent anywhere.
+
 ## Manual install (no `curl | bash`)
 
 If you'd rather see exactly what runs:
@@ -88,6 +121,8 @@ node bin/install.js --all              # install for everything detected
 | `--non-interactive` | Never prompt. Auto-default when stdin is not a TTY. |
 | `--no-color` | Disable ANSI colors. |
 | `--list` | Print the full agent matrix and exit. |
+| `--print-rule` / `--manual` | Print the `/receipt` rule to stdout (universal install for any agent not in the matrix). Writes nothing. |
+| `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
 | `--force` | Re-run even if already installed. |
 | `--uninstall` | Remove everything. |
 | `--version` / `-v` | Print version and exit. |

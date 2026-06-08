@@ -577,6 +577,39 @@ function printList() {
   console.log(`Detected ${detectedCount} of ${providers.length} agents on this machine.`);
 }
 
+async function printRule() {
+  const target = resolve(__dirname, '..', 'src', 'rules', 'receipt.md');
+  const body = await readFile(target, 'utf8');
+  // Universal fallback: any agent NOT in `--list` can still run PromptCite
+  // if a human drops this rule into wherever that agent reads its custom
+  // instructions / system prompt / rules file. No adapter code required.
+  console.log('<!-- PromptCite /receipt rule — universal install -->');
+  console.log("<!-- For any agent not covered by 'promptcite --list': paste everything below");
+  console.log('     into that agent\'s custom-instructions / rules / system-prompt file. -->');
+  console.log('');
+  console.log(body);
+}
+
+/**
+ * Scaffold a starter promptcite.config.json in the cwd so the student can
+ * set consistent-across-sessions defaults (citation style, etc.) that
+ * /receipt reads to skip repeat questions. Personal fields are left out so
+ * the agent still asks for them; add them via /receipt settings.
+ * @param {InstallContext} ctx
+ */
+async function writeStarterConfig(ctx) {
+  const targetPath = join(ctx.cwd, 'promptcite.config.json');
+  const existing = await ctx.adapter.readFileIfPresent(targetPath);
+  if (existing && !ctx.force) {
+    ctx.log(`${c.yellow('exists:')} ${targetPath} (use --force to overwrite, or edit it / run /receipt settings)`);
+    return;
+  }
+  const starter = JSON.stringify({ citation_style: 'MLA', flow: 'full' }, null, 2) + '\n';
+  await ctx.adapter.writeFile(targetPath, starter);
+  ctx.log('Set consistent defaults here (citation_style, student, default_course,');
+  ctx.log('default_instructor, flow) so /receipt stops re-asking — or run /receipt settings.');
+}
+
 async function printHelp() {
   const v = await readPackageVersion();
   console.log(`promptcite ${v} — cross-agent /receipt installer
@@ -589,6 +622,9 @@ OPTIONS
   -h, --help                 Show this help and exit
   -v, --version              Print version and exit
       --list                 List supported agents and detection state
+      --print-rule, --manual Print the /receipt rule to stdout (universal install
+                             for any agent not in --list); writes nothing
+      --init-config          Scaffold a starter promptcite.config.json in the cwd
       --dry-run              Print what would be done; write nothing
       --only <id>            Install only for the named agent
       --all                  Install for every detected agent (default when --only is absent)
@@ -604,6 +640,8 @@ EXAMPLES
   promptcite --dry-run --all
   promptcite --only claude
   promptcite --with-init --only cursor
+  promptcite --print-rule > my-agent-rules.md   # any agent, even unlisted
+  promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
 EXIT CODES
@@ -625,6 +663,9 @@ function parseCli(argv) {
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
       list: { type: 'boolean' },
+      'print-rule': { type: 'boolean' },
+      manual: { type: 'boolean' },
+      'init-config': { type: 'boolean' },
       only: { type: 'string' },
       all: { type: 'boolean' },
       'with-init': { type: 'boolean' },
@@ -652,6 +693,8 @@ function parseCli(argv) {
     help: values.help === true,
     version: values.version === true,
     list: values.list === true,
+    printRule: values['print-rule'] === true || values.manual === true,
+    initConfig: values['init-config'] === true,
     only,
     all: only === null,
     withInit: values['with-init'] === true,
@@ -746,7 +789,17 @@ async function main(argv) {
     return 0;
   }
 
+  if (parsed.printRule) {
+    await printRule();
+    return 0;
+  }
+
   const ctx = buildContext(parsed);
+
+  if (parsed.initConfig) {
+    await writeStarterConfig(ctx);
+    return 0;
+  }
   const { selected: selectedProviders, skipped: undetectedProviders } = selectProviders(parsed);
   const allMode = parsed.all === true;
   const action = parsed.uninstall ? 'uninstall' : 'install';

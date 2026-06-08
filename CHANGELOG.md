@@ -8,8 +8,31 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- `tests/verify.test.js`: 18 unit tests covering `canonicalize`,
-  `computeHash`, and `runVerify` (all exit code paths).
+- **Schema 1.1** (additive; 1.0 receipts stay valid). New optional fields:
+  `outputs.citation_ieee`, `outputs.citation_harvard`, and top-level
+  `submission_hash`. See `docs/SCHEMA-CHANGELOG.md`.
+- **IEEE and Harvard citation styles** alongside MLA / APA / Chicago.
+  `/receipt` now offers all five and stores all of them in `outputs`.
+- **`submission_hash`**: optional SHA-256 of the *submitted file's bytes*,
+  binding a receipt to the specific document it describes (distinct from
+  `content_hash`, which covers the receipt's own fields). Computed only
+  when the agent has code execution and the student names the file.
+- **`/receipt` command surface**: `/receipt help`, `/receipt quick`
+  (fast path using saved settings), and `/receipt settings`. Bare words
+  primary; `--help` / `--quick` / `--settings` accepted as aliases.
+- **Persistent settings** via `promptcite.config.json` (cwd): `/receipt`
+  reads defaults (citation style, name, course, instructor, flow) and
+  skips the questions it already has answers for. Config is never hashed
+  or emitted in a receipt.
+- **`promptcite --print-rule`** (alias `--manual`): emit the `/receipt`
+  rule to stdout for a universal install into any agent not in the matrix.
+- **`promptcite --init-config`**: scaffold a starter `promptcite.config.json`.
+- **`bin/verify.js` upgrade**: schema validation + a plain-English
+  instructor report, plus new exit code `4` (hash intact but schema
+  invalid). Exported `validateSchema` and `formatReport`.
+- `docs/SCHEMA-CHANGELOG.md`: canonical receipt-schema version history.
+- `tests/verify.test.js`: 18 → 26 unit tests (added schema-validation,
+  exit-code-4, and report coverage).
 - New CI job `Test`: runs `node --test tests/*.test.js` on Linux.
 - `pr-checks` bot: two new blocker rules (examples/*.json schema
   validation, verify-against-example sanity check).
@@ -18,6 +41,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `bin/verify.js`: exported `canonicalize`, `computeHash`, `runVerify`
   for testability. CLI entry now only runs when invoked directly.
+  `computeHash` now also excludes `submission_hash` from the digest.
+- `src/rules/receipt.md`: model self-report guidance now asks for the
+  specific tier + version (e.g. "Claude Opus 4.8") and to flag
+  uncertainty rather than invent precision.
+- `examples/brainstorm-receipt.json`: regenerated at schema 1.1 with the
+  new citation fields and a recomputed `content_hash`.
+- Dependencies: regenerated `bun.lock` for TypeScript 6 / @types/node 25;
+  bumped 5 GitHub Actions versions (Dependabot).
 - README hero block: switched the sample names to the same fictional
   values as `examples/brainstorm-receipt.json` (ENGL 251, Dr. Martinez,
   C. Hawkins).

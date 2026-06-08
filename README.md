@@ -26,9 +26,9 @@ Installs into every supported AI agent on your machine. ~30 seconds, idempotent,
 
 ## What it is
 
-PromptCite installs into 10 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider) and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
+PromptCite installs into 10 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider) — plus any other agent via `promptcite --print-rule` — and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
 
-- A formatted **citation** (MLA, APA, or Chicago).
+- A formatted **citation** (MLA, APA, Chicago, IEEE, or Harvard).
 - A plain-language **disclosure paragraph** for the paper's header.
 - A structured **JSON receipt** for instructor review and archival.
 
@@ -47,7 +47,7 @@ Are you disclosing AI use from this current session, or previous?
 A few quick details, answer all:
   1. course, instructor, assignment title
   2. your name or ID for this receipt
-  3. citation style (MLA / APA / Chicago)
+  3. citation style (MLA / APA / Chicago / IEEE / Harvard)
 > ENGL 251, Dr. Martinez, Policy Analysis Essay, C. Hawkins, MLA
 
 What did you use the AI for?
