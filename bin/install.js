@@ -577,6 +577,46 @@ function printList() {
   console.log(`Detected ${detectedCount} of ${providers.length} agents on this machine.`);
 }
 
+/**
+ * Diagnose an install: for each provider, report detection and whether its
+ * rule artifact is present and up-to-date vs the current rule. Read-only,
+ * no network. Drift is detected by checking whether the installed file still
+ * contains the current rule body (works for all three adapter strategies).
+ * @param {InstallContext} ctx
+ */
+async function runDoctor(ctx) {
+  const ruleNeedle = (await readRuleSource(ctx)).trim();
+  ctx.log('PromptCite — doctor');
+  ctx.log('');
+  ctx.log('| id       | name           | detected | rule artifact        |');
+  ctx.log('|----------|----------------|----------|----------------------|');
+  for (const p of providers) {
+    const detected = p.detect() ? 'yes' : 'no';
+    const disp = p.targetPaths[0] || '';
+    let artifact;
+    if (disp.startsWith('(')) {
+      artifact = 'CLI-managed';
+    } else {
+      let path;
+      if (disp.startsWith('~/.claude/')) path = join(ctx.configDir, disp.slice('~/.claude/'.length));
+      else if (disp.startsWith('~/')) path = join(homedir(), disp.slice(2));
+      else path = join(ctx.cwd, disp);
+      const content = await readFileIfPresent(path);
+      if (content === null) artifact = 'missing';
+      else if (content.includes(ruleNeedle)) artifact = 'up-to-date';
+      else artifact = 'STALE (re-install)';
+    }
+    ctx.log(`| ${p.id.padEnd(8)} | ${p.name.padEnd(14)} | ${detected.padEnd(8)} | ${artifact.padEnd(20)} |`);
+  }
+  ctx.log('');
+  const cfg = await pathExists(join(ctx.cwd, 'promptcite.config.json'));
+  const pol = await pathExists(join(ctx.cwd, 'promptcite.policy.json'));
+  ctx.log(`promptcite.config.json in cwd: ${cfg ? 'yes' : 'no'}`);
+  ctx.log(`promptcite.policy.json in cwd: ${pol ? 'yes' : 'no'}`);
+  ctx.log('');
+  ctx.log('Rule artifacts marked STALE: re-run the installer for that agent to refresh.');
+}
+
 async function printRule() {
   const target = resolve(__dirname, '..', 'src', 'rules', 'receipt.md');
   const body = await readFile(target, 'utf8');
@@ -622,6 +662,7 @@ OPTIONS
   -h, --help                 Show this help and exit
   -v, --version              Print version and exit
       --list                 List supported agents and detection state
+      --doctor               Diagnose install: detection + rule-file drift; writes nothing
       --print-rule, --manual Print the /receipt rule to stdout (universal install
                              for any agent not in --list); writes nothing
       --init-config          Scaffold a starter promptcite.config.json in the cwd
@@ -640,6 +681,7 @@ EXAMPLES
   promptcite --dry-run --all
   promptcite --only claude
   promptcite --with-init --only cursor
+  promptcite --doctor                            # check what's installed + drift
   promptcite --print-rule > my-agent-rules.md   # any agent, even unlisted
   promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
@@ -663,6 +705,7 @@ function parseCli(argv) {
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
       list: { type: 'boolean' },
+      doctor: { type: 'boolean' },
       'print-rule': { type: 'boolean' },
       manual: { type: 'boolean' },
       'init-config': { type: 'boolean' },
@@ -693,6 +736,7 @@ function parseCli(argv) {
     help: values.help === true,
     version: values.version === true,
     list: values.list === true,
+    doctor: values.doctor === true,
     printRule: values['print-rule'] === true || values.manual === true,
     initConfig: values['init-config'] === true,
     only,
@@ -795,6 +839,11 @@ async function main(argv) {
   }
 
   const ctx = buildContext(parsed);
+
+  if (parsed.doctor) {
+    await runDoctor(ctx);
+    return 0;
+  }
 
   if (parsed.initConfig) {
     await writeStarterConfig(ctx);

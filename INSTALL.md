@@ -121,6 +121,7 @@ node bin/install.js --all              # install for everything detected
 | `--non-interactive` | Never prompt. Auto-default when stdin is not a TTY. |
 | `--no-color` | Disable ANSI colors. |
 | `--list` | Print the full agent matrix and exit. |
+| `--doctor` | Diagnose your install: per-agent detection, whether each rule file is present / stale, and whether `promptcite.config.json` / `promptcite.policy.json` exist. Writes nothing. |
 | `--print-rule` / `--manual` | Print the `/receipt` rule to stdout (universal install for any agent not in the matrix). Writes nothing. |
 | `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
 | `--force` | Re-run even if already installed. |
