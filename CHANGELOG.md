@@ -30,7 +30,22 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`bin/verify.js` upgrade**: schema validation + a plain-English
   instructor report, plus new exit code `4` (hash intact but schema
   invalid). Exported `validateSchema` and `formatReport`.
+- **`/receipt verify <file>`**: verify an existing receipt in-agent
+  (recompute hash + schema-check + plain-English report) — mirrors the
+  `promptcite-verify` CLI for people who work in the chat, not the terminal.
+- **Instructor policy file** (`promptcite.policy.json`): an instructor can
+  publish allowed categories, a required citation style, mandatory
+  source-verification, and required appendices; `/receipt` steers the
+  interview to it. Policy overrides student settings on conflict. Example
+  at `docs/promptcite.policy.example.json`; documented in for-instructors.
+- **`promptcite --doctor`**: diagnose an install — per-agent detection,
+  rule-file presence/drift, and config/policy presence. Read-only.
 - `docs/SCHEMA-CHANGELOG.md`: canonical receipt-schema version history.
+- `CONTEXT.md` (domain glossary) and `docs/adr/` (architecture decision
+  records: free-form model field, no v1 signing, additive schema policy,
+  zero runtime deps, single-session scope).
+- `tests/install.test.js`: subprocess tests for `--doctor`, `--print-rule`,
+  and `--init-config --dry-run` (write-nothing assertions).
 - `tests/verify.test.js`: 18 → 26 unit tests (added schema-validation,
   exit-code-4, and report coverage).
 - New CI job `Test`: runs `node --test tests/*.test.js` on Linux.
@@ -49,6 +64,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   new citation fields and a recomputed `content_hash`.
 - Dependencies: regenerated `bun.lock` for TypeScript 6 / @types/node 25;
   bumped 5 GitHub Actions versions (Dependabot).
+- Removed the dead `format` npm script (`prettier --check` — prettier was
+  never a dependency).
 - README hero block: switched the sample names to the same fictional
   values as `examples/brainstorm-receipt.json` (ENGL 251, Dr. Martinez,
   C. Hawkins).

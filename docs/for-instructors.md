@@ -170,6 +170,32 @@ some patterns that work:
 > require a core receipt plus a revision statement. Drafting and
 > debugging require a core receipt plus a share-link or diff appendix."
 
+### Machine-readable policy (`promptcite.policy.json`)
+
+You can turn a policy like the one above into a file that `/receipt`
+*follows automatically*. Drop a `promptcite.policy.json` in the
+assignment folder (e.g. the starter repo students clone). When present,
+`/receipt` steers the interview to it — offering only your allowed
+categories, using your required citation style, and requiring the
+source-verification answer or appendix you specify. A starter file lives
+at [`docs/promptcite.policy.example.json`](./promptcite.policy.example.json):
+
+```json
+{
+  "allowed_categories": ["brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "require_source_verification": ["search", "draft"],
+  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" }
+}
+```
+
+All keys are optional. The policy is **configuration, not a receipt** — it
+is never hashed, never embedded in a student's receipt, and makes no
+network calls. It guides honest disclosure; it does **not** detect or
+prevent dishonesty (a student can ignore or edit the file). Same trust
+model as everything else here. Where a student's saved settings conflict
+with your policy, the policy wins.
+
 **Policy that PromptCite explicitly does not support:**
 > ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite
 > does not verify anything. It is a disclosure artifact, not a

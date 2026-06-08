@@ -77,6 +77,8 @@ accepted too.
   assumed defaults so the student can correct them.
 - **`settings`** (or `--settings`) → run the **settings flow** (below).
   Do NOT generate a receipt.
+- **`verify <file>`** (or `--verify <file>`) → run the **verify flow**
+  (below) on an existing receipt. Do NOT interview or generate.
 - **anything else** → treat as the full interview and note once that the
   unrecognized argument was ignored.
 
@@ -127,14 +129,87 @@ error out over settings.
 Settings are **configuration, not a receipt** — they have no
 `schema_version` and are never hashed or emitted inside a receipt.
 
+## Instructor policy (`promptcite.policy.json`)
+
+An instructor can publish a policy file that the student drops in their
+project (or you read from the assignment folder). When a
+`promptcite.policy.json` is present in the current directory, it sets the
+**requirements for this assignment**, and you steer the interview to
+match. All keys are optional:
+
+```json
+{
+  "allowed_categories": ["brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "require_source_verification": ["search", "draft"],
+  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" }
+}
+```
+
+How each key steers the interview:
+
+- **`allowed_categories`** — in Step 2, offer only these categories. If
+  the student picks one outside the list, tell them the instructor's
+  policy doesn't permit it for this assignment and ask them to choose an
+  allowed one.
+- **`required_citation_style`** — use this style and skip the Step 1
+  citation-style question. (You still generate all five `citation_*`
+  outputs; this only sets which one is highlighted.)
+- **`require_source_verification`** — for any listed category, treat
+  `source_verification` as required (ask it even where it would normally
+  be optional or null).
+- **`required_appendix`** — for the listed category, prompt the student
+  for that appendix (`share_link_or_excerpt`, `full_transcript`, or
+  `diff_or_test_log`) and include it; it is required, not opt-in, for
+  this assignment.
+
+**Precedence:** the instructor policy overrides student settings where
+they conflict (e.g. policy `required_citation_style` wins over a saved
+`citation_style`). Tell the student in one line when policy applies —
+e.g. *"This assignment's policy requires APA and a diff appendix for
+debug — I'll ask for those."* Policy is **configuration, not a receipt**:
+never hashed, never emitted inside the JSON. If the file is absent or
+malformed, ignore it and run normally.
+
+## Verify flow
+
+Triggered by `/receipt verify <file>`. You are checking an existing
+receipt, not making one. Do not interview.
+
+1. Read the named JSON file. If it's missing or not valid JSON, say so
+   and stop.
+2. **Schema check** — confirm it has the required shape (the fields in
+   `src/schema.yaml`: `schema_version`, `generated_at`, `metadata_source`,
+   `student`, `assignment.{course,instructor,title}`, the `ai_use` block
+   with a valid `category`, and `outputs` with the three core citations +
+   `disclosure_statement`). List any problems plainly.
+3. **Hash check** — if you have a code-execution tool, recompute
+   `content_hash` using the canonical algorithm in Step 5c (sorted keys,
+   no whitespace, UTF-8; exclude `content_hash` AND `submission_hash`
+   from the input) and compare to the stored value: report INTACT,
+   MISMATCH, or UNVERIFIABLE (null/absent). If you have no code-execution
+   tool, say the hash couldn't be recomputed and report the schema check
+   only.
+4. Print a short plain-English summary the reader can act on — student,
+   assignment, tool/model/date, category, provenance (`agent_reported` vs
+   `student_claimed`), hash status, and schema status. This mirrors the
+   `promptcite-verify` CLI (`bin/verify.js`) for people who live in the
+   chat rather than the terminal. Same honest framing: tamper-evident,
+   not tamper-proof.
+
 ## Interview flow
 
 ### Step 0 — Provenance gate (SOLO — branches the flow)
 
-First, load settings: check for `promptcite.config.json` in the current
-directory (see *Settings* above). If present, pre-fill its fields, plan to
-skip the matching Step 1 questions, and confirm the loaded defaults in one
-line. If absent or malformed, continue normally.
+First, load configuration:
+- **Settings** — check for `promptcite.config.json` (see *Settings*
+  above). If present, pre-fill its fields, plan to skip the matching
+  Step 1 questions, and confirm the loaded defaults in one line.
+- **Policy** — check for `promptcite.policy.json` (see *Instructor
+  policy* above). If present, apply its requirements throughout the
+  interview, and note in one line what it requires. Policy overrides
+  settings on conflict.
+If neither is present or either is malformed, continue normally.
 
 Then ask exactly this:
 
@@ -195,6 +270,11 @@ Ask the student, in **one packed turn** (numbered list), to answer all at once:
 > 7. Which model? (e.g. "GPT-4o", "Claude Sonnet 4.6" — best guess is fine)
 > 8. Date of use (default today)
 
+**Drop questions you already have answers for:** omit the citation-style
+question if an instructor policy set `required_citation_style` or saved
+settings set `citation_style`; omit course/instructor/name if settings or
+policy already supply them. Only ask what's actually still unknown.
+
 Parse the student's reply (numbered or freeform). If any field is
 missing or ambiguous, ask only for the missing ones in a tight
 follow-up turn — do not re-ask fields they already gave.
@@ -205,6 +285,10 @@ Ask exactly this:
 
 > What did you use the AI for? Pick the closest:
 > **brainstorm** / **outline** / **draft** / **edit** / **debug** / **explain** / **search**
+
+**If an instructor policy set `allowed_categories`,** offer only those
+options here, and if the student names one outside the list, explain the
+policy doesn't permit it for this assignment and ask for an allowed one.
 
 Definitions for the student if asked:
 
@@ -240,6 +324,13 @@ verified ..." sentence renders only when the field is `true`. For
 categories where the AI did not provide sources or factual claims
 (brainstorm, outline, explain, edit, debug, draft without claims), the
 sentence does not render and the field stays null.
+
+**Policy overrides:** if an instructor policy lists the chosen category
+under `require_source_verification`, ask the source-verification question
+and record `true`/`false` even where it would normally be null. If the
+policy's `required_appendix` names an appendix for the chosen category,
+prompt the student for it and include it — it is required for this
+assignment, not opt-in.
 
 ### Step 4 — Revision statement (SOLO — optional add-on)
 

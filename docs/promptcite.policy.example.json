@@ -1,0 +1,10 @@
+{
+  "_comment": "Optional instructor policy. Drop a promptcite.policy.json in the assignment folder and /receipt steers the interview to it. All keys optional. This is configuration, not a receipt — never hashed or emitted. See docs/for-instructors.md.",
+  "allowed_categories": ["brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "require_source_verification": ["search", "draft"],
+  "required_appendix": {
+    "draft": "share_link_or_excerpt",
+    "debug": "diff_or_test_log"
+  }
+}
