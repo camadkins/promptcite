@@ -356,6 +356,20 @@ const MANIFEST = [
     path: 'best_practices.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['best_practices.md', '.qodo', 'agent.toml'] } },
   { id: 'zed', name: 'Zed', strategy: 'block-append', base: 'cwd',
     path: '.rules', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.zed', '.rules'], command: 'zed' } },
+
+  // --- AGENTS.md family: agents that read AGENTS.md natively. Listed as
+  //     first-class for discoverability; each detects via its OWN signal but
+  //     shares the single AGENTS.md block (block-append is idempotent, so
+  //     overlapping installs just no-op). Jules is cloud/GitHub-based with no
+  //     local footprint — never auto-detected; install explicitly with --only.
+  { id: 'opencode', name: 'opencode', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['opencode.json', '.opencode'], command: 'opencode' } },
+  { id: 'amp', name: 'Amp (Sourcegraph)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENT.md'], command: 'amp' } },
+  { id: 'crush', name: 'Crush (Charm)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['crush.json', '.crush.json'], command: 'crush' } },
+  { id: 'jules', name: 'Jules (Google)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: {} },
 ];
 
 /** @param {string} bin @param {string[]} args @returns {Promise<void>} */

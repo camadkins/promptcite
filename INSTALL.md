@@ -66,15 +66,20 @@ runs under the hood), use the table below. Every row also works as
 | **OpenHands** | `npx -y github:camadkins/promptcite --only openhands --with-init` | Surgical block in `.openhands/microagents/repo.md` |
 | **Qodo** | `npx -y github:camadkins/promptcite --only qodo --with-init` | Surgical block in `best_practices.md` at project root |
 | **Zed** | `npx -y github:camadkins/promptcite --only zed --with-init` | Surgical block in `.rules` at project root |
+| **opencode** | `npx -y github:camadkins/promptcite --only opencode --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Amp (Sourcegraph)** | `npx -y github:camadkins/promptcite --only amp --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Crush (Charm)** | `npx -y github:camadkins/promptcite --only crush --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Jules (Google)** | `npx -y github:camadkins/promptcite --only jules --with-init` | Surgical block in `AGENTS.md` (cloud agent — install explicitly; not auto-detected) |
 
 The full agent matrix lives in `bin/install.js` under the `MANIFEST`
 array — each agent is one declarative entry (strategy + detect + path).
 
-**Agents that read `AGENTS.md`** — Amp (Sourcegraph), opencode, Crush,
-Jules, and others — are already covered by the Codex adapter, which writes
-into `AGENTS.md`. Install with `--only codex --with-init` and any
-`AGENTS.md`-aware agent in the project picks up `/receipt`. For anything
-still unlisted, `promptcite --print-rule` is the universal fallback.
+**`AGENTS.md` family.** opencode, Amp, Crush, and Jules all read a
+root-level `AGENTS.md`, so they share one block there (installing any of
+them — or Codex — writes the same idempotent block). They're listed
+separately for discoverability. Any *other* `AGENTS.md`-aware agent picks
+up `/receipt` automatically once that block exists. For anything still
+unlisted, `promptcite --print-rule` is the universal fallback.
 
 For "auto-activates? No" agents, type `/receipt` once per session.
 

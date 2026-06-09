@@ -40,10 +40,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   at `docs/promptcite.policy.example.json`; documented in for-instructors.
 - **`promptcite --doctor`**: diagnose an install — per-agent detection,
   rule-file presence/drift, and config/policy presence. Read-only.
-- **10 more agents** (10 → 20): Amazon Q Developer, Kiro, Augment Code,
+- **14 more agents** (10 → 24): Amazon Q Developer, Kiro, Augment Code,
   Trae, JetBrains Junie, Goose, Replit Agent, OpenHands, Qodo, Zed —
-  config paths verified against 2026 docs. Plus documented `AGENTS.md`
-  coverage (Amp, opencode, Crush, Jules) via the existing Codex adapter.
+  config paths verified against 2026 docs — plus first-class entries for
+  the `AGENTS.md` family (opencode, Amp, Crush, Jules), which each detect
+  via their own signal and share one idempotent `AGENTS.md` block. Jules
+  is cloud-based: install explicitly, not auto-detected.
 - `docs/SCHEMA-CHANGELOG.md`: canonical receipt-schema version history.
 - `CONTEXT.md` (domain glossary) and `docs/adr/` (architecture decision
   records: free-form model field, no v1 signing, additive schema policy,

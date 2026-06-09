@@ -72,11 +72,11 @@ test('--list shows the full agent matrix', () => {
   inTempDir((dir) => {
     const { code, out } = run(['--list'], dir);
     assert.equal(code, 0);
-    // a spread across the three strategies + an expansion agent
-    for (const id of ['claude', 'cursor', 'codex', 'amazonq', 'junie', 'zed']) {
+    // a spread across the strategies + expansion + AGENTS.md-family agents
+    for (const id of ['claude', 'cursor', 'codex', 'amazonq', 'junie', 'zed', 'opencode']) {
       assert.match(out, new RegExp(`\\b${id}\\b`));
     }
-    assert.match(out, /of 20 agents/);
+    assert.match(out, /of 24 agents/);
   });
 });
 

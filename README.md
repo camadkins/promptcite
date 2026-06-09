@@ -26,7 +26,7 @@ Installs into every supported AI agent on your machine. ~30 seconds, idempotent,
 
 ## What it is
 
-PromptCite installs into 20 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider, Amazon Q, Kiro, Augment, Trae, JetBrains Junie, Goose, Replit, OpenHands, Qodo, Zed) — plus every `AGENTS.md`-aware agent (Amp, opencode, Crush, Jules) and any other via `promptcite --print-rule` — and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
+PromptCite installs into 24 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider, Amazon Q, Kiro, Augment, Trae, JetBrains Junie, Goose, Replit, OpenHands, Qodo, Zed, opencode, Amp, Crush, Jules) — plus any other `AGENTS.md`-aware agent automatically, and anything else via `promptcite --print-rule` — and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
 
 - A formatted **citation** (MLA, APA, Chicago, IEEE, or Harvard).
 - A plain-language **disclosure paragraph** for the paper's header.
