@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -65,5 +65,54 @@ test('--help and --version still work', () => {
   inTempDir((dir) => {
     assert.equal(run(['--help'], dir).code, 0);
     assert.equal(run(['--version'], dir).code, 0);
+  });
+});
+
+test('--list shows the full agent matrix', () => {
+  inTempDir((dir) => {
+    const { code, out } = run(['--list'], dir);
+    assert.equal(code, 0);
+    // a spread across the three strategies + an expansion agent
+    for (const id of ['claude', 'cursor', 'codex', 'amazonq', 'junie', 'zed']) {
+      assert.match(out, new RegExp(`\\b${id}\\b`));
+    }
+    assert.match(out, /of 20 agents/);
+  });
+});
+
+test('rule-drop adapter installs to its path and uninstalls cleanly', () => {
+  inTempDir((dir) => {
+    assert.equal(run(['--only', 'kiro', '--with-init'], dir).code, 0);
+    const file = join(dir, '.kiro/steering/promptcite-receipt.md');
+    assert.ok(existsSync(file), 'rule file should be created');
+    assert.match(readFileSync(file, 'utf8'), /PromptCite \/receipt rule/);
+    assert.equal(run(['--only', 'kiro', '--with-init', '--uninstall'], dir).code, 0);
+    assert.ok(!existsSync(file), 'rule file should be removed');
+  });
+});
+
+test('block-append adapter preserves existing file content', () => {
+  inTempDir((dir) => {
+    const file = join(dir, 'replit.md');
+    writeFileSync(file, '# My project notes\nKeep me.\n');
+    assert.equal(run(['--only', 'replit', '--with-init'], dir).code, 0);
+    const after = readFileSync(file, 'utf8');
+    assert.match(after, /Keep me\./, 'existing content preserved');
+    assert.match(after, /BEGIN PromptCite/, 'block appended');
+    assert.equal(run(['--only', 'replit', '--with-init', '--uninstall'], dir).code, 0);
+    const restored = readFileSync(file, 'utf8');
+    assert.match(restored, /Keep me\./, 'existing content survives uninstall');
+    assert.doesNotMatch(restored, /BEGIN PromptCite/, 'block removed on uninstall');
+  });
+});
+
+test('per-project adapter without --with-init is skipped, not errored, in --all', () => {
+  inTempDir((dir) => {
+    // .replit present so replit is detected; without --with-init it must skip
+    // (stub), exit 0. --dry-run keeps any globally-detected agent (e.g. Claude)
+    // from writing to the real config dir during the test.
+    writeFileSync(join(dir, '.replit'), '');
+    const { code } = run(['--all', '--dry-run'], dir);
+    assert.equal(code, 0);
   });
 });

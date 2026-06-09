@@ -40,6 +40,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   at `docs/promptcite.policy.example.json`; documented in for-instructors.
 - **`promptcite --doctor`**: diagnose an install — per-agent detection,
   rule-file presence/drift, and config/policy presence. Read-only.
+- **10 more agents** (10 → 20): Amazon Q Developer, Kiro, Augment Code,
+  Trae, JetBrains Junie, Goose, Replit Agent, OpenHands, Qodo, Zed —
+  config paths verified against 2026 docs. Plus documented `AGENTS.md`
+  coverage (Amp, opencode, Crush, Jules) via the existing Codex adapter.
 - `docs/SCHEMA-CHANGELOG.md`: canonical receipt-schema version history.
 - `CONTEXT.md` (domain glossary) and `docs/adr/` (architecture decision
   records: free-form model field, no v1 signing, additive schema policy,
@@ -60,6 +64,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `src/rules/receipt.md`: model self-report guidance now asks for the
   specific tier + version (e.g. "Claude Opus 4.8") and to flag
   uncertainty rather than invent precision.
+- `bin/install.js`: refactored the 10 bespoke per-agent adapters into a
+  declarative `MANIFEST` + 4 generic strategies (global-skill, rule-drop,
+  block-append, cli-extension). Adding an agent is now a one-line data
+  entry. Behavior preserved; install/uninstall/list/dry-run unchanged.
 - `examples/brainstorm-receipt.json`: regenerated at schema 1.1 with the
   new citation fields and a recomputed `content_hash`.
 - Dependencies: regenerated `bun.lock` for TypeScript 6 / @types/node 25;
