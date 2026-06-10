@@ -25,6 +25,13 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # A dedicated token (fine-grained PAT or GitHub App), NOT the default
+          # GITHUB_TOKEN. PRs opened by GITHUB_TOKEN do not trigger other
+          # workflows, so the release PR never gets its required CI checks or a
+          # CLA signature and cannot merge under branch protection
+          # (enforce_admins=true). A PAT-authored release PR triggers CI and
+          # signs the CLA like any human PR. Secret RELEASE_PLEASE_TOKEN needs
+          # contents:write + pull-requests:write on this repo.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
