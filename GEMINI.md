@@ -57,11 +57,163 @@ problem to solve.
    disclosure paragraph, and JSON receipt are all produced from one
    interview pass.
 
+## Invocation modes
+
+Before starting, look at the text the student typed **after** `/receipt`
+and pick the mode. Bare words are the primary form; `--flag` aliases are
+accepted too.
+
+- **(nothing)** → run the full interview (Step 0 onward). This is the default.
+- **`help`** (or `--help`) → do NOT interview. Briefly explain what
+  `/receipt` does, list the modes below, and mention the universal
+  fallback: any agent not natively supported can still run PromptCite by
+  having a human drop the rule file in (point them at
+  `promptcite --print-rule`). Then stop.
+- **`quick`** (or `--quick`) → run the **quick flow**: load saved
+  settings (see *Settings* below), skip every question whose answer is
+  already in settings, and ask only the irreducible questions —
+  `use_category`, the one-line prompt summary, the single most important
+  category follow-up, and `direct_content_used`. Infer or auto-fill the
+  rest (Branch A auto-fills tool/model/date; missing identity fields fall
+  back to a single packed catch-up turn). Open with one line stating the
+  assumed defaults so the student can correct them.
+- **`settings`** (or `--settings`) → run the **settings flow** (below).
+  Do NOT generate a receipt.
+- **`verify <file>`** (or `--verify <file>`) → run the **verify flow**
+  (below) on an existing receipt. Do NOT interview or generate.
+- **anything else** → treat as the full interview and note once that the
+  unrecognized argument was ignored.
+
+## Settings (`promptcite.config.json`)
+
+PromptCite remembers the things that don't change between assignments so
+the student isn't re-asked every time. Settings live in a small JSON file
+named `promptcite.config.json` in the current working directory by default
+(a student may keep one per project, or opt into a single global one).
+
+All keys are optional:
+
+```json
+{
+  "citation_style": "MLA",
+  "student": "C. Hawkins",
+  "default_course": "ENGL 251",
+  "default_instructor": "Dr. Martinez",
+  "flow": "full"
+}
+```
+
+**Reading settings (every run):** at the start of Step 0, check for
+`promptcite.config.json` in the current directory. If present and readable,
+load it, pre-fill the matching fields, and **skip those questions** in
+Step 1. Confirm in a single line — e.g. *"Using your saved defaults: MLA,
+C. Hawkins, ENGL 251 / Dr. Martinez. Say 'change' to override any."* — and
+proceed. If `flow` is `"quick"`, behave as if invoked with `quick`. If the
+file is absent or malformed, ignore it silently and run normally; never
+error out over settings.
+
+**The settings flow (`/receipt settings`):**
+1. Read the existing `promptcite.config.json` if present and show the
+   current values (or say "no settings saved yet").
+2. Ask which of the optional keys the student wants to set or update
+   (citation style, name/ID, default course, default instructor, default
+   flow). Keep it minimal — only store what stays constant across their
+   assignments.
+3. Write the JSON file with their values. Writing the file here is an
+   explicit student request, which satisfies the "local only" rule —
+   write it to the current directory (or a global location only if the
+   student explicitly asks for that). Store minimal data only, the same
+   ethos as the receipt itself; never store anything sensitive.
+4. Confirm what was saved and where, and remind them that future
+   `/receipt` runs will use these defaults (and `/receipt quick` will be
+   fastest).
+
+Settings are **configuration, not a receipt** — they have no
+`schema_version` and are never hashed or emitted inside a receipt.
+
+## Instructor policy (`promptcite.policy.json`)
+
+An instructor can publish a policy file that the student drops in their
+project (or you read from the assignment folder). When a
+`promptcite.policy.json` is present in the current directory, it sets the
+**requirements for this assignment**, and you steer the interview to
+match. All keys are optional:
+
+```json
+{
+  "allowed_categories": ["brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "require_source_verification": ["search", "draft"],
+  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" }
+}
+```
+
+How each key steers the interview:
+
+- **`allowed_categories`** — in Step 2, offer only these categories. If
+  the student picks one outside the list, tell them the instructor's
+  policy doesn't permit it for this assignment and ask them to choose an
+  allowed one.
+- **`required_citation_style`** — use this style and skip the Step 1
+  citation-style question. (You still generate all five `citation_*`
+  outputs; this only sets which one is highlighted.)
+- **`require_source_verification`** — for any listed category, treat
+  `source_verification` as required (ask it even where it would normally
+  be optional or null).
+- **`required_appendix`** — for the listed category, prompt the student
+  for that appendix (`share_link_or_excerpt`, `full_transcript`, or
+  `diff_or_test_log`) and include it; it is required, not opt-in, for
+  this assignment.
+
+**Precedence:** the instructor policy overrides student settings where
+they conflict (e.g. policy `required_citation_style` wins over a saved
+`citation_style`). Tell the student in one line when policy applies —
+e.g. *"This assignment's policy requires APA and a diff appendix for
+debug — I'll ask for those."* Policy is **configuration, not a receipt**:
+never hashed, never emitted inside the JSON. If the file is absent or
+malformed, ignore it and run normally.
+
+## Verify flow
+
+Triggered by `/receipt verify <file>`. You are checking an existing
+receipt, not making one. Do not interview.
+
+1. Read the named JSON file. If it's missing or not valid JSON, say so
+   and stop.
+2. **Schema check** — confirm it has the required shape (the fields in
+   `src/schema.yaml`: `schema_version`, `generated_at`, `metadata_source`,
+   `student`, `assignment.{course,instructor,title}`, the `ai_use` block
+   with a valid `category`, and `outputs` with the three core citations +
+   `disclosure_statement`). List any problems plainly.
+3. **Hash check** — if you have a code-execution tool, recompute
+   `content_hash` using the canonical algorithm in Step 5c (sorted keys,
+   no whitespace, UTF-8; exclude `content_hash` AND `submission_hash`
+   from the input) and compare to the stored value: report INTACT,
+   MISMATCH, or UNVERIFIABLE (null/absent). If you have no code-execution
+   tool, say the hash couldn't be recomputed and report the schema check
+   only.
+4. Print a short plain-English summary the reader can act on — student,
+   assignment, tool/model/date, category, provenance (`agent_reported` vs
+   `student_claimed`), hash status, and schema status. This mirrors the
+   `promptcite-verify` CLI (`bin/verify.js`) for people who live in the
+   chat rather than the terminal. Same honest framing: tamper-evident,
+   not tamper-proof.
+
 ## Interview flow
 
 ### Step 0 — Provenance gate (SOLO — branches the flow)
 
-Ask exactly this:
+First, load configuration:
+- **Settings** — check for `promptcite.config.json` (see *Settings*
+  above). If present, pre-fill its fields, plan to skip the matching
+  Step 1 questions, and confirm the loaded defaults in one line.
+- **Policy** — check for `promptcite.policy.json` (see *Instructor
+  policy* above). If present, apply its requirements throughout the
+  interview, and note in one line what it requires. Policy overrides
+  settings on conflict.
+If neither is present or either is malformed, continue normally.
+
+Then ask exactly this:
 
 > Are you disclosing AI use from **this current session**, or from a
 > **previous/different session** (different tool or a prior conversation)?
@@ -75,8 +227,16 @@ student-claimed (you ask the student).
   - `tool` = the product name (e.g. "Claude" if you're running in
     Claude Code, "Gemini" if you're Gemini CLI, "ChatGPT" if you're
     ChatGPT, "Cursor" if running in Cursor's agent, etc.)
-  - `model` = your best self-identified model name + version (e.g.
-    "Claude Opus 4.7", "GPT-4o", "Gemini 2.5 Pro")
+  - `model` = your best self-identified model name + version. Be
+    **specific — include both the tier and the version** (e.g. "Claude
+    Opus 4.8", "Claude Sonnet 4.6", "Claude Haiku 4.5", "GPT-5.1",
+    "Gemini 3 Pro"), not just the family ("Claude"). The field is a
+    free-form string by design, so any current model fits without the
+    schema needing updates. **If you are not certain of your exact
+    version, give your best guess and say so in the field** (e.g.
+    "Claude Opus (exact version uncertain)") rather than inventing a
+    precise number. `agent_reported` should read as honest
+    self-knowledge, not false precision.
   - `date` = today's ISO 8601 date in the student's timezone if
     inferable, otherwise UTC date
 - Set `metadata_source: "agent_reported"` in the JSON
@@ -99,7 +259,7 @@ Ask the student, in **one packed turn** (numbered list), to answer all at once:
 > 4. Your name or institutional ID for this receipt (first initial +
 >    last name, full name, or student ID — whatever your instructor
 >    expects)
-> 5. Citation style: MLA / APA / Chicago? (default: MLA)
+> 5. Citation style: MLA / APA / Chicago / IEEE / Harvard? (default: MLA)
 
 **If Branch B (previous session / different tool):**
 > A few quick details — answer all at once:
@@ -107,10 +267,15 @@ Ask the student, in **one packed turn** (numbered list), to answer all at once:
 > 2. Instructor name (e.g. "Dr. Martinez")
 > 3. Assignment title (e.g. "Policy Analysis Essay")
 > 4. Your name or institutional ID for this receipt
-> 5. Citation style: MLA / APA / Chicago? (default: MLA)
+> 5. Citation style: MLA / APA / Chicago / IEEE / Harvard? (default: MLA)
 > 6. Which AI tool did you use? (ChatGPT / Claude / Gemini / Copilot / Cursor / Codex / other)
 > 7. Which model? (e.g. "GPT-4o", "Claude Sonnet 4.6" — best guess is fine)
 > 8. Date of use (default today)
+
+**Drop questions you already have answers for:** omit the citation-style
+question if an instructor policy set `required_citation_style` or saved
+settings set `citation_style`; omit course/instructor/name if settings or
+policy already supply them. Only ask what's actually still unknown.
 
 Parse the student's reply (numbered or freeform). If any field is
 missing or ambiguous, ask only for the missing ones in a tight
@@ -122,6 +287,10 @@ Ask exactly this:
 
 > What did you use the AI for? Pick the closest:
 > **brainstorm** / **outline** / **draft** / **edit** / **debug** / **explain** / **search**
+
+**If an instructor policy set `allowed_categories`,** offer only those
+options here, and if the student names one outside the list, explain the
+policy doesn't permit it for this assignment and ask for an allowed one.
 
 Definitions for the student if asked:
 
@@ -158,6 +327,13 @@ categories where the AI did not provide sources or factual claims
 (brainstorm, outline, explain, edit, debug, draft without claims), the
 sentence does not render and the field stays null.
 
+**Policy overrides:** if an instructor policy lists the chosen category
+under `require_source_verification`, ask the source-verification question
+and record `true`/`false` even where it would normally be null. If the
+policy's `required_appendix` names an appendix for the chosen category,
+prompt the student for it and include it — it is required for this
+assignment, not opt-in.
+
 ### Step 4 — Revision statement (SOLO — optional add-on)
 
 Ask one final question:
@@ -178,8 +354,14 @@ Generate all three artifacts in this exact order:
 
 Render the citation in the chosen style. Templates audited against
 **MLA 9th edition (MLA Style Center 2023 guidance)**, **APA 7th
-edition (APA 2023 guidance)**, and **Chicago Manual of Style 17th
-edition** for AI-generated content.
+edition (APA 2023 guidance)**, **Chicago Manual of Style 17th
+edition**, **IEEE (2023 reference guidance)**, and **Harvard
+author-date** conventions for AI-generated content.
+
+Always generate the three core styles (MLA, APA, Chicago) plus IEEE and
+Harvard, and store all five in the `outputs.citation_*` fields — the
+student selected one for display, but instructors who want a different
+style can use the stored alternate without re-running.
 
 The `<Publisher>` field maps from `<Tool>` using this table — the
 agent fills it automatically without asking:
@@ -236,6 +418,31 @@ notes-bibliography, use:
 
 ```
 <Publisher>. <YYYY>. "<prompt summary>." <Tool> <Model>, <Month DD>. <share_link if present>.
+```
+
+**IEEE** — numbered reference; author is the tool, the prompt is the
+title in quotes, model and publisher follow, then the date:
+
+```
+[1] <Tool>, "<prompt summary>," <Model>, <Publisher>, <Mon. DD, YYYY>. <share_link if present>.
+```
+
+Example:
+```
+[1] ChatGPT, "Counterarguments to carbon tax," GPT-4o, OpenAI, May 14, 2026.
+```
+
+**Harvard** (author-date) — author is the *publisher*, year in
+parentheses, the tool/model and a Large-language-model qualifier, then an
+availability/access note when a share link exists:
+
+```
+<Publisher> (<YYYY>) <Tool> (<Model>) [Large language model]. <If share_link: "Available at: <share_link> (Accessed: DD Month YYYY)." >
+```
+
+Example:
+```
+OpenAI (2026) ChatGPT (GPT-4o) [Large language model].
 ```
 
 #### 5b — Disclosure paragraph (category-specific templates)
@@ -317,10 +524,11 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "generated_at": "<ISO 8601 timestamp>",
   "metadata_source": "agent_reported | student_claimed",
   "content_hash": "<sha256 of canonical other-fields, or null>",
+  "submission_hash": "<sha256 of the submitted file's bytes, or null>",
   "student": "<identifier from Step 1>",
   "assignment": {
     "course": "...",
@@ -341,6 +549,8 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
     "citation_mla": "...",
     "citation_apa": "...",
     "citation_chicago": "...",
+    "citation_ieee": "...",
+    "citation_harvard": "...",
     "disclosure_statement": "..."
   }
 }
@@ -361,6 +571,19 @@ JSON serialization of all other fields:
 If you have NO code-execution tool, set `content_hash: null` and
 emit a short note in the conversation explaining that this receipt
 is unverifiable beyond self-disclosure.
+
+**Computing `submission_hash`:** this binds the receipt to the *actual
+document* the student is submitting (the essay file, the source file),
+as opposed to `content_hash` which only covers the receipt's own fields.
+Compute it ONLY when both are true: (1) you have a code-execution tool,
+and (2) the student points you at their submission file (e.g. "my paper
+is essay.pdf"). When so, read the file's raw bytes and SHA-256 them
+(hex, lowercase), and set `submission_hash` to that digest. Do NOT
+include `submission_hash` in the `content_hash` input — they are
+independent. If the student does not name a file, or you cannot read it,
+or you have no code-execution tool, set `submission_hash: null`. Never
+guess it. Honest framing: it ties the receipt to one file version a
+reviewer can re-hash; it does not make the receipt tamper-proof.
 
 Honest framing of what the hash buys: tamper-evident, not tamper-
 proof. A reviewer (or a tool the reviewer uses) can detect casual

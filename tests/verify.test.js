@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -142,4 +142,61 @@ test('example brainstorm-receipt.json has a matching hash', async () => {
   const path = new URL('../examples/brainstorm-receipt.json', import.meta.url).pathname;
   const code = await runVerify([path]);
   assert.equal(code, 0);
+});
+
+// --- schema validation (feature B) ---
+
+test('validateSchema accepts a valid receipt', () => {
+  assert.deepEqual(validateSchema(example), []);
+});
+
+test('validateSchema accepts optional 1.1 fields', () => {
+  const r = {
+    ...example,
+    schema_version: '1.1',
+    submission_hash: 'b'.repeat(64),
+    outputs: { ...example.outputs, citation_ieee: 'i', citation_harvard: 'h' },
+  };
+  assert.deepEqual(validateSchema(r), []);
+});
+
+test('validateSchema flags a missing required field', () => {
+  const { student, ...rest } = example;
+  const errs = validateSchema(rest);
+  assert.ok(errs.some((e) => e.includes('student')));
+});
+
+test('validateSchema flags a bad category enum', () => {
+  const r = { ...example, ai_use: { ...example.ai_use, category: 'vibes' } };
+  const errs = validateSchema(r);
+  assert.ok(errs.some((e) => e.includes('category')));
+});
+
+test('validateSchema flags a malformed submission_hash', () => {
+  const r = { ...example, submission_hash: 'nope' };
+  const errs = validateSchema(r);
+  assert.ok(errs.some((e) => e.includes('submission_hash')));
+});
+
+test('runVerify returns 4 for matching hash but invalid schema', async () => {
+  // Remove a required field, then stamp the matching hash. computeHash
+  // excludes content_hash/submission_hash, so the stored hash still matches.
+  const { student, ...invalid } = example;
+  const receipt = { ...invalid, content_hash: computeHash(invalid) };
+  const code = await withTempReceipt(receipt, (path) => runVerify([path]));
+  assert.equal(code, 4);
+});
+
+test('computeHash excludes submission_hash from the digest', () => {
+  const h1 = computeHash(example);
+  const h2 = computeHash({ ...example, submission_hash: 'c'.repeat(64) });
+  assert.equal(h1, h2);
+});
+
+test('formatReport summarizes key fields', () => {
+  const report = formatReport(example, 'INTACT', []);
+  assert.match(report, /C\. Hawkins/);
+  assert.match(report, /Policy Analysis Essay/);
+  assert.match(report, /INTACT/);
+  assert.match(report, /Schema:\s+VALID/);
 });

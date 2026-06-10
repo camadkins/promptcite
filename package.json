@@ -51,7 +51,6 @@
     "list": "node bin/install.js --list",
     "dry-run": "node bin/install.js --dry-run --all",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --check .",
     "prepublishOnly": "node bin/install.js --version && node bin/install.js --list && node bin/install.js --help && node bin/install.js --dry-run --all",
     "test": "node --test tests/*.test.js"
   },

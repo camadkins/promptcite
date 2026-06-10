@@ -12,7 +12,7 @@ will hand you, alongside their paper or code:
 1. **A disclosure paragraph** pasted into the submission's header or
    acknowledgments (~2–4 sentences)
 2. **A formatted citation** in the assignment's required style
-   (MLA / APA / Chicago)
+   (MLA / APA / Chicago / IEEE / Harvard)
 3. **A JSON receipt** as an attachment or pasted appendix
 
 You don't need any software to read these. The disclosure and citation
@@ -25,9 +25,11 @@ Required structure:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "generated_at": "2026-05-27T14:30:00Z",
   "metadata_source": "agent_reported" | "student_claimed",
+  "content_hash": "<sha256 of the receipt fields, or null>",
+  "submission_hash": "<sha256 of the submitted file, or null>",
   "student": "<name or ID>",
   "assignment": { "course": "...", "instructor": "...", "title": "..." },
   "ai_use": {
@@ -39,9 +41,15 @@ Required structure:
     "source_verification": true | false | null
   },
   "outputs": { "citation_mla": "...", "citation_apa": "...",
-                "citation_chicago": "...", "disclosure_statement": "..." }
+                "citation_chicago": "...", "citation_ieee": "...",
+                "citation_harvard": "...", "disclosure_statement": "..." }
 }
 ```
+
+`citation_ieee`, `citation_harvard`, and `submission_hash` arrived in
+schema 1.1 and are optional — receipts from older clients (schema 1.0)
+simply omit them. See [`docs/SCHEMA-CHANGELOG.md`](./SCHEMA-CHANGELOG.md)
+for the version history.
 
 ## The `metadata_source` field — what it tells you
 
@@ -93,12 +101,34 @@ by running:
 npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
 ```
 
+The verifier also validates the receipt against the schema and prints a
+plain-English summary (student, assignment, AI tool/model/date, hash
+status, schema status) so you don't have to read the raw JSON.
+
 Exit codes:
-- `0` hash matches (receipt unmodified since emission)
+- `0` hash matches AND the receipt is well-formed (unmodified, valid)
 - `1` hash mismatch (receipt was edited)
 - `2` no `content_hash` field, or null (the agent had no code-execution
   tool when emitting, OR an older receipt format)
 - `3` user error (file missing, bad JSON, etc.)
+- `4` hash matches but the receipt fails schema validation (the summary
+  lists the specific problems)
+
+### `submission_hash` — binding the receipt to the work
+
+A schema-1.1 receipt may also carry a `submission_hash`: the SHA-256 of
+the **actual file the student submitted** (their essay, their source
+file), as opposed to `content_hash` which only covers the receipt's own
+fields. When present, you can confirm a receipt belongs to a specific
+document by re-hashing the submitted file:
+
+```bash
+shasum -a 256 path/to/their-essay.pdf
+```
+
+and comparing it to the receipt's `submission_hash`. Same honest limits
+apply (a student could hash a different file) — it's a binding aid, not
+proof. `null` means the agent couldn't hash the file at generation time.
 
 **Honest limits:** this is tamper-evident, not tamper-proof. A
 determined student can recompute the hash after editing since the
@@ -139,6 +169,32 @@ some patterns that work:
 > all assignments and require a core receipt. Outlining and editing
 > require a core receipt plus a revision statement. Drafting and
 > debugging require a core receipt plus a share-link or diff appendix."
+
+### Machine-readable policy (`promptcite.policy.json`)
+
+You can turn a policy like the one above into a file that `/receipt`
+*follows automatically*. Drop a `promptcite.policy.json` in the
+assignment folder (e.g. the starter repo students clone). When present,
+`/receipt` steers the interview to it — offering only your allowed
+categories, using your required citation style, and requiring the
+source-verification answer or appendix you specify. A starter file lives
+at [`docs/promptcite.policy.example.json`](./promptcite.policy.example.json):
+
+```json
+{
+  "allowed_categories": ["brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "require_source_verification": ["search", "draft"],
+  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" }
+}
+```
+
+All keys are optional. The policy is **configuration, not a receipt** — it
+is never hashed, never embedded in a student's receipt, and makes no
+network calls. It guides honest disclosure; it does **not** detect or
+prevent dishonesty (a student can ignore or edit the file). Same trust
+model as everything else here. Where a student's saved settings conflict
+with your policy, the policy wins.
 
 **Policy that PromptCite explicitly does not support:**
 > ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite

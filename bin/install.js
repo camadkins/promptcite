@@ -68,6 +68,7 @@ class UserError extends Error {
  * @property {(ctx: InstallContext) => Promise<void>} uninstall
  * @property {boolean} autoActivates
  * @property {string[]} targetPaths
+ * @property {any} entry
  */
 
 /**
@@ -264,20 +265,157 @@ class StubSkipError extends Error {
 const STUB_MESSAGE = (id) =>
   `[${id}] adapter coming in next release — for now use 'npx skills add camadkins/promptcite -a ${id}' (validates against vercel-labs/skills registry once promptcite is added)`;
 
-/** @type {Provider[]} */
-const providers = [
-  {
-    id: 'claude',
-    name: 'Claude Code',
-    detect: () => existsSync(join(homedir(), '.claude')),
-    async install(ctx) {
-      const targetPath = join(ctx.configDir, 'skills', 'promptcite', 'SKILL.md');
-      const ruleBody = await readRuleSource(ctx);
-      const frontmatter = `---
+const RULE_HEADER = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
+
+const CLAUDE_FRONTMATTER = `---
 name: receipt
 description: Generate a structured AI-use receipt for academic assignments. Conducts a short interview (under 2 minutes) and emits a citation string, plain-language disclosure paragraph, and JSON receipt validated against schema.yaml. Use when the student types /receipt, "generate my AI receipt", or any variant indicating they want to disclose AI use on coursework.
 ---`;
-      const content = `${frontmatter}\n\n${ruleBody}`;
+
+/**
+ * Declarative agent manifest. Adding an agent is a DATA entry here — pick a
+ * strategy and give it a detect spec + target path. No new install/uninstall
+ * code. Strategies:
+ *   - global-skill:  write the rule (with frontmatter) to a user-config path
+ *   - rule-drop:     drop a standalone rule file into a per-project rules dir
+ *                    (safe — its own file, never clobbers the user's content)
+ *   - block-append:  surgically append a begin/end block into a SHARED file
+ *                    (AGENTS.md, .goosehints, replit.md, …) so existing
+ *                    content is preserved
+ *   - cli-extension: shell out to the agent's own extension installer
+ * detect: detected if any `cwdPaths` exist (relative to cwd), any `homePaths`
+ *   exist (relative to $HOME), or `command` is found on PATH.
+ * requiresInit: per-project write — needs --with-init. onMissingInit:
+ *   'hint' logs a friendly note and skips; 'stub' throws StubSkipError.
+ *
+ * @typedef {Object} AgentSpec
+ * @property {string} id
+ * @property {string} name
+ * @property {'global-skill'|'rule-drop'|'block-append'|'cli-extension'} strategy
+ * @property {{ cwdPaths?: string[], homePaths?: string[], command?: string }} detect
+ * @property {'cwd'|'configDir'} [base]
+ * @property {string} [path]
+ * @property {string} [display]
+ * @property {boolean} [requiresInit]
+ * @property {'hint'|'stub'} [onMissingInit]
+ * @property {string} [frontmatter]
+ * @property {{ bin: string, installArgs: string[], uninstallArgs: string[] }} [cli]
+ * @property {boolean} [autoActivates]
+ */
+
+/** @type {AgentSpec[]} */
+const MANIFEST = [
+  // --- core 10 ---
+  { id: 'claude', name: 'Claude Code', strategy: 'global-skill', base: 'configDir',
+    path: 'skills/promptcite/SKILL.md', frontmatter: CLAUDE_FRONTMATTER,
+    display: '~/.claude/skills/promptcite/SKILL.md', detect: { homePaths: ['.claude'] } },
+  { id: 'gemini', name: 'Gemini CLI', strategy: 'cli-extension',
+    cli: { bin: 'gemini', installArgs: ['extensions', 'install', 'https://github.com/camadkins/promptcite'], uninstallArgs: ['extensions', 'uninstall', 'promptcite'] },
+    display: '(gemini CLI extension store)', detect: { command: 'gemini' } },
+  { id: 'cursor', name: 'Cursor', strategy: 'rule-drop', base: 'cwd',
+    path: '.cursor/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'hint', detect: { cwdPaths: ['.cursor'] } },
+  { id: 'windsurf', name: 'Windsurf', strategy: 'rule-drop', base: 'cwd',
+    path: '.windsurf/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.windsurf'] } },
+  { id: 'copilot', name: 'GitHub Copilot', strategy: 'block-append', base: 'cwd',
+    path: '.github/copilot-instructions.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.github'] } },
+  // AGENTS.md is a shared cross-agent convention — block-append preserves any
+  // existing content, and this same file covers Amp / opencode / Crush / Jules.
+  { id: 'codex', name: 'Codex CLI', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENTS.md'], homePaths: ['.codex'] } },
+  { id: 'cline', name: 'Cline', strategy: 'rule-drop', base: 'cwd',
+    path: '.clinerules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.clinerules', '.cline'] } },
+  { id: 'continue', name: 'Continue', strategy: 'rule-drop', base: 'cwd',
+    path: '.continue/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.continue'] } },
+  { id: 'roo', name: 'Roo Code', strategy: 'rule-drop', base: 'cwd',
+    path: '.roo/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.roo'] } },
+  // Aider loads CONVENTIONS.md (via .aider.conf.yml 'read:' or --read); shared
+  // file, so block-append.
+  { id: 'aider', name: 'Aider', strategy: 'block-append', base: 'cwd',
+    path: 'CONVENTIONS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.aider.conf.yml', 'CONVENTIONS.md'], homePaths: ['.aider.conf.yml'] } },
+
+  // --- expansion (researched 2026 conventions) ---
+  // rule-drop = own file in a per-project rules dir (no clobber):
+  { id: 'amazonq', name: 'Amazon Q Developer', strategy: 'rule-drop', base: 'cwd',
+    path: '.amazonq/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.amazonq'], command: 'q' } },
+  { id: 'kiro', name: 'Kiro', strategy: 'rule-drop', base: 'cwd',
+    path: '.kiro/steering/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.kiro'] } },
+  { id: 'augment', name: 'Augment Code', strategy: 'rule-drop', base: 'cwd',
+    path: '.augment/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.augment'] } },
+  { id: 'trae', name: 'Trae', strategy: 'rule-drop', base: 'cwd',
+    path: '.trae/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.trae'] } },
+  // block-append = shared single file the user may already own (preserve it):
+  { id: 'junie', name: 'JetBrains Junie', strategy: 'block-append', base: 'cwd',
+    path: '.junie/guidelines.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.junie'] } },
+  { id: 'goose', name: 'Goose', strategy: 'block-append', base: 'cwd',
+    path: '.goosehints', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.goosehints', '.goose'], command: 'goose' } },
+  { id: 'replit', name: 'Replit Agent', strategy: 'block-append', base: 'cwd',
+    path: 'replit.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['replit.md', '.replit'] } },
+  { id: 'openhands', name: 'OpenHands', strategy: 'block-append', base: 'cwd',
+    path: '.openhands/microagents/repo.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.openhands'] } },
+  { id: 'qodo', name: 'Qodo', strategy: 'block-append', base: 'cwd',
+    path: 'best_practices.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['best_practices.md', '.qodo', 'agent.toml'] } },
+  { id: 'zed', name: 'Zed', strategy: 'block-append', base: 'cwd',
+    path: '.rules', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.zed', '.rules'], command: 'zed' } },
+
+  // --- AGENTS.md family: agents that read AGENTS.md natively. Listed as
+  //     first-class for discoverability; each detects via its OWN signal but
+  //     shares the single AGENTS.md block (block-append is idempotent, so
+  //     overlapping installs just no-op). Jules is cloud/GitHub-based with no
+  //     local footprint — never auto-detected; install explicitly with --only.
+  { id: 'opencode', name: 'opencode', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['opencode.json', '.opencode'], command: 'opencode' } },
+  { id: 'amp', name: 'Amp (Sourcegraph)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENT.md'], command: 'amp' } },
+  { id: 'crush', name: 'Crush (Charm)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['crush.json', '.crush.json'], command: 'crush' } },
+  { id: 'jules', name: 'Jules (Google)', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: {} },
+];
+
+/** @param {string} bin @param {string[]} args @returns {Promise<void>} */
+function spawnCmd(bin, args) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { stdio: 'inherit' });
+    proc.on('error', reject);
+    proc.on('exit', (code) => {
+      if (code === 0) resolve(undefined);
+      else reject(new Error(`${bin} ${args.join(' ')} exited with code ${code}`));
+    });
+  });
+}
+
+/**
+ * Resolve a file strategy's on-disk target.
+ * @param {InstallContext} ctx @param {any} entry @returns {string}
+ */
+function targetOf(ctx, entry) {
+  const base = entry.base === 'configDir' ? ctx.configDir : ctx.cwd;
+  return join(base, ...String(entry.path).split('/'));
+}
+
+/**
+ * Gate a per-project write on --with-init. Returns true to proceed; otherwise
+ * handles the missing-init case (friendly hint, or StubSkipError) and the
+ * caller stops.
+ * @param {InstallContext} ctx @param {any} entry @param {'install'|'uninstall'} action @returns {boolean}
+ */
+function gateInit(ctx, entry, action) {
+  if (!entry.requiresInit || ctx.withInit) return true;
+  if (entry.onMissingInit === 'hint') {
+    const verb = action === 'uninstall' ? 'remove' : 'drop';
+    ctx.log(`${entry.name} uses per-project rules. Re-run with \`--with-init\` inside the target project to ${verb} \`${entry.path}\`.`);
+    return false;
+  }
+  throw new StubSkipError(entry.id);
+}
+
+/** @type {Record<string, { install: (ctx: InstallContext, entry: any) => Promise<void>, uninstall: (ctx: InstallContext, entry: any) => Promise<void> }>} */
+const STRATEGIES = {
+  'global-skill': {
+    async install(ctx, entry) {
+      const targetPath = targetOf(ctx, entry);
+      const ruleBody = await readRuleSource(ctx);
+      const content = `${entry.frontmatter}\n\n${ruleBody}`;
       const existing = await ctx.adapter.readFileIfPresent(targetPath);
       if (existing === content) {
         ctx.adapter.log(`already up-to-date: ${targetPath}`);
@@ -285,268 +423,94 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
       }
       await ctx.adapter.ensureDirectory(dirname(targetPath));
       await ctx.adapter.writeFile(targetPath, content);
-      // TODO(installer-adapters): defer ~/.claude/settings.json JSONC merge for hook registration to a separate pass
     },
-    async uninstall(ctx) {
-      const skillDir = join(ctx.configDir, 'skills', 'promptcite');
+    async uninstall(ctx, entry) {
+      const skillDir = dirname(targetOf(ctx, entry));
       if (await ctx.adapter.pathExists(skillDir)) {
         await ctx.adapter.deleteDirectory(skillDir);
       }
     },
-    autoActivates: true,
-    targetPaths: ['~/.claude/skills/promptcite/SKILL.md'],
   },
-  {
-    id: 'gemini',
-    name: 'Gemini CLI',
-    detect: () => {
-      try {
-        execSync('command -v gemini', { stdio: 'ignore' });
-        return true;
-      } catch {
-        return false;
+  'rule-drop': {
+    async install(ctx, entry) {
+      if (!gateInit(ctx, entry, 'install')) return;
+      const ruleBody = await readRuleSource(ctx);
+      await dropRuleFile({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry), header: RULE_HEADER, ruleBody });
+    },
+    async uninstall(ctx, entry) {
+      if (!gateInit(ctx, entry, 'uninstall')) return;
+      const targetPath = targetOf(ctx, entry);
+      if (await ctx.adapter.pathExists(targetPath)) {
+        await ctx.adapter.deleteFile(targetPath);
       }
     },
-    async install(ctx) {
-      const repoUrl = 'https://github.com/camadkins/promptcite';
+  },
+  'block-append': {
+    async install(ctx, entry) {
+      if (!gateInit(ctx, entry, 'install')) return;
+      const ruleBody = await readRuleSource(ctx);
+      await appendCopilotBlock({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry), ruleBody });
+    },
+    async uninstall(ctx, entry) {
+      if (!gateInit(ctx, entry, 'uninstall')) return;
+      await removeCopilotBlock({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry) });
+    },
+  },
+  'cli-extension': {
+    async install(ctx, entry) {
+      const { bin, installArgs } = entry.cli;
       if (ctx.dryRun) {
-        ctx.adapter.log(`[DRY-RUN] would run: gemini extensions install ${repoUrl}`);
+        ctx.adapter.log(`[DRY-RUN] would run: ${bin} ${installArgs.join(' ')}`);
         return;
       }
-      ctx.adapter.log(`running: gemini extensions install ${repoUrl}`);
-      await new Promise((resolve, reject) => {
-        const proc = spawn('gemini', ['extensions', 'install', repoUrl], {
-          stdio: 'inherit',
-        });
-        proc.on('error', reject);
-        proc.on('exit', (code) => {
-          if (code === 0) resolve(undefined);
-          else reject(new Error(`gemini extensions install exited with code ${code}`));
-        });
-      });
+      ctx.adapter.log(`running: ${bin} ${installArgs.join(' ')}`);
+      await spawnCmd(bin, installArgs);
     },
-    async uninstall(ctx) {
+    async uninstall(ctx, entry) {
+      const { bin, uninstallArgs } = entry.cli;
       if (ctx.dryRun) {
-        ctx.adapter.log('[DRY-RUN] would run: gemini extensions uninstall promptcite');
+        ctx.adapter.log(`[DRY-RUN] would run: ${bin} ${uninstallArgs.join(' ')}`);
         return;
       }
-      ctx.adapter.log('running: gemini extensions uninstall promptcite');
-      await new Promise((resolve, reject) => {
-        const proc = spawn('gemini', ['extensions', 'uninstall', 'promptcite'], {
-          stdio: 'inherit',
-        });
-        proc.on('error', reject);
-        proc.on('exit', (code) => {
-          if (code === 0) resolve(undefined);
-          else reject(new Error(`gemini extensions uninstall exited with code ${code}`));
-        });
-      });
+      ctx.adapter.log(`running: ${bin} ${uninstallArgs.join(' ')}`);
+      await spawnCmd(bin, uninstallArgs);
     },
-    autoActivates: true,
-    targetPaths: ['(gemini CLI extension store)'],
   },
-  {
-    id: 'cursor',
-    name: 'Cursor',
-    detect: () => existsSync(join(process.cwd(), '.cursor')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        ctx.log('Cursor uses per-project rules. Re-run with `--with-init` inside the target project to drop `.cursor/rules/promptcite-receipt.md`.');
-        return;
-      }
-      const targetPath = join(ctx.cwd, '.cursor', 'rules', 'promptcite-receipt.md');
-      const ruleBody = await readRuleSource(ctx);
-      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
-      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        ctx.log('Cursor uninstall is per-project. Re-run with `--with-init` inside the target project to remove `.cursor/rules/promptcite-receipt.md`.');
-        return;
-      }
-      const targetPath = join(ctx.cwd, '.cursor', 'rules', 'promptcite-receipt.md');
-      if (await ctx.adapter.pathExists(targetPath)) {
-        await ctx.adapter.deleteFile(targetPath);
-      }
-    },
-    autoActivates: true,
-    targetPaths: ['.cursor/rules/promptcite-receipt.md'],
-  },
-  {
-    id: 'windsurf',
-    name: 'Windsurf',
-    detect: () => existsSync(join(process.cwd(), '.windsurf')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('windsurf');
-      }
-      const targetPath = join(ctx.cwd, '.windsurf', 'rules', 'promptcite-receipt.md');
-      const ruleBody = await readRuleSource(ctx);
-      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
-      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('windsurf');
-      }
-      const targetPath = join(ctx.cwd, '.windsurf', 'rules', 'promptcite-receipt.md');
-      if (await ctx.adapter.pathExists(targetPath)) {
-        await ctx.adapter.deleteFile(targetPath);
-      }
-    },
-    autoActivates: true,
-    targetPaths: ['.windsurf/rules/promptcite-receipt.md'],
-  },
-  {
-    id: 'copilot',
-    name: 'GitHub Copilot',
-    detect: () => existsSync(join(process.cwd(), '.github')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('copilot');
-      }
-      const targetPath = join(ctx.cwd, '.github', 'copilot-instructions.md');
-      const ruleBody = await readRuleSource(ctx);
-      await appendCopilotBlock({ adapter: ctx.adapter, targetPath, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('copilot');
-      }
-      const targetPath = join(ctx.cwd, '.github', 'copilot-instructions.md');
-      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
-    },
-    autoActivates: true,
-    targetPaths: ['.github/copilot-instructions.md'],
-  },
-  {
-    id: 'codex',
-    name: 'Codex CLI',
-    detect: () => existsSync(join(process.cwd(), 'AGENTS.md')) || existsSync(join(homedir(), '.codex')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('codex');
-      }
-      // AGENTS.md uses surgical begin/end block append, like Copilot's
-      // .github/copilot-instructions.md, because AGENTS.md is a
-      // shared-convention file (multiple agents respect it) and we must
-      // preserve any existing content the user has there.
-      const targetPath = join(ctx.cwd, 'AGENTS.md');
-      const ruleBody = await readRuleSource(ctx);
-      await appendCopilotBlock({ adapter: ctx.adapter, targetPath, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('codex');
-      }
-      const targetPath = join(ctx.cwd, 'AGENTS.md');
-      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
-    },
-    autoActivates: true,
-    targetPaths: ['AGENTS.md'],
-  },
-  {
-    id: 'cline',
-    name: 'Cline',
-    detect: () => existsSync(join(process.cwd(), '.clinerules')) || existsSync(join(process.cwd(), '.cline')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('cline');
-      }
-      const targetPath = join(ctx.cwd, '.clinerules', 'promptcite-receipt.md');
-      const ruleBody = await readRuleSource(ctx);
-      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
-      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('cline');
-      }
-      const targetPath = join(ctx.cwd, '.clinerules', 'promptcite-receipt.md');
-      if (await ctx.adapter.pathExists(targetPath)) {
-        await ctx.adapter.deleteFile(targetPath);
-      }
-    },
-    autoActivates: true,
-    targetPaths: ['.clinerules/promptcite-receipt.md'],
-  },
-  {
-    id: 'continue',
-    name: 'Continue',
-    detect: () => existsSync(join(process.cwd(), '.continue')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('continue');
-      }
-      const targetPath = join(ctx.cwd, '.continue', 'rules', 'promptcite-receipt.md');
-      const ruleBody = await readRuleSource(ctx);
-      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
-      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('continue');
-      }
-      const targetPath = join(ctx.cwd, '.continue', 'rules', 'promptcite-receipt.md');
-      if (await ctx.adapter.pathExists(targetPath)) {
-        await ctx.adapter.deleteFile(targetPath);
-      }
-    },
-    autoActivates: true,
-    targetPaths: ['.continue/rules/promptcite-receipt.md'],
-  },
-  {
-    id: 'roo',
-    name: 'Roo Code',
-    detect: () => existsSync(join(process.cwd(), '.roo')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('roo');
-      }
-      const targetPath = join(ctx.cwd, '.roo', 'rules', 'promptcite-receipt.md');
-      const ruleBody = await readRuleSource(ctx);
-      const header = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
-      await dropRuleFile({ adapter: ctx.adapter, targetPath, header, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('roo');
-      }
-      const targetPath = join(ctx.cwd, '.roo', 'rules', 'promptcite-receipt.md');
-      if (await ctx.adapter.pathExists(targetPath)) {
-        await ctx.adapter.deleteFile(targetPath);
-      }
-    },
-    autoActivates: true,
-    targetPaths: ['.roo/rules/promptcite-receipt.md'],
-  },
-  {
-    id: 'aider',
-    name: 'Aider',
-    detect: () => existsSync(join(process.cwd(), '.aider.conf.yml')) || existsSync(join(homedir(), '.aider.conf.yml')) || existsSync(join(process.cwd(), 'CONVENTIONS.md')),
-    async install(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('aider');
-      }
-      // Aider loads CONVENTIONS.md when configured via .aider.conf.yml
-      // ('read: CONVENTIONS.md') or via --read CONVENTIONS.md at startup.
-      // We drop CONVENTIONS.md and use surgical begin/end block append
-      // to preserve any existing convention content the user has there.
-      const targetPath = join(ctx.cwd, 'CONVENTIONS.md');
-      const ruleBody = await readRuleSource(ctx);
-      await appendCopilotBlock({ adapter: ctx.adapter, targetPath, ruleBody });
-    },
-    async uninstall(ctx) {
-      if (!ctx.withInit) {
-        throw new StubSkipError('aider');
-      }
-      const targetPath = join(ctx.cwd, 'CONVENTIONS.md');
-      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
-    },
-    autoActivates: true,
-    targetPaths: ['CONVENTIONS.md'],
-  },
-];
+};
+
+/**
+ * Dispatch to a strategy's install/uninstall, guarding an unknown strategy.
+ * @param {any} entry @param {'install'|'uninstall'} op @param {InstallContext} ctx @returns {Promise<void>}
+ */
+function runStrategy(entry, op, ctx) {
+  const strategy = STRATEGIES[entry.strategy];
+  if (!strategy) throw new Error(`unknown install strategy: ${entry.strategy}`);
+  return strategy[op](ctx, entry);
+}
+
+/** @param {any} spec @returns {() => boolean} */
+function makeDetect(spec) {
+  return () => {
+    if (spec.command) {
+      try { execSync(`command -v ${spec.command}`, { stdio: 'ignore' }); return true; } catch { /* not on PATH */ }
+    }
+    for (const p of spec.cwdPaths ?? []) if (existsSync(join(process.cwd(), p))) return true;
+    for (const p of spec.homePaths ?? []) if (existsSync(join(homedir(), p))) return true;
+    return false;
+  };
+}
+
+/** @type {Provider[]} */
+const providers = MANIFEST.map((entry) => ({
+  id: entry.id,
+  name: entry.name,
+  detect: makeDetect(entry.detect),
+  install: (/** @type {InstallContext} */ ctx) => runStrategy(entry, 'install', ctx),
+  uninstall: (/** @type {InstallContext} */ ctx) => runStrategy(entry, 'uninstall', ctx),
+  autoActivates: entry.autoActivates !== false,
+  targetPaths: [entry.display ?? entry.path ?? entry.id],
+  entry,
+}));
 
 const providerById = new Map(providers.map((provider) => [provider.id, provider]));
 
@@ -565,16 +529,85 @@ async function printVersion() {
 function printList() {
   console.log('PromptCite — supported agents');
   console.log('');
-  console.log('| id       | name           | detected | auto-activates |');
-  console.log('|----------|----------------|----------|----------------|');
+  console.log('| id        | name                | detected | auto-activates |');
+  console.log('|-----------|---------------------|----------|----------------|');
   for (const p of providers) {
     const detected = p.detect() ? 'yes' : 'no';
     const auto = p.autoActivates ? 'yes' : 'no';
-    console.log(`| ${p.id.padEnd(8)} | ${p.name.padEnd(14)} | ${detected.padEnd(8)} | ${auto.padEnd(14)} |`);
+    console.log(`| ${p.id.padEnd(9)} | ${p.name.padEnd(19)} | ${detected.padEnd(8)} | ${auto.padEnd(14)} |`);
   }
   const detectedCount = providers.filter((p) => p.detect()).length;
   console.log('');
   console.log(`Detected ${detectedCount} of ${providers.length} agents on this machine.`);
+}
+
+/**
+ * Diagnose an install: for each provider, report detection and whether its
+ * rule artifact is present and up-to-date vs the current rule. Read-only,
+ * no network. Drift is detected by checking whether the installed file still
+ * contains the current rule body (works for all three adapter strategies).
+ * @param {InstallContext} ctx
+ */
+async function runDoctor(ctx) {
+  const ruleNeedle = (await readRuleSource(ctx)).trim();
+  ctx.log('PromptCite — doctor');
+  ctx.log('');
+  ctx.log('| id        | name                | detected | rule artifact        |');
+  ctx.log('|-----------|---------------------|----------|----------------------|');
+  for (const p of providers) {
+    const detected = p.detect() ? 'yes' : 'no';
+    const e = p.entry;
+    let artifact;
+    if (e.strategy === 'cli-extension') {
+      artifact = 'CLI-managed';
+    } else {
+      const content = await readFileIfPresent(targetOf(ctx, e));
+      if (content === null) artifact = 'missing';
+      else if (content.includes(ruleNeedle)) artifact = 'up-to-date';
+      else artifact = 'STALE (re-install)';
+    }
+    ctx.log(`| ${p.id.padEnd(9)} | ${p.name.padEnd(19)} | ${detected.padEnd(8)} | ${artifact.padEnd(20)} |`);
+  }
+  ctx.log('');
+  const cfg = await pathExists(join(ctx.cwd, 'promptcite.config.json'));
+  const pol = await pathExists(join(ctx.cwd, 'promptcite.policy.json'));
+  ctx.log(`promptcite.config.json in cwd: ${cfg ? 'yes' : 'no'}`);
+  ctx.log(`promptcite.policy.json in cwd: ${pol ? 'yes' : 'no'}`);
+  ctx.log('');
+  ctx.log('Rule artifacts marked STALE: re-run the installer for that agent to refresh.');
+}
+
+async function printRule() {
+  const target = resolve(__dirname, '..', 'src', 'rules', 'receipt.md');
+  const body = await readFile(target, 'utf8');
+  // Universal fallback: any agent NOT in `--list` can still run PromptCite
+  // if a human drops this rule into wherever that agent reads its custom
+  // instructions / system prompt / rules file. No adapter code required.
+  console.log('<!-- PromptCite /receipt rule — universal install -->');
+  console.log("<!-- For any agent not covered by 'promptcite --list': paste everything below");
+  console.log('     into that agent\'s custom-instructions / rules / system-prompt file. -->');
+  console.log('');
+  console.log(body);
+}
+
+/**
+ * Scaffold a starter promptcite.config.json in the cwd so the student can
+ * set consistent-across-sessions defaults (citation style, etc.) that
+ * /receipt reads to skip repeat questions. Personal fields are left out so
+ * the agent still asks for them; add them via /receipt settings.
+ * @param {InstallContext} ctx
+ */
+async function writeStarterConfig(ctx) {
+  const targetPath = join(ctx.cwd, 'promptcite.config.json');
+  const existing = await ctx.adapter.readFileIfPresent(targetPath);
+  if (existing && !ctx.force) {
+    ctx.log(`${c.yellow('exists:')} ${targetPath} (use --force to overwrite, or edit it / run /receipt settings)`);
+    return;
+  }
+  const starter = JSON.stringify({ citation_style: 'MLA', flow: 'full' }, null, 2) + '\n';
+  await ctx.adapter.writeFile(targetPath, starter);
+  ctx.log('Set consistent defaults here (citation_style, student, default_course,');
+  ctx.log('default_instructor, flow) so /receipt stops re-asking — or run /receipt settings.');
 }
 
 async function printHelp() {
@@ -589,6 +622,10 @@ OPTIONS
   -h, --help                 Show this help and exit
   -v, --version              Print version and exit
       --list                 List supported agents and detection state
+      --doctor               Diagnose install: detection + rule-file drift; writes nothing
+      --print-rule, --manual Print the /receipt rule to stdout (universal install
+                             for any agent not in --list); writes nothing
+      --init-config          Scaffold a starter promptcite.config.json in the cwd
       --dry-run              Print what would be done; write nothing
       --only <id>            Install only for the named agent
       --all                  Install for every detected agent (default when --only is absent)
@@ -604,6 +641,9 @@ EXAMPLES
   promptcite --dry-run --all
   promptcite --only claude
   promptcite --with-init --only cursor
+  promptcite --doctor                            # check what's installed + drift
+  promptcite --print-rule > my-agent-rules.md   # any agent, even unlisted
+  promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
 EXIT CODES
@@ -625,6 +665,10 @@ function parseCli(argv) {
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
       list: { type: 'boolean' },
+      doctor: { type: 'boolean' },
+      'print-rule': { type: 'boolean' },
+      manual: { type: 'boolean' },
+      'init-config': { type: 'boolean' },
       only: { type: 'string' },
       all: { type: 'boolean' },
       'with-init': { type: 'boolean' },
@@ -652,6 +696,9 @@ function parseCli(argv) {
     help: values.help === true,
     version: values.version === true,
     list: values.list === true,
+    doctor: values.doctor === true,
+    printRule: values['print-rule'] === true || values.manual === true,
+    initConfig: values['init-config'] === true,
     only,
     all: only === null,
     withInit: values['with-init'] === true,
@@ -746,7 +793,22 @@ async function main(argv) {
     return 0;
   }
 
+  if (parsed.printRule) {
+    await printRule();
+    return 0;
+  }
+
   const ctx = buildContext(parsed);
+
+  if (parsed.doctor) {
+    await runDoctor(ctx);
+    return 0;
+  }
+
+  if (parsed.initConfig) {
+    await writeStarterConfig(ctx);
+    return 0;
+  }
   const { selected: selectedProviders, skipped: undetectedProviders } = selectProviders(parsed);
   const allMode = parsed.all === true;
   const action = parsed.uninstall ? 'uninstall' : 'install';

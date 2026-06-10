@@ -56,13 +56,65 @@ runs under the hood), use the table below. Every row also works as
 | **Continue** | `npx -y github:camadkins/promptcite --only continue --with-init` | Per-project rule file at `.continue/rules/promptcite-receipt.md` |
 | **Roo Code** | `npx -y github:camadkins/promptcite --only roo --with-init` | Per-project rule file at `.roo/rules/promptcite-receipt.md` |
 | **Aider** | `npx -y github:camadkins/promptcite --only aider --with-init` | Surgical block in `CONVENTIONS.md` at project root (load via `--read CONVENTIONS.md` or `.aider.conf.yml`) |
+| **Amazon Q Developer** | `npx -y github:camadkins/promptcite --only amazonq --with-init` | Per-project rule file at `.amazonq/rules/promptcite-receipt.md` |
+| **Kiro** | `npx -y github:camadkins/promptcite --only kiro --with-init` | Steering file at `.kiro/steering/promptcite-receipt.md` |
+| **Augment Code** | `npx -y github:camadkins/promptcite --only augment --with-init` | Per-project rule file at `.augment/rules/promptcite-receipt.md` |
+| **Trae** | `npx -y github:camadkins/promptcite --only trae --with-init` | Per-project rule file at `.trae/rules/promptcite-receipt.md` |
+| **JetBrains Junie** | `npx -y github:camadkins/promptcite --only junie --with-init` | Surgical block in `.junie/guidelines.md` |
+| **Goose** | `npx -y github:camadkins/promptcite --only goose --with-init` | Surgical block in `.goosehints` at project root |
+| **Replit Agent** | `npx -y github:camadkins/promptcite --only replit --with-init` | Surgical block in `replit.md` at project root |
+| **OpenHands** | `npx -y github:camadkins/promptcite --only openhands --with-init` | Surgical block in `.openhands/microagents/repo.md` |
+| **Qodo** | `npx -y github:camadkins/promptcite --only qodo --with-init` | Surgical block in `best_practices.md` at project root |
+| **Zed** | `npx -y github:camadkins/promptcite --only zed --with-init` | Surgical block in `.rules` at project root |
+| **opencode** | `npx -y github:camadkins/promptcite --only opencode --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Amp (Sourcegraph)** | `npx -y github:camadkins/promptcite --only amp --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Crush (Charm)** | `npx -y github:camadkins/promptcite --only crush --with-init` | Surgical block in `AGENTS.md` at project root |
+| **Jules (Google)** | `npx -y github:camadkins/promptcite --only jules --with-init` | Surgical block in `AGENTS.md` (cloud agent — install explicitly; not auto-detected) |
 
-The full agent matrix lives in `bin/install.js` under the `PROVIDERS`
-array. `npx skills add` covers ~25 long-tail agents via the
-[vercel-labs/skills](https://github.com/vercel-labs/skills) registry —
-see the registry for the up-to-date list.
+The full agent matrix lives in `bin/install.js` under the `MANIFEST`
+array — each agent is one declarative entry (strategy + detect + path).
+
+**`AGENTS.md` family.** opencode, Amp, Crush, and Jules all read a
+root-level `AGENTS.md`, so they share one block there (installing any of
+them — or Codex — writes the same idempotent block). They're listed
+separately for discoverability. Any *other* `AGENTS.md`-aware agent picks
+up `/receipt` automatically once that block exists. For anything still
+unlisted, `promptcite --print-rule` is the universal fallback.
 
 For "auto-activates? No" agents, type `/receipt` once per session.
+
+## Any other agent (universal install)
+
+Using an agent that isn't in the matrix above? PromptCite still works —
+the `/receipt` behavior is a single rule file, so any agent that reads a
+custom-instructions / rules / system-prompt file can run it. Print the
+rule and drop it wherever that agent looks:
+
+```bash
+npx -y github:camadkins/promptcite --print-rule > my-agent-rules.md
+# then paste/point your agent at my-agent-rules.md
+```
+
+`--print-rule` (alias `--manual`) writes nothing and makes no network
+calls — it just emits the rule to stdout.
+
+## Settings (skip the repeat questions)
+
+`/receipt` reads an optional `promptcite.config.json` in the current
+directory for the things that don't change between assignments — your
+citation style, your name/ID, your default course and instructor. When
+present, `/receipt` uses them and stops asking; `/receipt quick` uses
+them to run the fastest possible flow.
+
+Scaffold one:
+
+```bash
+npx -y github:camadkins/promptcite --init-config   # writes promptcite.config.json
+```
+
+Or just run `/receipt settings` inside your agent to set them
+conversationally. Settings are local config — never hashed, never part of
+a receipt, never sent anywhere.
 
 ## Manual install (no `curl | bash`)
 
@@ -88,6 +140,9 @@ node bin/install.js --all              # install for everything detected
 | `--non-interactive` | Never prompt. Auto-default when stdin is not a TTY. |
 | `--no-color` | Disable ANSI colors. |
 | `--list` | Print the full agent matrix and exit. |
+| `--doctor` | Diagnose your install: per-agent detection, whether each rule file is present / stale, and whether `promptcite.config.json` / `promptcite.policy.json` exist. Writes nothing. |
+| `--print-rule` / `--manual` | Print the `/receipt` rule to stdout (universal install for any agent not in the matrix). Writes nothing. |
+| `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
 | `--force` | Re-run even if already installed. |
 | `--uninstall` | Remove everything. |
 | `--version` / `-v` | Print version and exit. |
