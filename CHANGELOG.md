@@ -4,6 +4,18 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/camadkins/promptcite/compare/v1.0.0...v1.1.0) (2026-06-10)
+
+
+### Added
+
+* next build — 24 agents, schema 1.1, /receipt modes, verify + policy ([#41](https://github.com/camadkins/promptcite/issues/41)) ([ea5b8c8](https://github.com/camadkins/promptcite/commit/ea5b8c8c8b7a4eefd7295dbbe40568d91f8a8fcc))
+
+
+### Docs
+
+* readme rewrite for clearer install + marketing scan ([#25](https://github.com/camadkins/promptcite/issues/25)) ([9574492](https://github.com/camadkins/promptcite/commit/95744927e7e959e48a8069102d6e13d9038ff5d6))
+
 ## [Unreleased]
 
 ### Added
