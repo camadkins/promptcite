@@ -198,5 +198,122 @@ test('formatReport summarizes key fields', () => {
   assert.match(report, /C\. Hawkins/);
   assert.match(report, /Policy Analysis Essay/);
   assert.match(report, /INTACT/);
-  assert.match(report, /Schema:\s+VALID/);
+  assert.match(report, /Schema:\s+\d+\.\d+ — VALID/);  // the generation is part of the report
+});
+
+// ---------------------------------------------------------------------------
+// Schema 2.0 — ai_use is an array of sessions, and 1.x must keep working
+// ---------------------------------------------------------------------------
+
+const session = (over = {}) => ({
+  tool: 'ChatGPT',
+  model: 'GPT-4o',
+  date: '2026-05-14',
+  metadata_source: 'agent_reported',
+  category: 'outline',
+  prompt_summary: 'Asked for an essay structure',
+  direct_content_used: false,
+  revision_statement: 'Rewrote every heading myself.',
+  source_verification: null,
+  citations: { mla: 'm', apa: 'a', chicago: 'c' },
+  ...over,
+});
+
+const v2 = (sessions = [session()]) => ({
+  schema_version: '2.0',
+  generated_at: '2026-05-16T18:04:00Z',
+  student: 'C. Hawkins',
+  assignment: { course: 'ENGL 251', instructor: 'Dr. Martinez', title: 'Policy Analysis Essay' },
+  ai_use: sessions,
+  outputs: { disclosure_statement: 'I used AI as described above.' },
+});
+
+test('a 2.0 receipt validates', () => {
+  assert.deepEqual(validateSchema(v2()), []);
+});
+
+test('a 2.0 receipt with several sessions validates', () => {
+  const errs = validateSchema(v2([
+    session(),
+    session({ tool: 'Claude', date: '2026-05-16', category: 'debug', metadata_source: 'student_claimed' }),
+  ]));
+  assert.deepEqual(errs, []);
+});
+
+test('a 1.1 receipt still validates — an older receipt is not malformed', () => {
+  assert.deepEqual(validateSchema(example), []);
+});
+
+test('2.0 rejects ai_use as an object', () => {
+  const r = { ...v2(), ai_use: session() };
+  assert.match(validateSchema(r).join('\n'), /ai_use must be an array/);
+});
+
+test('2.0 rejects an empty session list — a receipt with no sessions is not a receipt', () => {
+  assert.match(validateSchema(v2([])).join('\n'), /at least one session/);
+});
+
+test('2.0 reports the index of the offending session', () => {
+  const errs = validateSchema(v2([session(), session({ category: 'vibes' })])).join('\n');
+  assert.match(errs, /ai_use\[1\]\.category/);
+  assert.doesNotMatch(errs, /ai_use\[0\]\.category/);
+});
+
+test('2.0 requires metadata_source on every session', () => {
+  const errs = validateSchema(v2([session(), session({ metadata_source: undefined })])).join('\n');
+  assert.match(errs, /ai_use\[1\]\.metadata_source/);
+});
+
+test('2.0 requires the three core citations per session', () => {
+  const errs = validateSchema(v2([session({ citations: { mla: 'm' } })])).join('\n');
+  assert.match(errs, /ai_use\[0\]\.citations\.apa/);
+  assert.match(errs, /ai_use\[0\]\.citations\.chicago/);
+});
+
+test('2.0 accepts optional ieee and harvard citations, rejects empty ones', () => {
+  assert.deepEqual(validateSchema(v2([session({ citations: { mla: 'm', apa: 'a', chicago: 'c', ieee: 'i', harvard: 'h' } })])), []);
+  const errs = validateSchema(v2([session({ citations: { mla: 'm', apa: 'a', chicago: 'c', ieee: '' } })])).join('\n');
+  assert.match(errs, /citations\.ieee, when present/);
+});
+
+test('2.0 does not require the 1.x top-level metadata_source', () => {
+  const errs = validateSchema(v2()).join('\n');
+  assert.doesNotMatch(errs, /^metadata_source/m);
+});
+
+test('content_hash round-trips over the array shape', () => {
+  const r = v2([session(), session({ tool: 'Claude', date: '2026-05-16' })]);
+  r.content_hash = computeHash(r);
+  assert.deepEqual(validateSchema(r), []);
+  assert.equal(computeHash(r), r.content_hash, 'hash excludes itself, so recomputation matches');
+});
+
+test('reordering sessions changes the hash — session order is part of the record', () => {
+  const s1 = session();
+  const s2 = session({ tool: 'Claude', date: '2026-05-16' });
+  assert.notEqual(computeHash(v2([s1, s2])), computeHash(v2([s2, s1])));
+});
+
+test('formatReport lists every session with its own provenance', () => {
+  const report = formatReport(v2([
+    session(),
+    session({ tool: 'Claude', date: '2026-05-16', metadata_source: 'student_claimed' }),
+  ]), 'INTACT', []);
+  assert.match(report, /Session 1:.*ChatGPT/);
+  assert.match(report, /Session 2:.*Claude/);
+  assert.match(report, /agent-reported/);
+  assert.match(report, /student-claimed/);
+  assert.match(report, /Schema:\s+2\.0 — VALID/);
+});
+
+test('formatReport never totals the sessions — a count is not a severity score', () => {
+  const report = formatReport(v2([session(), session(), session()]), 'INTACT', []);
+  assert.doesNotMatch(report, /\b3 sessions\b/);
+  assert.doesNotMatch(report, /total/i);
+});
+
+test('formatReport renders a 1.x receipt with its top-level provenance', () => {
+  const report = formatReport(example, 'INTACT', []);
+  assert.match(report, /AI use:\s+ChatGPT/);
+  assert.match(report, /agent-reported/);
 });

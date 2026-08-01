@@ -1,0 +1,56 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-05-16T18:04:00Z",
+  "content_hash": "f65a7c543ef98e2f8b5a19a01ff01d7dcbe79d49a7b5acd8bb54186723945ee2",
+  "submission_hash": null,
+  "student": "C. Hawkins",
+  "assignment": {
+    "course": "ENGL 251",
+    "instructor": "Dr. Martinez",
+    "title": "Policy Analysis Essay"
+  },
+  "ai_use": [
+    {
+      "tool": "ChatGPT",
+      "model": "GPT-4o",
+      "date": "2026-05-14",
+      "metadata_source": "agent_reported",
+      "category": "outline",
+      "prompt_summary": "Asked for a structure for an essay arguing against a carbon tax",
+      "direct_content_used": false,
+      "revision_statement": "Followed the shape loosely and rewrote every heading in my own words.",
+      "source_verification": null,
+      "citations": {
+        "mla": "\"Structure for an essay arguing against a carbon tax.\" prompt. *ChatGPT*, GPT-4o version, OpenAI, 14 May 2026.",
+        "apa": "OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].",
+        "chicago": "ChatGPT, GPT-4o, response to \"Structure for an essay arguing against a carbon tax,\" May 14, 2026, OpenAI.",
+        "ieee": "[1] ChatGPT, \"Structure for an essay arguing against a carbon tax,\" GPT-4o, OpenAI, May 14, 2026.",
+        "harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model]."
+      }
+    },
+    {
+      "tool": "Claude",
+      "model": "Claude Sonnet 4.6",
+      "date": "2026-05-16",
+      "metadata_source": "student_claimed",
+      "category": "debug",
+      "prompt_summary": "Asked why my citation-parsing script dropped the last entry",
+      "direct_content_used": false,
+      "revision_statement": "It explained the off-by-one; I fixed the loop myself.",
+      "source_verification": null,
+      "citations": {
+        "mla": "\"Why my citation-parsing script drops the last entry.\" prompt. *Claude*, Claude Sonnet 4.6 version, Anthropic, 16 May 2026.",
+        "apa": "Anthropic. (2026). Claude (Claude Sonnet 4.6 version) [Large language model].",
+        "chicago": "Claude, Claude Sonnet 4.6, response to \"Why my citation-parsing script drops the last entry,\" May 16, 2026, Anthropic.",
+        "ieee": "[2] Claude, \"Why my citation-parsing script drops the last entry,\" Claude Sonnet 4.6, Anthropic, May 16, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
+      },
+      "appendix": {
+        "diff_or_test_log": "test_parse_citations: 4 passed after the loop bound was corrected."
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on May 14, 2026 to outline the argument for this paper, and my submission loosely followed that structure. On May 16 I used Claude (Claude Sonnet 4.6) to debug the citation-parsing script in the appendix, which explained what was wrong without generating code I kept. None of the AI-generated text appears in the final submission. I rewrote the outline in my own words and fixed the parsing bug myself once I understood it. The May 14 session was recorded inside ChatGPT; the May 16 details are from my own notes."
+  }
+}
