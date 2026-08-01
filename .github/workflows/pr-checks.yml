@@ -145,10 +145,13 @@ jobs:
 
           # 8d. Conventional commits required. Excludes merge commits,
           # which GitHub Actions creates synthetically for PR builds.
-          COMMITS_BAD=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | wc -l || echo 0)
+          # The optional `!` is the Conventional Commits breaking-change
+          # marker (`feat!:`, `feat(scope)!:`) — release-please needs it to
+          # cut a major, so rejecting it would block every breaking change.
+          COMMITS_BAD=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?!?:" | wc -l || echo 0)
           if [ "$COMMITS_BAD" -gt 0 ]; then
-            BAD_LIST=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?:" | head -3 | sed 's/^/    /')
-            mark_fail "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:). First few:\n$BAD_LIST"
+            BAD_LIST=$(git log --no-merges origin/main..HEAD --format="%s" 2>/dev/null | grep -vE "^(feat|fix|chore|docs|refactor|test|perf|ci|build|style|revert)(\(.+\))?!?:" | head -3 | sed 's/^/    /')
+            mark_fail "$COMMITS_BAD commit(s) don't use conventional prefix (feat:/fix:/chore:/docs:/refactor:/test:/perf:/ci:/build:/style:/revert:, optionally with a scope and/or a \`!\` breaking marker). First few:\n$BAD_LIST"
           else
             mark_pass "All commits use conventional prefix"
           fi
