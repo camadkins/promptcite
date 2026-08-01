@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -114,5 +114,115 @@ test('per-project adapter without --with-init is skipped, not errored, in --all'
     writeFileSync(join(dir, '.replit'), '');
     const { code } = run(['--all', '--dry-run'], dir);
     assert.equal(code, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// hook-register — the only strategy that edits a config the user already owns
+// ---------------------------------------------------------------------------
+
+const EXISTING_SETTINGS = JSON.stringify({
+  model: 'opus',
+  hooks: {
+    PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: '/my/formatter.sh' }] }],
+    SessionStart: [{ hooks: [{ type: 'command', command: '/my/greeter.sh' }] }],
+  },
+}, null, 2);
+
+test('hook entries are never installed by --all', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    const { code, out } = run(['--dry-run', '--all', '--config-dir', sandbox], dir);
+    assert.equal(code, 0);
+    assert.doesNotMatch(out, /claude-hook|codex-hook/, 'opt-in entries must not appear in --all');
+  });
+});
+
+test('hook entries are still listed so users can find them', () => {
+  inTempDir((dir) => {
+    assert.match(run(['--list'], dir).out, /claude-hook/);
+  });
+});
+
+test('hook-register --dry-run writes nothing', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    assert.equal(run(['--dry-run', '--only', 'claude-hook', '--config-dir', sandbox], dir).code, 0);
+    assert.ok(!existsSync(sandbox), 'dry-run must not create the config dir');
+  });
+});
+
+test('hook-register preserves the user\'s other settings and hooks', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    const file = join(sandbox, 'settings.json');
+    writeFileSync(file, EXISTING_SETTINGS);
+    assert.equal(run(['--only', 'claude-hook', '--config-dir', sandbox], dir).code, 0);
+    const after = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(after.model, 'opus', 'unrelated settings survive');
+    assert.equal(after.hooks.SessionStart[0].hooks[0].command, '/my/greeter.sh', 'other events survive');
+    const commands = after.hooks.PostToolUse[0].hooks.map((h) => h.command);
+    assert.ok(commands.some((c) => c === '/my/formatter.sh'), 'existing hook in the same group survives');
+    assert.ok(commands.some((c) => c.includes('--id promptcite')), 'our hook is registered');
+  });
+});
+
+test('hook-register backs up the file before touching it', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    writeFileSync(join(sandbox, 'settings.json'), EXISTING_SETTINGS);
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    assert.equal(readFileSync(join(sandbox, 'settings.json.promptcite-backup'), 'utf8'), EXISTING_SETTINGS);
+  });
+});
+
+test('hook-register is idempotent', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    const file = join(sandbox, 'settings.json');
+    writeFileSync(file, EXISTING_SETTINGS);
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    const first = readFileSync(file, 'utf8');
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    assert.equal(readFileSync(file, 'utf8'), first, 'installing twice must not duplicate the entry');
+  });
+});
+
+test('hook-register uninstall removes only our entry', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    const file = join(sandbox, 'settings.json');
+    writeFileSync(file, EXISTING_SETTINGS);
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    assert.equal(run(['--only', 'claude-hook', '--config-dir', sandbox, '--uninstall'], dir).code, 0);
+    const after = readFileSync(file, 'utf8');
+    assert.doesNotMatch(after, /promptcite/, 'our entry is gone');
+    const parsed = JSON.parse(after);
+    assert.equal(parsed.hooks.PostToolUse[0].hooks[0].command, '/my/formatter.sh');
+    assert.equal(parsed.hooks.SessionStart[0].hooks[0].command, '/my/greeter.sh');
+  });
+});
+
+test('hook-register creates a config file when none exists', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    assert.equal(run(['--only', 'claude-hook', '--config-dir', sandbox], dir).code, 0);
+    const parsed = JSON.parse(readFileSync(join(sandbox, 'settings.json'), 'utf8'));
+    assert.ok(parsed.hooks.PostToolUse[0].hooks[0].command.includes('--id promptcite'));
+  });
+});
+
+test('hook-register refuses to overwrite a config it cannot parse', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    const file = join(sandbox, 'settings.json');
+    writeFileSync(file, '{ this is not json');
+    assert.notEqual(run(['--only', 'claude-hook', '--config-dir', sandbox], dir).code, 0);
+    assert.equal(readFileSync(file, 'utf8'), '{ this is not json', 'unparseable config left untouched');
   });
 });

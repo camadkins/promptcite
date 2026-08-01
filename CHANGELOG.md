@@ -35,6 +35,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   event works unchanged. Zero dependencies, no network, silent, and always
   exits 0 — it can never block, alter, or auto-approve a tool call, and never
   the reason an edit fails. Off unless the ledger is enabled.
+- **`hook-register` install strategy** (5th, alongside `global-skill`,
+  `rule-drop`, `block-append`, `cli-extension`) plus the `claude-hook` and
+  `codex-hook` entries. Merges a `PostToolUse` entry into the agent's own hooks
+  config, preserving everything already there; backs the file up first, is
+  idempotent, and uninstalls only its own entry. **Never installed by `--all`** —
+  a new `optIn` manifest flag makes it an explicit `--only <id>` choice, since
+  it changes how the user's agent behaves rather than dropping a rule file.
+  `--list` shows these under "Optional add-ons" rather than in the agent count.
 - **Optional markers** — with `markers.enabled`, the hook writes one short
   comment above a sufficiently large inserted block
   (`// @ai-assisted 2026-08-01 Claude Opus 5 via PromptCite (pc:a4f21)`).

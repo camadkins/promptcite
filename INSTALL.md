@@ -83,6 +83,42 @@ unlisted, `promptcite --print-rule` is the universal fallback.
 
 For "auto-activates? No" agents, type `/receipt` once per session.
 
+## Optional: the AI-use hook
+
+Separate, explicit, and never part of a normal install. The hook records your
+AI insertions locally so `/receipt` can remind you what you did instead of
+asking you to remember. Install it only if you want that:
+
+| Agent | Install command | Registers in |
+|---|---|---|
+| **Claude Code** | `npx -y github:camadkins/promptcite --only claude-hook` | `~/.claude/settings.json` (hooks block) |
+| **Codex CLI** | `npx -y github:camadkins/promptcite --only codex-hook` | `~/.codex/hooks.json` |
+
+Both agents use the same hooks format, so one recorder (`bin/hook.js`) serves
+both — and any other agent that can run a command on a post-tool-use event is a
+one-line `MANIFEST` entry away.
+
+**Registering the hook turns nothing on.** It stays inert until you opt in:
+
+```json
+// promptcite.config.json
+{ "ledger": { "enabled": true } }
+```
+
+What it does and doesn't do:
+
+- Records **only** timestamp, tool, model, file, and lines added — never your
+  code, never your prompts.
+- Writes to `~/.promptcite/ledgers/`, deliberately **outside** any repository,
+  so it can't be swept into a submission. `/receipt` purges what it uses.
+- Never blocks, alters, or auto-approves a tool call. It observes after the
+  fact and always exits 0 — it cannot be the reason an edit fails.
+- Backs up the config before its first write, is safe to run twice, and
+  `--uninstall` removes only its own entry, leaving your other hooks alone.
+
+Add `"markers": { "enabled": true }` if you also want a one-line
+`// @ai-assisted …` comment above larger inserted blocks. Off by default.
+
 ## Any other agent (universal install)
 
 Using an agent that isn't in the matrix above? PromptCite still works —
