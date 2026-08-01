@@ -104,6 +104,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Scorecard results no longer post to GitHub code scanning.** Scorecard emits
+  every finding at `error` severity, so posture notes ("repository was created
+  within the last 90 days", "project is not fuzzed") landed in the same alert
+  list as real defects and kept the aggregate code-scanning check red on every
+  PR. Three genuine CodeQL race-condition findings in `bin/hook.js` were merged
+  past as a direct result. Scoring still publishes to the Scorecard API, which
+  is what the README badge and scorecard.dev read — only the security-tab upload
+  is gone, and the job now runs without `security-events: write`.
 - **`bin/hook.js` file-system races** (CodeQL). The ledger writer read the whole
   file, dropped expired lines, and wrote it back before appending — which can
   destroy an event another process appended in between, and agents run tools in

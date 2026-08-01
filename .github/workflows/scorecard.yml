@@ -1,9 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Cam Adkins
 #
-# OSSF Scorecard — weekly supply-chain hygiene scoring. Publishes
-# results to GitHub's security dashboard. Helps users audit project
-# health before installing.
+# OSSF Scorecard — weekly supply-chain hygiene scoring. Results are
+# published to the public Scorecard API, which is what drives the README
+# badge and https://scorecard.dev/viewer/?uri=github.com/camadkins/promptcite
+#
+# Results are deliberately NOT uploaded to GitHub code scanning. Scorecard
+# emits its findings at `error` severity, so posture notes like "repository was
+# created within the last 90 days" or "project is not fuzzed" sit in the same
+# alert list as real defects and turn the aggregate code-scanning check red on
+# every PR. That cost us: three genuine CodeQL race-condition findings in
+# bin/hook.js were merged past because the check had been red for unrelated
+# reasons for weeks. Code scanning is for defects; posture scoring lives on
+# scorecard.dev.
 # See https://github.com/ossf/scorecard
 
 name: OSSF Scorecard
@@ -22,7 +31,8 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      # No security-events: write — nothing is written to code scanning now,
+      # so the job runs with strictly less authority than it used to.
       id-token: write
       contents: read
       actions: read
@@ -45,8 +55,3 @@ jobs:
           name: SARIF file
           path: results.sarif
           retention-days: 5
-
-      - name: Upload to GitHub security tab
-        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
-        with:
-          sarif_file: results.sarif
