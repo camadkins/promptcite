@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# PromptCite Ledger Schema
+# ---------------------------
+# Contract for the optional AI-use ledger — the append-only record of
+# AI-insertion events written by the hook (bin/hook.js) and read by the
+# `recall` step of the interview (src/rules/receipt.md).
+#
+# A ledger event is NOT a receipt. A receipt is a disclosure the student
+# authored and stands behind (src/schema.yaml). A ledger event is a private
+# note-to-self the student may consult while writing that disclosure. The
+# ledger is never emitted, never hashed into a receipt, and never shown to
+# an instructor. See docs/adr/0006-ledger-outside-the-repository.md.
+#
+# Location: ~/.promptcite/ledgers/<hash>.jsonl, outside any repository, where
+# <hash> is the first 16 hex chars of sha256(realpath(cwd)). Deliberate — a
+# ledger inside the working tree can be swept into a submission or demanded
+# from a repo, and PromptCite must not be able to testify against its user.
+#
+# Format: JSON Lines. One object per line, append-only. Consumers MUST skip
+# unparseable lines rather than failing, and MUST tolerate lines whose
+# schema_version is older than their own (ADR 0003, additive policy).
+#
+# Lifecycle: `/receipt` deletes the events it consumed. Anything unconsumed
+# expires after ttl_days (default 30). No corpus accumulates.
+
+schema_version: "1.0"
+
+fields:
+
+  schema_version:
+    type: string
+    required: true
+    description: |
+      Version of this schema the event conforms to. Currently "1.0".
+      Written per line so a ledger containing events from several client
+      versions stays readable.
+    pattern: '^\d+\.\d+$'
+
+  event_id:
+    type: string
+    required: true
+    description: |
+      Short opaque identifier for this event, unique within the ledger.
+      Surfaced as the `pc:` hint in an in-file marker when marker mode is
+      enabled. Carries no meaning beyond identity — not a hash of content.
+    pattern: '^[0-9a-f]{5,16}$'
+
+  ts:
+    type: string
+    required: true
+    description: ISO-8601 timestamp at which the insertion occurred.
+    format: iso8601
+
+  tool:
+    type: string
+    required: true
+    description: |
+      The agent product that made the insertion, as reported by the hook
+      envelope (e.g. "claude-code", "codex-cli"). Free-form by the same
+      reasoning as ADR 0001 — new agents must not require a schema bump.
+
+  model:
+    type: string
+    required: false
+    description: |
+      Best-effort model identifier, when the hook envelope provides one.
+      Absent rather than guessed when unavailable. Free-form (ADR 0001).
+
+  file:
+    type: string
+    required: true
+    description: |
+      Path of the edited file, relative to the working directory. Relative
+      by design — an absolute path would leak the student's directory
+      layout into a record that exists to reduce, not increase, exposure.
+
+  lines_added:
+    type: integer
+    required: true
+    description: |
+      Number of lines in the inserted text. Enough to jog the student's
+      memory about scale without characterizing the code.
+
+# ---------------------------------------------------------------------------
+# Deliberately absent
+# ---------------------------------------------------------------------------
+# - Content of any kind. The ledger records that an insertion happened, never
+#   what was inserted.
+# - Prompts. Same reasoning as the receipt's no-transcript-by-default rule.
+# - sha256 of inserted bytes. Serves only verification, which v1 defers. ADR
+#   0003 allows adding it later without breaking v1 readers.
+# - Any derived metric — percentages, ratios, totals, classifications. No
+#   number in a student-facing artifact is authored by automation.
+
+example: |
+  {"schema_version":"1.0","event_id":"a4f21","ts":"2026-08-01T04:12:33Z","tool":"claude-code","model":"Claude Opus 5","file":"src/sort.py","lines_added":24}

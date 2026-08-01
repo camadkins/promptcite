@@ -48,7 +48,7 @@ jobs:
 
           # 1. SPDX header on every source file in bin/ src/ install.sh install.ps1
           MISSING_SPDX=""
-          for f in bin/install.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml; do
+          for f in bin/install.js bin/verify.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml src/ledger.schema.yaml; do
             if [ -f "$f" ] && ! grep -q "SPDX-License-Identifier" "$f"; then
               MISSING_SPDX="$MISSING_SPDX $f"
             fi
