@@ -48,7 +48,7 @@ jobs:
 
           # 1. SPDX header on every source file in bin/ src/ install.sh install.ps1
           MISSING_SPDX=""
-          for f in bin/install.js bin/verify.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml src/ledger.schema.yaml; do
+          for f in bin/install.js bin/verify.js bin/hook.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml src/ledger.schema.yaml; do
             if [ -f "$f" ] && ! grep -q "SPDX-License-Identifier" "$f"; then
               MISSING_SPDX="$MISSING_SPDX $f"
             fi
@@ -66,15 +66,15 @@ jobs:
             mark_fail "GEMINI.md has drifted from src/rules/receipt.md — see CI gemini-sync job"
           fi
 
-          # 3. No network calls in bin/install.js (no-network rule)
-          if grep -qE "fetch\(|http\.|axios|undici|node-fetch" bin/install.js; then
-            mark_fail "bin/install.js imports a network-call library or uses fetch/http — installer must not make network calls"
+          # 3. No network calls in shipped code (no-network rule)
+          if grep -qE "fetch\(|http\.|axios|undici|node-fetch" bin/install.js bin/hook.js; then
+            mark_fail "bin/ imports a network-call library or uses fetch/http — nothing shipped may make network calls"
           else
-            mark_pass "No network calls in bin/install.js (no-network rule)"
+            mark_pass "No network calls in bin/install.js or bin/hook.js (no-network rule)"
           fi
 
           # 4. No telemetry / install_id / analytics in actual code
-          TELEMETRY_HITS=$(grep -rE "telemetry|install_id|analytics|phone_home" bin/install.js install.sh install.ps1 2>/dev/null | grep -vE "no telemetry|never collect|no analytics" || true)
+          TELEMETRY_HITS=$(grep -rE "telemetry|install_id|analytics|phone_home" bin/install.js bin/hook.js install.sh install.ps1 2>/dev/null | grep -vE "no telemetry|never collect|no analytics" || true)
           if [ -n "$TELEMETRY_HITS" ]; then
             mark_fail "Telemetry-related strings found outside prohibition prose"
           else
