@@ -21,3 +21,7 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+
+# npm pack / release build artifacts
+*.tgz
+*.tar.gz

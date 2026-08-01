@@ -29,6 +29,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, extname, relative, resolve, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * @typedef {'line'|'block'} MarkerStyle
@@ -410,4 +411,22 @@ function main() {
   // Always exit 0. A disclosure tool must never be the reason an edit fails.
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+/**
+ * True when this file is the program being run rather than an imported module.
+ * See the matching note in bin/verify.js: npm installs bins as symlinks, so
+ * `process.argv[1]` is the link while `import.meta.url` is the real path, and a
+ * direct comparison silently stops the CLI from running once installed.
+ *
+ * @param {string} metaUrl
+ */
+function invokedDirectly(metaUrl) {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return fileURLToPath(metaUrl) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (invokedDirectly(import.meta.url)) main();

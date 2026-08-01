@@ -7,7 +7,9 @@
 // report an instructor can read without knowing the JSON shape.
 
 import { readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
 /**
@@ -332,8 +334,30 @@ export async function runVerify(argv) {
   return 1;
 }
 
-// Only auto-run if invoked directly (not via test imports)
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * True when this file is the program being run, rather than a module someone
+ * imported (the tests import it).
+ *
+ * The realpath comparison is load-bearing, not defensive style. npm installs a
+ * bin as a SYMLINK — `node_modules/.bin/promptcite-verify` points at
+ * `../promptcite/bin/verify.js`. Node reports the symlink in `process.argv[1]`
+ * but resolves `import.meta.url` to the real file, so comparing them directly
+ * never matches once the package is installed. The CLI then does nothing and
+ * exits 0, which looks exactly like success.
+ *
+ * @param {string} metaUrl the caller's import.meta.url
+ */
+function invokedDirectly(metaUrl) {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return fileURLToPath(metaUrl) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (invokedDirectly(import.meta.url)) {
   const code = await runVerify(process.argv.slice(2));
   process.exit(code);
 }
