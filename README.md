@@ -32,6 +32,10 @@ PromptCite installs into 24 AI coding/writing agents (Claude Code, Gemini CLI, C
 - A plain-language **disclosure paragraph** for the paper's header.
 - A structured **JSON receipt** for instructor review and archival.
 
+One receipt covers one **assignment**, not one sitting. Run `/receipt` again a
+few days later and it adds that session to the existing receipt rather than
+replacing it — an assignment worked across a week ends up as one honest record.
+
 Optionally, an **AI-use ledger** records your insertions locally so `/receipt`
 reminds you what you did instead of asking you to remember. Off by default,
 separately installed, stored outside your repo, and purged once used — it
