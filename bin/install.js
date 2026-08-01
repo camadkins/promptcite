@@ -283,6 +283,14 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  *                    (AGENTS.md, .goosehints, replit.md, …) so existing
  *                    content is preserved
  *   - cli-extension: shell out to the agent's own extension installer
+ *   - hook-register: merge a PostToolUse entry into the agent's hooks config
+ *                    (JSON), preserving everything already in the file. Every
+ *                    supported agent uses the same hooks shape, so adding one
+ *                    is a data entry: give it a path, a base, and a `tool` id.
+ * optIn: never installed by `--all`. Reserved for entries that change how the
+ *   user's agent behaves rather than just dropping a rule file — those are an
+ *   explicit `--only <id>` decision, never a side effect of installing
+ *   PromptCite.
  * detect: detected if any `cwdPaths` exist (relative to cwd), any `homePaths`
  *   exist (relative to $HOME), or `command` is found on PATH.
  * requiresInit: per-project write — needs --with-init. onMissingInit:
@@ -291,9 +299,9 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @typedef {Object} AgentSpec
  * @property {string} id
  * @property {string} name
- * @property {'global-skill'|'rule-drop'|'block-append'|'cli-extension'} strategy
+ * @property {'global-skill'|'rule-drop'|'block-append'|'cli-extension'|'hook-register'} strategy
  * @property {{ cwdPaths?: string[], homePaths?: string[], command?: string }} detect
- * @property {'cwd'|'configDir'} [base]
+ * @property {'cwd'|'configDir'|'home'} [base]
  * @property {string} [path]
  * @property {string} [display]
  * @property {boolean} [requiresInit]
@@ -301,6 +309,10 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @property {string} [frontmatter]
  * @property {{ bin: string, installArgs: string[], uninstallArgs: string[] }} [cli]
  * @property {boolean} [autoActivates]
+ * @property {boolean} [optIn]
+ * @property {string} [tool]
+ * @property {string} [event]
+ * @property {string} [matcher]
  */
 
 /** @type {AgentSpec[]} */
@@ -368,6 +380,20 @@ const MANIFEST = [
     path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENT.md'], command: 'amp' } },
   { id: 'crush', name: 'Crush (Charm)', strategy: 'block-append', base: 'cwd',
     path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['crush.json', '.crush.json'], command: 'crush' } },
+  // --- AI-use hook (opt-in only) ---------------------------------------
+  //     Never installed by --all. These change how the user's agent behaves,
+  //     so they are an explicit `--only <id>` decision. Registering the hook
+  //     does not turn anything on by itself — the ledger stays off until the
+  //     student enables it in promptcite.config.json (or an instructor policy
+  //     requires it). Both agents take the same hooks shape; a third is a
+  //     one-line entry here.
+  { id: 'claude-hook', name: 'Claude Code (AI-use hook)', strategy: 'hook-register',
+    base: 'configDir', path: 'settings.json', optIn: true, tool: 'claude-code',
+    display: '~/.claude/settings.json (hooks block)', detect: { homePaths: ['.claude'] } },
+  { id: 'codex-hook', name: 'Codex CLI (AI-use hook)', strategy: 'hook-register',
+    base: 'home', path: '.codex/hooks.json', optIn: true, tool: 'codex-cli',
+    display: '~/.codex/hooks.json', detect: { homePaths: ['.codex'] } },
+
   { id: 'jules', name: 'Jules (Google)', strategy: 'block-append', base: 'cwd',
     path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: {} },
 ];
@@ -389,8 +415,89 @@ function spawnCmd(bin, args) {
  * @param {InstallContext} ctx @param {any} entry @returns {string}
  */
 function targetOf(ctx, entry) {
-  const base = entry.base === 'configDir' ? ctx.configDir : ctx.cwd;
+  const base = entry.base === 'configDir' ? ctx.configDir
+    : entry.base === 'home' ? homedir()
+      : ctx.cwd;
   return join(base, ...String(entry.path).split('/'));
+}
+
+/** Absolute path to the recorder we register. No PATH lookup, no network. */
+function hookCommandPath() {
+  return fileURLToPath(new URL('./hook.js', import.meta.url));
+}
+
+/**
+ * A sentinel argument appended to the registered command. `bin/hook.js` ignores
+ * unknown flags, so this costs nothing at runtime and gives uninstall an exact
+ * way to find our entries — matching on the file path would break the moment
+ * someone clones the repo to a differently-named directory.
+ */
+const HOOK_MARKER = '--id promptcite';
+
+/**
+ * Our hook entries are identified by the command they run, so uninstall can
+ * remove exactly ours and leave every other hook in the file alone. No schema
+ * extension needed, and it works the same in Claude Code's settings.json and
+ * Codex's hooks.json.
+ * @param {any} hook @returns {boolean}
+ */
+export function isOurHook(hook) {
+  return typeof hook?.command === 'string' && hook.command.includes(HOOK_MARKER);
+}
+
+/**
+ * Merge our PostToolUse entry into an agent's hooks config, preserving
+ * everything already there. Both supported agents use the same shape — Claude
+ * Code nests it among other settings keys, Codex gives it its own file — so a
+ * third agent is a manifest entry, not new code.
+ * @param {any} config @param {any} entry @returns {any}
+ */
+export function mergeHookConfig(config, entry) {
+  const next = config && typeof config === 'object' ? { ...config } : {};
+  const hooks = { ...(next.hooks || {}) };
+  const event = entry.event || 'PostToolUse';
+  const groups = Array.isArray(hooks[event]) ? hooks[event].map((/** @type {any} */ g) => ({ ...g })) : [];
+
+  const ours = {
+    type: 'command',
+    command: `${hookCommandPath()} --tool ${entry.tool} ${HOOK_MARKER}`,
+  };
+  const matcher = entry.matcher || 'Write|Edit';
+
+  const existing = groups.find((/** @type {any} */ g) => g.matcher === matcher);
+  if (existing) {
+    const kept = (existing.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h));
+    existing.hooks = [...kept, ours];
+  } else {
+    groups.push({ matcher, hooks: [ours] });
+  }
+
+  hooks[event] = groups;
+  next.hooks = hooks;
+  return next;
+}
+
+/**
+ * Remove only our entries, and only empty groups we emptied.
+ * @param {any} config @param {any} entry @returns {any}
+ */
+export function unmergeHookConfig(config, entry) {
+  if (!config || typeof config !== 'object' || !config.hooks) return config;
+  const next = { ...config };
+  const hooks = { ...next.hooks };
+  const event = entry.event || 'PostToolUse';
+  if (!Array.isArray(hooks[event])) return config;
+
+  const groups = hooks[event]
+    .map((/** @type {any} */ g) => ({ ...g, hooks: (g.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h)) }))
+    .filter((/** @type {any} */ g) => g.hooks.length > 0);
+
+  if (groups.length) hooks[event] = groups;
+  else delete hooks[event];
+
+  if (Object.keys(hooks).length) next.hooks = hooks;
+  else delete next.hooks;
+  return next;
 }
 
 /**
@@ -454,6 +561,59 @@ const STRATEGIES = {
     async uninstall(ctx, entry) {
       if (!gateInit(ctx, entry, 'uninstall')) return;
       await removeCopilotBlock({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry) });
+    },
+  },
+  'hook-register': {
+    async install(ctx, entry) {
+      const targetPath = targetOf(ctx, entry);
+      const existing = await ctx.adapter.readFileIfPresent(targetPath);
+
+      /** @type {any} */
+      let config = {};
+      if (existing) {
+        try {
+          config = JSON.parse(existing);
+        } catch {
+          // Never overwrite a config we can't parse — that would destroy
+          // whatever the user actually has. Bail and let them look.
+          throw new UserError(`${targetPath} is not valid JSON; not touching it. Fix or move it, then re-run.`);
+        }
+        // Back up before the first modification. Cheap insurance on a file the
+        // user owns and that their editor depends on.
+        const backup = `${targetPath}.promptcite-backup`;
+        if (!(await ctx.adapter.pathExists(backup))) {
+          await ctx.adapter.writeFile(backup, existing);
+        }
+      }
+
+      const merged = mergeHookConfig(config, entry);
+      const content = `${JSON.stringify(merged, null, 2)}\n`;
+      if (content === existing) {
+        ctx.adapter.log(`already up-to-date: ${targetPath}`);
+        return;
+      }
+      await ctx.adapter.ensureDirectory(dirname(targetPath));
+      await ctx.adapter.writeFile(targetPath, content);
+      ctx.adapter.log(`registered the AI-use hook in ${targetPath} (enable it with "ledger": { "enabled": true } in promptcite.config.json)`);
+    },
+    async uninstall(ctx, entry) {
+      const targetPath = targetOf(ctx, entry);
+      const existing = await ctx.adapter.readFileIfPresent(targetPath);
+      if (!existing) return;
+
+      /** @type {any} */
+      let config;
+      try {
+        config = JSON.parse(existing);
+      } catch {
+        ctx.adapter.log(`${targetPath} is not valid JSON; leaving it alone.`);
+        return;
+      }
+
+      const cleaned = unmergeHookConfig(config, entry);
+      const content = `${JSON.stringify(cleaned, null, 2)}\n`;
+      if (content === existing) return;
+      await ctx.adapter.writeFile(targetPath, content);
     },
   },
   'cli-extension': {
@@ -531,14 +691,31 @@ function printList() {
   console.log('');
   console.log('| id        | name                | detected | auto-activates |');
   console.log('|-----------|---------------------|----------|----------------|');
-  for (const p of providers) {
+  // optIn entries are add-ons, not agents — listed separately below so the
+  // agent count stays meaningful and nobody mistakes them for something --all
+  // would install.
+  const agents = providers.filter((p) => !p.entry.optIn);
+  const addOns = providers.filter((p) => p.entry.optIn);
+
+  for (const p of agents) {
     const detected = p.detect() ? 'yes' : 'no';
     const auto = p.autoActivates ? 'yes' : 'no';
     console.log(`| ${p.id.padEnd(9)} | ${p.name.padEnd(19)} | ${detected.padEnd(8)} | ${auto.padEnd(14)} |`);
   }
-  const detectedCount = providers.filter((p) => p.detect()).length;
+  const detectedCount = agents.filter((p) => p.detect()).length;
   console.log('');
-  console.log(`Detected ${detectedCount} of ${providers.length} agents on this machine.`);
+  console.log(`Detected ${detectedCount} of ${agents.length} agents on this machine.`);
+
+  if (addOns.length) {
+    console.log('');
+    console.log('Optional add-ons — install one explicitly, never included in --all:');
+    for (const p of addOns) {
+      console.log(`  promptcite --only ${p.id.padEnd(12)} ${p.name} → ${p.entry.display}`);
+    }
+    console.log('');
+    console.log('  Registering the hook turns nothing on by itself. The ledger stays off');
+    console.log('  until you enable it in promptcite.config.json. See /receipt help.');
+  }
 }
 
 /**
@@ -760,8 +937,13 @@ function selectProviders(parsed) {
   // --all mode: only install for agents actually detected on this machine
   // (per spec sect 3.1 "auto-detects installed agents"). Undetected agents
   // are reported via the skipped list and the user is informed.
-  const selected = providers.filter((p) => p.detect());
-  const skipped = providers.filter((p) => !p.detect());
+  //
+  // optIn entries are excluded entirely. They modify the user's agent config
+  // rather than dropping a rule file, and nobody installing PromptCite should
+  // get that as a side effect — it is always an explicit `--only <id>`.
+  const eligible = providers.filter((p) => !p.entry.optIn);
+  const selected = eligible.filter((p) => p.detect());
+  const skipped = eligible.filter((p) => !p.detect());
   return { selected, skipped };
 }
 
