@@ -81,6 +81,9 @@ accepted too.
   Do NOT generate a receipt.
 - **`verify <file>`** (or `--verify <file>`) → run the **verify flow**
   (below) on an existing receipt. Do NOT interview or generate.
+- **`recall`** (or `--recall`) → show the student what's in their local
+  AI-use ledger (see *Ledger* below) and stop. Do NOT interview, generate,
+  or purge. This is a read-only look at their own notes.
 - **anything else** → treat as the full interview and note once that the
   unrecognized argument was ignored.
 
@@ -99,9 +102,17 @@ All keys are optional:
   "student": "C. Hawkins",
   "default_course": "ENGL 251",
   "default_instructor": "Dr. Martinez",
-  "flow": "full"
+  "flow": "full",
+  "ledger": { "enabled": false, "ttl_days": 30 },
+  "markers": { "enabled": false, "style": "line", "min_lines": 5 }
 }
 ```
+
+`ledger` and `markers` are both **off by default** and control the optional
+capture layer described under *Ledger* below. `ledger.enabled` turns on local
+recording of AI-insertion events; `markers.enabled` additionally tags inserted
+blocks in the source file itself. A student who never enables them sees
+PromptCite behave exactly as it always has.
 
 **Reading settings (every run):** at the start of Step 0, check for
 `promptcite.config.json` in the current directory. If present and readable,
@@ -144,7 +155,9 @@ match. All keys are optional:
   "allowed_categories": ["brainstorm", "outline", "search"],
   "required_citation_style": "APA",
   "require_source_verification": ["search", "draft"],
-  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" }
+  "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" },
+  "require_ledger": true,
+  "require_markers": false
 }
 ```
 
@@ -164,6 +177,12 @@ How each key steers the interview:
   for that appendix (`share_link_or_excerpt`, `full_transcript`, or
   `diff_or_test_log`) and include it; it is required, not opt-in, for
   this assignment.
+- **`require_ledger`** / **`require_markers`** — the instructor sets the
+  norm for the whole class rather than leaving it to each student, which
+  is what keeps submissions comparable. Tell the student in one line that
+  the assignment expects it and what it does. These are still local
+  settings on the student's machine; a policy file cannot make the ledger
+  leave their computer, and nothing about it is emitted in the receipt.
 
 **Precedence:** the instructor policy overrides student settings where
 they conflict (e.g. policy `required_citation_style` wins over a saved
@@ -172,6 +191,59 @@ e.g. *"This assignment's policy requires APA and a diff appendix for
 debug — I'll ask for those."* Policy is **configuration, not a receipt**:
 never hashed, never emitted inside the JSON. If the file is absent or
 malformed, ignore it and run normally.
+
+## Ledger (optional, off by default)
+
+If the student has installed the PromptCite hook and enabled `ledger`, their
+agent records each AI insertion as it happens — a line per event in
+`~/.promptcite/ledgers/<hash>.jsonl`, **outside any repository**. The shape is
+`src/ledger.schema.yaml`: timestamp, tool, model, file, lines added. No code, no
+prompts, no hashes, no scores.
+
+**The ledger exists for exactly one reason: so the student doesn't have to
+reconstruct their AI use from memory.** Its only consumer is this interview.
+
+**Reading it (Step 0, when present):** load the ledger for the current
+directory, ignore events older than `ttl_days`, and summarize in **one line** —
+which files, roughly when, over how many sessions. Then ask the student to
+confirm or correct it. Their answer is what goes in the receipt, not yours.
+Example:
+
+> *"Your ledger shows AI edits in `sorting.py` and `tests/test_sort.py` across
+> Oct 2–4. Does that match what you're disclosing, or was there more?"*
+
+If the ledger is absent, empty, or malformed, say nothing and run the interview
+exactly as you would without it. Never mention a ledger the student doesn't have.
+
+**Purging (after Step 5):** once the receipt is generated, delete the events you
+consumed. The ledger is a memory aid, not an archive; leaving it behind creates
+a record the student never asked to keep. Say so in one short line — *"Cleared
+the ledger entries for this receipt."*
+
+**Hard rules for the ledger — these are not stylistic:**
+
+1. **Never quote a number from it into any output.** No counts, no percentages,
+   no "you used AI on 40% of this file." The student states percentages in their
+   own words if they choose to; automation does not author them.
+2. **Never include ledger contents in the receipt JSON**, any appendix, or the
+   disclosure paragraph. It is configuration-adjacent private data, like
+   settings — never hashed, never emitted.
+3. **Never present it as complete.** A student who asks for an explanation and
+   types the code themselves generates no events. If they say they used AI in a
+   way the ledger doesn't show, **the student is right and the ledger is wrong.**
+   Record what they tell you.
+4. **Never use it to challenge the student.** Do not say "your ledger shows more
+   than you described." Ask an open question, accept the answer, move on. You are
+   an interview agent, not a detector — the non-goal at the top of this file
+   applies to the ledger with full force.
+
+**Markers.** If `markers` is also enabled, the hook additionally writes a short
+one-line comment above inserted blocks in the source file itself — e.g.
+`// @ai-assisted 2026-08-01 Claude Opus 5 via PromptCite (pc:a4f21)`. This is for
+students whose instructor wants provenance visible during code review. It is off
+by default, and its absence from a file is **not** evidence of anything: markers
+only appear on insertions above a size threshold, in recognized file types, made
+while the setting was on. If a student asks, tell them that plainly.
 
 ## Verify flow
 
@@ -211,7 +283,10 @@ First, load configuration:
   policy* above). If present, apply its requirements throughout the
   interview, and note in one line what it requires. Policy overrides
   settings on conflict.
-If neither is present or either is malformed, continue normally.
+- **Ledger** — if `ledger` is enabled, load this directory's ledger (see
+  *Ledger* above) and hold it for the recall line. Absent or malformed →
+  say nothing about it and continue.
+If none is present or any is malformed, continue normally.
 
 Then ask exactly this:
 
@@ -643,6 +718,10 @@ path in the current working directory. If no path is given but the
 student says "save it" or similar, default to `ai-receipt.json` in CWD
 and tell the student where it landed. Otherwise the JSON is displayed
 in the conversation only — no file is written.
+
+**Ledger purge:** if a ledger was read in Step 0, delete the events it
+supplied now that the receipt exists, and say so in one line — *"Cleared
+the ledger entries for this receipt."* See *Ledger* above.
 
 End with one short line:
 

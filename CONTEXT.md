@@ -46,6 +46,14 @@ is responsible for accuracy; the reader evaluates plausibility.
   requirements (allowed categories, required style/appendices) the rule
   reads to steer the interview. Configuration, never part of a receipt.
   **Policy overrides settings on conflict.**
+- **Ledger** — the optional append-only record of AI-insertion events written
+  by the hook and read by `/receipt` to jog the student's memory. Lives at
+  `~/.promptcite/ledgers/<hash>.jsonl`, outside any repository, and is purged
+  once consumed. Shape in [`src/ledger.schema.yaml`](./src/ledger.schema.yaml).
+  **Not a receipt, not evidence, never emitted.** Off by default. See ADR 0006.
+- **Marker** — the optional one-line comment the hook writes above an inserted
+  block in the source file itself (`// @ai-assisted <date> <model> …`). Off by
+  default. Its absence from a file attests nothing.
 - **Adapter** — per-agent install logic in [`bin/install.js`](./bin/install.js).
   Three strategies: global skill install, per-project rule-file drop, and
   surgical begin/end block append into a shared file (`AGENTS.md`, etc.).
@@ -64,5 +72,14 @@ auto-synced from it (CI enforces the diff). **Behavioral changes happen in
 - **No network calls** during receipt generation or in the installer.
 - **No telemetry**, analytics, or install IDs.
 - **Zero runtime dependencies** (Node built-ins only). See ADR 0004.
-- **Local-only writes** — only the current working directory, and only on
-  explicit student request.
+- **Local-only writes** — nothing leaves the student's machine, ever. Receipts
+  and settings are written to the current working directory, only on explicit
+  student request. The **ledger** is the one deliberate exception to the
+  working-directory rule: it is written *outside* any repository, because a
+  record of AI use sitting in a working tree can be swept into a submission or
+  demanded from a repo. The exception exists to narrow the tool's reach, not to
+  widen it — see ADR 0006.
+- **PromptCite cannot testify against its user.** No feature may produce an
+  artifact that a third party can use to make a case the student did not
+  volunteer. This is the constraint the ledger's location, its purge-on-use, and
+  its exclusion from every output all follow from.

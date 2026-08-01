@@ -14,3 +14,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0003](./0003-additive-schema-version-policy.md) | Additive schema-version policy | Accepted |
 | [0004](./0004-zero-runtime-dependencies.md) | Zero runtime dependencies | Accepted |
 | [0005](./0005-single-session-scope.md) | One receipt covers one session | Accepted |
+| [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |

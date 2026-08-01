@@ -20,6 +20,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **AI-use ledger** (optional, off by default). An append-only local record of
+  AI-insertion events that `/receipt` reads to jog the student's memory instead
+  of asking them to reconstruct their AI use from recall. Lives at
+  `~/.promptcite/ledgers/<hash>.jsonl` — outside any repository — and is purged
+  once a receipt consumes it. Shape in `src/ledger.schema.yaml`. Never emitted
+  in a receipt, never converted into a number, never presented as complete.
+  See `docs/adr/0006-ledger-outside-the-repository.md`.
+- **`/receipt recall`** — read-only look at your own ledger. Does not interview,
+  generate, or purge.
+- **New optional settings** `ledger` and `markers` in `promptcite.config.json`,
+  and **new optional policy keys** `require_ledger` / `require_markers` in
+  `promptcite.policy.json` so an instructor can set the norm for a whole class.
 - **Schema 1.1** (additive; 1.0 receipts stay valid). New optional fields:
   `outputs.citation_ieee`, `outputs.citation_harvard`, and top-level
   `submission_hash`. See `docs/SCHEMA-CHANGELOG.md`.
