@@ -35,16 +35,10 @@
   "files": [
     "bin/",
     "src/",
-    "GEMINI.md",
-    "gemini-extension.json",
-    "install.sh",
-    "install.ps1",
     "LICENSE",
     "LICENSE-COMMERCIAL",
     "NOTICE.md",
-    "CLA.md",
     "README.md",
-    "INSTALL.md",
     "SECURITY.md"
   ],
   "scripts": {

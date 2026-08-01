@@ -43,6 +43,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **npm publishing**, triggered by a GitHub Release being *published* rather
+  than by a tag push — `release.yml` still creates a draft for review, and
+  clicking publish is the single irreversible gate. The job re-runs the tests,
+  checks the tag matches `package.json`, and installs the packed tarball to
+  prove the CLI works before anything reaches the registry. Publishes with
+  `--provenance`.
+- **The release tarball now ships its signed provenance bundle** as
+  `promptcite-<tag>.tar.gz.intoto.jsonl`. The attestation was already being
+  produced, but only to GitHub's attestation API — anything reading release
+  assets, including OpenSSF Scorecard's Signed-Releases check, saw an unsigned
+  tarball.
 - **`bin/verify.js` reads both schema generations.** It branches on
   `schema_version`, never on the runtime type of `ai_use` — an instructor
   holding a 1.x receipt from last term is not told it is malformed. The report
@@ -142,6 +153,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`promptcite-verify` and `promptcite-hook` did nothing when installed as a
+  package.** npm installs a bin as a symlink, so `process.argv[1]` is the link
+  while `import.meta.url` is the real file; the direct comparison guarding the
+  CLI entry point never matched and the command exited 0 in silence —
+  indistinguishable from success. Both now compare realpaths. Running the files
+  from a repo checkout always worked, which is why no existing test caught it;
+  there is now one that installs through a symlink and fails without the fix.
+
+
 - **Scorecard results no longer post to GitHub code scanning.** Scorecard emits
   every finding at `error` severity, so posture notes ("repository was created
   within the last 90 days", "project is not fuzzed") landed in the same alert
@@ -163,6 +183,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   harmless, overwriting the student's code is not.
 
 ### Changed
+
+- **The published package is a third smaller** — 18 files to 12, 254 kB to
+  186 kB unpacked. `GEMINI.md` alone was 44 kB and byte-identical to
+  `src/rules/receipt.md` (CI enforces that they match), so it was shipping
+  twice. Also dropped from the tarball: `CLA.md`, `INSTALL.md`, `install.sh`,
+  `install.ps1`, `gemini-extension.json` — all of which belong to the GitHub
+  checkout, not to an installed package. README links still resolve, because
+  npm rewrites relative links against the repository.
+
 
 - `docs/for-instructors.md`: new sections on recommending PromptCite without
   recommending surveillance, and a software-review table for departments

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -13,9 +13,9 @@ const cli = new URL('../bin/install.js', import.meta.url).pathname;
 // install.js runs main() + process.exit() on import, so it can't be imported
 // like verify.js — exercise it as a subprocess instead. Each run uses a fresh
 // temp cwd so we can assert read-only commands write nothing there.
-function run(args, cwd) {
+function run(args, cwd, script = cli, extra = []) {
   try {
-    const out = execFileSync('node', [cli, ...args], {
+    const out = execFileSync('node', [script, ...args, ...extra], {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -225,4 +225,39 @@ test('hook-register refuses to overwrite a config it cannot parse', () => {
     assert.notEqual(run(['--only', 'claude-hook', '--config-dir', sandbox], dir).code, 0);
     assert.equal(readFileSync(file, 'utf8'), '{ this is not json', 'unparseable config left untouched');
   });
+});
+
+// ---------------------------------------------------------------------------
+// Package integrity — the bins must work when INSTALLED, not just in the repo
+// ---------------------------------------------------------------------------
+
+// npm installs a bin as a symlink (node_modules/.bin/x -> ../pkg/bin/x.js), so
+// process.argv[1] is the link while import.meta.url is the real file. Comparing
+// them directly means the CLI body never runs and the command exits 0 in
+// silence — indistinguishable from success. Only an install-and-run test sees
+// it; running the file from the repo works fine either way.
+test('CLI entry points still run when reached through a symlink', () => {
+  inTempDir((dir) => {
+    const linkDir = join(dir, 'bin');
+    mkdirSync(linkDir);
+    const link = join(linkDir, 'promptcite-verify');
+    symlinkSync(new URL('../bin/verify.js', import.meta.url).pathname, link);
+
+    const receipt = new URL('../examples/multi-session-receipt.json', import.meta.url).pathname;
+    const { code, out } = run([], dir, link, [receipt]);
+    assert.equal(code, 0, 'verifier should exit 0 on a valid receipt');
+    assert.match(out, /content_hash matches/, 'the CLI must actually produce output through the symlink');
+    assert.match(out, /Schema:\s+2\.0 — VALID/);
+  });
+});
+
+test('the packaged file list still contains everything the CLI reads', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url).pathname, 'utf8'));
+  // readRuleSource() reads <repoRoot>/src/rules/receipt.md at runtime, so `src/`
+  // must ship. Dropping it would break every adapter with no local test failure.
+  assert.ok(pkg.files.includes('src/'), 'src/ must ship — the installer reads the rule file from it');
+  assert.ok(pkg.files.includes('bin/'), 'bin/ must ship');
+  for (const bin of Object.values(pkg.bin)) {
+    assert.ok(existsSync(new URL(`../${bin}`, import.meta.url).pathname), `${bin} listed in package.bin must exist`);
+  }
 });
