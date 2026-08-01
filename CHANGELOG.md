@@ -104,6 +104,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `docs/for-instructors.md`: new sections on recommending PromptCite without
+  recommending surveillance, and a software-review table for departments
+  (no network, no telemetry, no accounts, zero runtime deps, AGPL, auditable).
+- `CONTRIBUTING.md`: the "add an agent" steps said `npm run typecheck && npm
+  test`; the PR template says `bun`. Now consistent.
 - `bin/verify.js`: exported `canonicalize`, `computeHash`, `runVerify`
   for testability. CLI entry now only runs when invoked directly.
   `computeHash` now also excludes `submission_hash` from the digest.

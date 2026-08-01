@@ -203,6 +203,72 @@ with your policy, the policy wins.
 > an inaccurate receipt; PromptCite cannot catch that. The same
 > limitation applies to citations.
 
+## Recommending it to students without recommending surveillance
+
+The question worth asking before you point a class at any tool is what it can
+be made to do *to* the students who use it. PromptCite's answer is deliberate:
+
+**It cannot testify against the student who installed it.** That is a design
+constraint, not a promise — it is why the optional ledger (below) is written
+outside the student's repository, purged once used, and excluded from every
+artifact the tool produces.
+
+**It never authors a number.** No percentages, counts, or scores come from
+automation. Everything quantitative in a receipt is a sentence the student
+chose to write. This matters for you as much as for them: a receipt that reads
+like a *report* silently puts you in an enforcement posture — if the tool tells
+you a student used AI heavily, you now have to decide whether to act on that.
+A receipt that reads like a *disclosure* leaves the pedagogical decision where
+it belongs.
+
+**Its absence proves nothing.** No unmarked file, missing marker, or empty
+ledger is evidence a student didn't use AI. If you treat any of them that way,
+you are using the tool outside its stated design and it will mislead you.
+
+One thing worth deciding before you recommend it: **whether disclosed AI use
+can itself be penalized.** If students believe disclosure raises their risk,
+the rational move is to stop disclosing, and you'll get less signal than you had
+before. Saying plainly that honest disclosure is never itself the problem costs
+nothing and is what makes the rest of this work.
+
+### Optional: the AI-use ledger
+
+Students can install a hook that records their AI insertions locally, so
+`/receipt` can remind them what they did rather than asking them to remember
+three days later. It's off by default and separately installed. If you want it
+for an assignment, add to your policy file:
+
+```json
+{ "require_ledger": true }
+```
+
+- Records only timestamp, tool, model, file, and lines added. **Never code,
+  never prompts.**
+- Lives in `~/.promptcite/`, outside any repository, and `/receipt` deletes what
+  it used. Nothing accumulates, and nothing lands where it could be collected
+  with a submission.
+- It is **not evidence and not complete** — a student who asks the AI to explain
+  something and then writes the code themselves generates no entries at all.
+  Requiring it improves the *accuracy* of honest disclosure. It does not, and
+  cannot, detect anything.
+
+### For your department's software review
+
+PromptCite is usually easier to approve than it looks:
+
+| Question | Answer |
+|---|---|
+| Does it send data anywhere? | No. Zero network calls, at install and at runtime. |
+| Telemetry, analytics, install IDs? | None. CI blocks them from the codebase. |
+| Accounts, logins, hosted service? | None. There is no server. |
+| Third-party dependencies? | Zero runtime dependencies — Node built-ins only, CI-enforced. |
+| Where does student data live? | On the student's machine, and nowhere else. |
+| Is the source auditable? | Yes — AGPL-3.0-only, ~1,100 lines, on GitHub. |
+| What does it install? | One rule file per agent. The hook is separate and opt-in. |
+| Can it be removed cleanly? | Yes — `--uninstall` per agent; the hook removes only its own entry. |
+
+For institutional deployment, see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).
+
 ## Limitations to be aware of
 
 - **Local-editability:** as noted above, the JSON is editable after
@@ -215,6 +281,11 @@ with your policy, the policy wins.
 - **One session per receipt:** a student who used AI across multiple
   sessions for one assignment runs `/receipt` once per session and
   combines manually. Receipt aggregation is not built in.
+- **The ledger is incomplete by construction:** it only sees insertions an
+  agent makes into a file. AI use that never becomes an insertion — an
+  explanation the student types up themselves, a conversation in a browser —
+  leaves no trace. Treat it as an aid to the student's memory, never as a
+  record of what happened.
 
 ## Reporting issues with the schema
 
