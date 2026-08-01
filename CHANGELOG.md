@@ -102,6 +102,20 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `pr-checks` bot: two new blocker rules (examples/*.json schema
   validation, verify-against-example sanity check).
 
+### Fixed
+
+- **`bin/hook.js` file-system races** (CodeQL). The ledger writer read the whole
+  file, dropped expired lines, and wrote it back before appending — which can
+  destroy an event another process appended in between, and agents run tools in
+  parallel. The hook is now strictly append-only (`O_APPEND`, so concurrent
+  writes interleave safely); TTL filtering already happened at read time in
+  `/receipt`, so the rewrite was redundant as well as unsafe.
+- **Marker writes can no longer clobber a newer file.** The marker path checked
+  a path and then acted on it; it now holds one descriptor for the whole
+  read-modify-write and confirms through that descriptor that size and mtime are
+  unchanged before committing. If anything moved, it skips — a missing marker is
+  harmless, overwriting the student's code is not.
+
 ### Changed
 
 - `docs/for-instructors.md`: new sections on recommending PromptCite without
