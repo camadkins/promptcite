@@ -43,6 +43,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`bin/verify.js` reads both schema generations.** It branches on
+  `schema_version`, never on the runtime type of `ai_use` — an instructor
+  holding a 1.x receipt from last term is not told it is malformed. The report
+  now prints one line per session with that session's own provenance, and names
+  the schema generation it found. Session lists are never totalled: "5 sessions"
+  reads as a severity score, and it is not one.
+- **`examples/multi-session-receipt.json`** (+ `.md`) — a two-session, two-tool,
+  mixed-provenance 2.0 receipt. `brainstorm-receipt.json` stays at 1.1 on purpose
+  as the backwards-compatibility fixture.
 - **`/receipt` appends instead of overwriting.** Step 0 now looks for a receipt
   matching this assignment and offers to add the session to it. Choosing a
   separate receipt writes to the next free filename. A receipt is never
