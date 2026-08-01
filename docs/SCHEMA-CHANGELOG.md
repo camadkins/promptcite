@@ -12,6 +12,37 @@ Versioning follows the schema's own migration policy: a `1.x → 1.(x+1)` bump m
 fields. Consumers reading older receipts must handle absent optional fields
 gracefully.
 
+## 2.0
+
+**BREAKING. Schema 1.x receipts are NOT valid 2.0 receipts.** Consumers must
+branch on `schema_version` and keep the 1.x path working; `bin/verify.js` reads
+both and will continue to.
+
+**What changed and why.** `ai_use` was a single object, so a receipt could not
+describe an assignment worked across several days — and the rule file told
+students to run `/receipt` per session and combine by hand while the default
+output path silently overwrote the previous receipt. The ordinary case ended in
+under-disclosure. `ai_use` is now an ordered array of sessions. Full reasoning in
+[ADR 0007](./adr/0007-multi-session-receipts.md).
+
+**Field mapping (1.1 → 2.0):**
+
+| 1.1 | 2.0 | Note |
+|---|---|---|
+| `ai_use` (object) | `ai_use` (array of objects) | Re-typed. One session = an array of one. |
+| `metadata_source` | `ai_use[i].metadata_source` | Per-session; sessions can differ. |
+| `outputs.citation_mla` | `ai_use[i].citations.mla` | Prefix dropped. Same for apa / chicago / ieee / harvard. |
+| `appendix` | `ai_use[i].appendix` | Attaches to the session it came from. |
+| `outputs.disclosure_statement` | unchanged | Still one paragraph, now covering every session. |
+| `submission_hash` | unchanged | Hashes the submitted document; there is one document. |
+| `content_hash` | unchanged algorithm | Same canonicalization; the input shape moved. |
+| `generated_at` | unchanged field, **new meaning** | Now the receipt's last-write time, not the time of the AI use. |
+
+Nothing was dropped. The upgrade is mechanical and lossless, and `/receipt`
+performs it in place the first time a session is added to an older receipt.
+
+`min_items: 1` on `ai_use` — a receipt with no sessions is not a receipt.
+
 ## 1.1
 
 **Additive. Schema 1.0 receipts are valid 1.1 receipts.**

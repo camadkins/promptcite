@@ -18,7 +18,36 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### BREAKING
+
+- **Receipt schema 2.0 — `ai_use` is now an ordered array of sessions.** One
+  receipt covers one *assignment*, however many sessions went into it.
+
+  This fixes silent under-disclosure, not a missing feature. `ai_use` was a
+  single object, `/receipt` defaulted to `ai-receipt.json` with no collision
+  check, and the rule file told students to run it once per session and "combine
+  manually" — so a student working across several days overwrote their own
+  earlier receipt and submitted one session believing they had disclosed all of
+  them.
+
+  `metadata_source`, the citation strings, and `appendix` move onto each session,
+  because each describes one episode rather than the submission.
+  `outputs` keeps only `disclosure_statement`. `submission_hash` and the
+  `content_hash` algorithm are unchanged. Field-by-field mapping in
+  `docs/SCHEMA-CHANGELOG.md`; reasoning in
+  `docs/adr/0007-multi-session-receipts.md`, which supersedes ADR 0005.
+
+  **Nothing is lost and no one has to migrate by hand.** `bin/verify.js` reads
+  both 1.x and 2.0, and `/receipt` upgrades an older receipt in place the first
+  time a session is added to it.
+
 ### Added
+
+- **`/receipt` appends instead of overwriting.** Step 0 now looks for a receipt
+  matching this assignment and offers to add the session to it. Choosing a
+  separate receipt writes to the next free filename. A receipt is never
+  overwritten — replacing one destroys a disclosure the student believes they
+  made.
 
 - **AI-use ledger** (optional, off by default). An append-only local record of
   AI-insertion events that `/receipt` reads to jog the student's memory instead

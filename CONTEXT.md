@@ -18,8 +18,13 @@ is responsible for accuracy; the reader evaluates plausibility.
 ## Glossary
 
 - **Receipt** — the structured JSON artifact a `/receipt` run produces,
-  conforming to [`src/schema.yaml`](./src/schema.yaml). One receipt covers
-  one AI-use session for one assignment.
+  conforming to [`src/schema.yaml`](./src/schema.yaml). **One receipt covers one
+  assignment**, however many sessions went into it. See ADR 0007.
+- **Session** — one AI-use episode: one tool, one model, one date, one
+  `use_category`. An entry in the receipt's `ai_use` array, which is ordered
+  oldest first. A session carries its own `metadata_source`, its own citation
+  strings, and its own optional appendix, because all three describe that episode
+  rather than the submission. Adding a session appends; it never replaces.
 - **Disclosure paragraph** — the plain-language, paste-into-your-paper
   prose summary of the AI use. Category-specific templates in the rule.
 - **Citation** — a formatted reference string for the AI use, in MLA / APA

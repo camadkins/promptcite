@@ -252,11 +252,19 @@ receipt, not making one. Do not interview.
 
 1. Read the named JSON file. If it's missing or not valid JSON, say so
    and stop.
-2. **Schema check** — confirm it has the required shape (the fields in
-   `src/schema.yaml`: `schema_version`, `generated_at`, `metadata_source`,
-   `student`, `assignment.{course,instructor,title}`, the `ai_use` block
-   with a valid `category`, and `outputs` with the three core citations +
-   `disclosure_statement`). List any problems plainly.
+2. **Schema check** — read `schema_version` first and check the matching shape;
+   the two differ and both are valid.
+   - **2.0** — `schema_version`, `generated_at`, `student`,
+     `assignment.{course,instructor,title}`, `ai_use` as a **non-empty array**
+     where each entry has `tool`, `model`, `date`, a valid `metadata_source`, a
+     valid `category`, `prompt_summary`, `direct_content_used`,
+     `revision_statement`, and `citations.{mla,apa,chicago}`; plus
+     `outputs.disclosure_statement`.
+   - **1.x** — the older shape: top-level `metadata_source`, `ai_use` as a single
+     **object**, and the three core citations under `outputs.citation_*`. Still
+     valid. Do not report an older receipt as malformed.
+
+   List any problems plainly.
 3. **Hash check** — if you have a code-execution tool, recompute
    `content_hash` using the canonical algorithm in Step 5c (sorted keys,
    no whitespace, UTF-8; exclude `content_hash` AND `submission_hash`
@@ -265,8 +273,10 @@ receipt, not making one. Do not interview.
    tool, say the hash couldn't be recomputed and report the schema check
    only.
 4. Print a short plain-English summary the reader can act on — student,
-   assignment, tool/model/date, category, provenance (`agent_reported` vs
-   `student_claimed`), hash status, and schema status. This mirrors the
+   assignment, then **one line per session** (tool/model/date, category, and that
+   session's provenance: `agent_reported` vs `student_claimed`), followed by hash
+   status and schema status. Report the sessions; do not total them or
+   characterize the count. This mirrors the
    `promptcite-verify` CLI (`bin/verify.js`) for people who live in the
    chat rather than the terminal. Same honest framing: tamper-evident,
    not tamper-proof.
@@ -286,7 +296,42 @@ First, load configuration:
 - **Ledger** — if `ledger` is enabled, load this directory's ledger (see
   *Ledger* above) and hold it for the recall line. Absent or malformed →
   say nothing about it and continue.
+- **Existing receipt** — look for `*.json` receipt files in the current
+  directory. If one has an `assignment` block matching the assignment this
+  student is working on, take the **existing-receipt branch** below before
+  asking anything else.
 If none is present or any is malformed, continue normally.
+
+#### Existing-receipt branch (SOLO — ask before interviewing)
+
+An assignment is normally worked across several days. A receipt holds **every**
+session that went into one assignment, so a second session is added to the
+receipt that already exists — never written over it.
+
+State what the file already holds and offer the choice in one turn:
+
+> *"I found `ai-receipt.json` for this assignment (ENGL 251 — Policy Analysis
+> Essay). It already records one session: ChatGPT on May 14, for brainstorming.
+> Do you want to **add this session to it**, or **start a separate receipt**
+> (different assignment)?"*
+
+- **Add** → run the interview for the new session only. Do not re-ask course,
+  instructor, title, or student — they are already in the file. At Step 5, append
+  the new session to `ai_use`, re-render the disclosure paragraph across all
+  sessions, recompute `content_hash`, and write the file back.
+- **Separate** → run the full interview and write to the next free filename (see
+  Step 6). The existing file is not touched.
+
+**Upgrading an older receipt.** If the existing file has `schema_version` `1.x`,
+adding a session upgrades it to `2.0` in place. The mapping is mechanical and
+lossless — `ai_use` becomes `ai_use[0]`, top-level `metadata_source` moves onto
+that session, `outputs.citation_*` become `ai_use[0].citations.*` with the prefix
+dropped, and a top-level `appendix` moves onto the session. Say so in one line:
+*"Upgraded the receipt to schema 2.0 so it can hold both sessions."* Never
+discard a field you don't recognize — carry it through.
+
+**If the assignment does not match**, this is a different piece of work. Leave the
+other file alone and continue normally; Step 6 will pick a non-colliding name.
 
 Then ask exactly this:
 
@@ -434,9 +479,19 @@ edition**, **IEEE (2023 reference guidance)**, and **Harvard
 author-date** conventions for AI-generated content.
 
 Always generate the three core styles (MLA, APA, Chicago) plus IEEE and
-Harvard, and store all five in the `outputs.citation_*` fields — the
+Harvard, and store all five under that session's `citations` object — the
 student selected one for display, but instructors who want a different
 style can use the stored alternate without re-running.
+
+**One set of citations per session.** A citation names one prompt, one tool, one
+model, one date, so a receipt covering three sessions carries three citations in
+each style, at `ai_use[0].citations.mla`, `ai_use[1].citations.mla`, and so on.
+When you add a session to an existing receipt, generate citations for the new
+session only and leave the existing entries exactly as they are.
+
+**Displaying them.** Show the chosen style for every session, oldest first,
+numbered when there is more than one. The student pastes the whole list into
+their bibliography.
 
 The `<Publisher>` field maps from `<Tool>` using this table — the
 agent fills it automatically without asking:
@@ -527,6 +582,11 @@ the chosen `use_category`. Wording within each template can be varied
 naturally; the *structure* and the *facts cited* are what the template
 locks in.
 
+**There is one disclosure paragraph per receipt, not per session** — the student
+pastes one paragraph into one submission. For a single session, use the matching
+template below exactly as written; a one-session receipt reads the same as it
+always has. For several, see *Multiple sessions* at the end of this section.
+
 **`brainstorm`:**
 > I used <Tool> (<Model>) on <date> to brainstorm <prompt summary, in
 > noun-phrase form> for this assignment. <If direct_content_used=false:
@@ -593,15 +653,50 @@ the disclosure paragraph itself. The paragraph is what the student
 pastes into their submission header; it should read like writing, not a
 form.
 
+**Multiple sessions.** When `ai_use` holds more than one session, write one
+paragraph covering all of them, in date order:
+
+1. Open with the earliest session's template sentence, naming its tool, model,
+   and date as usual.
+2. Give each later session its own sentence, using that session's template as the
+   pattern. Say what changed between them — a different tool, a different
+   purpose — rather than repeating the same construction. Sessions sharing a tool
+   and category may be combined into one sentence ("I used Claude again on May 18
+   and May 21 to debug the sorting logic").
+3. State kept content once, across the whole assignment, rather than per session:
+   *"None of the AI-generated text appears in the final submission"* if every
+   session has `direct_content_used: false`, otherwise name which sessions it
+   came from.
+4. Close with the student's revision statement. If sessions have different
+   revision statements, use the most recent and let the earlier ones stand in the
+   JSON — do not stitch them into a run-on sentence.
+5. Append the provenance addendum only if **every** session is
+   `agent_reported`. If they are mixed, say so plainly instead: *"The May 14
+   session was recorded inside ChatGPT; the May 16 details are from my own
+   notes."*
+
+Aim for six sentences or fewer. Past four sessions, group by tool and category
+rather than listing each. **Never state a session count as a metric and never
+compute a total** — "I used AI in 5 sessions" invites an instructor to read the
+number as a severity score, which it is not. Describe the work, not the tally.
+
+Worked example, two sessions (`outline` then `debug`):
+
+> I used ChatGPT (GPT-4o) on May 14, 2026 to outline the argument for this paper,
+> and my submission loosely followed that structure. On May 16 I used Claude
+> (Claude Sonnet 4.6) to debug the citation-parsing script in the appendix, which
+> explained what was wrong without generating code I kept. None of the
+> AI-generated text appears in the final submission. I rewrote the outline in my
+> own words and fixed the parsing bug myself once I understood it.
+
 #### 5c — Receipt JSON
 
 Generate the JSON object matching `src/schema.yaml`. Required fields:
 
 ```json
 {
-  "schema_version": "1.1",
-  "generated_at": "<ISO 8601 timestamp>",
-  "metadata_source": "agent_reported | student_claimed",
+  "schema_version": "2.0",
+  "generated_at": "<ISO 8601 timestamp — when this file was last written>",
   "content_hash": "<sha256 of canonical other-fields, or null>",
   "submission_hash": "<sha256 of the submitted file's bytes, or null>",
   "student": "<identifier from Step 1>",
@@ -610,26 +705,40 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
     "instructor": "...",
     "title": "..."
   },
-  "ai_use": {
-    "tool": "...",
-    "model": "...",
-    "date": "<YYYY-MM-DD>",
-    "category": "<use_category>",
-    "prompt_summary": "...",
-    "direct_content_used": <true|false>,
-    "revision_statement": "...",
-    "source_verification": <true|false|null>
-  },
+  "ai_use": [
+    {
+      "tool": "...",
+      "model": "...",
+      "date": "<YYYY-MM-DD>",
+      "metadata_source": "agent_reported | student_claimed",
+      "category": "<use_category>",
+      "prompt_summary": "...",
+      "direct_content_used": <true|false>,
+      "revision_statement": "...",
+      "source_verification": <true|false|null>,
+      "citations": {
+        "mla": "...",
+        "apa": "...",
+        "chicago": "...",
+        "ieee": "...",
+        "harvard": "..."
+      }
+    }
+  ],
   "outputs": {
-    "citation_mla": "...",
-    "citation_apa": "...",
-    "citation_chicago": "...",
-    "citation_ieee": "...",
-    "citation_harvard": "...",
     "disclosure_statement": "..."
   }
 }
 ```
+
+**`ai_use` is an array — always, even for one session.** Order it oldest first by
+`date`. Adding a session appends to it; it never replaces what is there.
+
+Three things moved in schema 2.0 and are easy to get wrong from memory:
+`metadata_source` is now **per session**, the citation strings live on the session
+as `citations.mla` (no `citation_` prefix), and an opt-in `appendix` attaches to
+the session it came from rather than the receipt. `outputs` holds only
+`disclosure_statement`.
 
 **Computing `content_hash`:** if you have a code-execution tool
 (Python, bash, JavaScript runtime), compute SHA-256 of the canonical
@@ -679,7 +788,10 @@ does not make the receipt tamper-resistant on its own; see
 `content_hash` for the speed bump. Content fields (`prompt_summary`,
 `revision_statement`, etc.) are always student-authored.
 
-Optional appendix fields (include only if the student opted in during Step 3):
+Optional appendix fields (include only if the student opted in during Step 3).
+The appendix belongs to the session it came from, so it goes **inside** that
+`ai_use` entry — a receipt with three sessions can carry an appendix on only the
+one that needed it:
 
 ```json
 "appendix": {
@@ -689,10 +801,15 @@ Optional appendix fields (include only if the student opted in during Step 3):
 }
 ```
 
-Include all three `citation_*` fields in `outputs` even though the
-student selected one style — instructors who want a different style
-can use the alternate. The `disclosure_statement` is the paragraph from
-5b.
+Include all five citation styles on every session even though the
+student selected one — instructors who want a different style can use
+the alternate without asking for a re-run. The `disclosure_statement`
+is the single paragraph from 5b covering every session.
+
+**When appending to an existing receipt**, recompute `content_hash` over the
+whole updated object and refresh `generated_at`. Leave every existing session
+byte-for-byte as it was: they are the student's earlier disclosures, and
+rewording them now would misrepresent what was said then.
 
 ### Step 6 — Display
 
@@ -701,15 +818,19 @@ Present the three artifacts to the student in a single response:
 ```
 ═══ AI Use Receipt ═══
 
-CITATION (<chosen style>):
-  <citation string>
+CITATION<S> (<chosen style>):
+  <one line per session, oldest first; numbered when there is more than one>
 
 DISCLOSURE (paste into your paper's header or acknowledgments):
-  <disclosure paragraph>
+  <the single disclosure paragraph>
 
 JSON RECEIPT (save to file or paste as appendix):
   <pretty-printed JSON>
 ```
+
+With several sessions the citation block is a numbered list and the disclosure
+stays one paragraph — the student's bibliography needs every citation, their
+header needs one statement.
 
 **File output:** if the student asks to save the receipt to a file
 (e.g. "save it to receipt.json", "write the JSON to ai-receipt.json"),
@@ -718,6 +839,24 @@ path in the current working directory. If no path is given but the
 student says "save it" or similar, default to `ai-receipt.json` in CWD
 and tell the student where it landed. Otherwise the JSON is displayed
 in the conversation only — no file is written.
+
+**Never overwrite a receipt.** This is not a style preference — a receipt is a
+record of something the student disclosed, and replacing one destroys a
+disclosure they believe they made. Before writing:
+
+- If the target file **is** the receipt you took the existing-receipt branch on
+  (Step 0), write it back — that is the append, and the earlier sessions are
+  preserved inside it.
+- If the target file exists and is **anything else**, do not touch it. Write to
+  the next free name — `ai-receipt-2.json`, `ai-receipt-3.json` — and tell the
+  student plainly: *"`ai-receipt.json` already exists for a different assignment,
+  so I saved this as `ai-receipt-2.json`."*
+- If the student explicitly names a path that already exists, say what is in it
+  and ask before writing. Do not assume they meant to replace it.
+
+A student ending up with two files is a minor annoyance. A student ending up with
+one file where they thought they had two is under-disclosure, which is the thing
+this tool exists to prevent.
 
 **Ledger purge:** if a ledger was read in Step 0, delete the events it
 supplied now that the receipt exists, and say so in one line — *"Cleared
@@ -739,10 +878,16 @@ End with one short line:
 - **Student opts into `full_transcript` appendix.** Ask them to paste
   it; do not auto-capture from the current conversation. Make clear it
   will be included in the JSON output.
-- **Student has used AI across multiple sessions.** Note this — the
-  receipt covers *this session's* AI use. For multi-session
-  aggregation, instruct them to run `/receipt` once per session and
-  combine manually. (Multi-session aggregation is a known MVP gap.)
+- **Student has used AI across multiple sessions.** This is the normal case, and
+  one receipt holds all of them. If a receipt for this assignment already exists,
+  Step 0's existing-receipt branch offers to add the session to it. If they are
+  disclosing several past sessions in one sitting and no receipt exists yet, run
+  the interview once per session and append each — confirm after each one
+  (*"Recorded. Another session to add?"*) rather than asking up front how many
+  there were, which is a question students answer badly from memory.
+- **Student mentions AI use they haven't disclosed yet, after the receipt is
+  written.** Offer to add it. Never suggest editing the JSON by hand — that
+  breaks `content_hash` and makes the receipt look tampered with.
 - **Student is hesitant or unsure.** Reassure once: the receipt is a
   disclosure artifact, not a judgment. Do not push if they remain
   unsure — exit cleanly.
