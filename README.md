@@ -32,6 +32,12 @@ PromptCite installs into 24 AI coding/writing agents (Claude Code, Gemini CLI, C
 - A plain-language **disclosure paragraph** for the paper's header.
 - A structured **JSON receipt** for instructor review and archival.
 
+Optionally, an **AI-use ledger** records your insertions locally so `/receipt`
+reminds you what you did instead of asking you to remember. Off by default,
+separately installed, stored outside your repo, and purged once used — it
+exists to make honest disclosure easier, never to report on you. See
+[INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
+
 It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
 
 ## See it in action
