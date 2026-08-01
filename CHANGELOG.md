@@ -4,48 +4,28 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
-
-
-### ⚠ BREAKING CHANGES
-
-* is valid and release-please needs it to cut a major.
-* ai_use is re-typed from an object to a non-empty array. metadata_source, the citation strings, and appendix move onto each session; outputs keeps only disclosure_statement. Consumers must branch on schema_version. bin/verify.js reads both 1.x and 2.0, and /receipt upgrades older receipts in place, so nothing is lost.
-
-### Added
-
-* add hook-register install strategy for Claude Code and Codex ([#72](https://github.com/camadkins/promptcite/issues/72)) ([017eb78](https://github.com/camadkins/promptcite/commit/017eb787054d38f2f6245da91dcdf4fcdcc375e5))
-* add optional AI-use ledger and /receipt recall ([#70](https://github.com/camadkins/promptcite/issues/70)) ([e10e89a](https://github.com/camadkins/promptcite/commit/e10e89ad1abe801bb0d2feb4a2f16fc13832fc11))
-* add promptcite-hook, the observe-only ledger recorder ([#75](https://github.com/camadkins/promptcite/issues/75)) ([04cda98](https://github.com/camadkins/promptcite/commit/04cda98df42c0bf0ecb9faf012b2f51e8b1b5419))
-* is valid and release-please needs it to cut a major. ([2ce04d7](https://github.com/camadkins/promptcite/commit/2ce04d7cb823d5e905da9cc7571b2ca3a80cdc5f))
-* receipt schema 2.0 — one receipt covers a whole assignment ([#78](https://github.com/camadkins/promptcite/issues/78)) ([2ce04d7](https://github.com/camadkins/promptcite/commit/2ce04d7cb823d5e905da9cc7571b2ca3a80cdc5f))
-* verify both schema generations and add a 2.0 example ([#81](https://github.com/camadkins/promptcite/issues/81)) ([4f5d183](https://github.com/camadkins/promptcite/commit/4f5d18312d6ab081f6687e9ca0bef6937ff546ac))
-
-
-### Fixed
-
-* make the npm package correct and lightweight ([#82](https://github.com/camadkins/promptcite/issues/82)) ([e1f8b44](https://github.com/camadkins/promptcite/commit/e1f8b441bf83c3216582ae072d0b17218e6b8327))
-* remove file-system races in the hook's ledger and marker writes ([#76](https://github.com/camadkins/promptcite/issues/76)) ([439e408](https://github.com/camadkins/promptcite/commit/439e408e1e5eaf9d558bda6b310bbbb370968029))
-
-
-### Docs
-
-* add instructor guidance on the ledger and a software-review table ([#73](https://github.com/camadkins/promptcite/issues/73)) ([2d29f41](https://github.com/camadkins/promptcite/commit/2d29f4178201a3cd60c0da037afafbffb12955a6))
-* instructor guidance for multi-session receipts ([#80](https://github.com/camadkins/promptcite/issues/80)) ([996c7ff](https://github.com/camadkins/promptcite/commit/996c7ff9aca30c1329980795976e58c0fb45bd8e))
-
-## [1.1.0](https://github.com/camadkins/promptcite/compare/v1.0.0...v1.1.0) (2026-06-10)
-
-
-### Added
-
-* next build — 24 agents, schema 1.1, /receipt modes, verify + policy ([#41](https://github.com/camadkins/promptcite/issues/41)) ([ea5b8c8](https://github.com/camadkins/promptcite/commit/ea5b8c8c8b7a4eefd7295dbbe40568d91f8a8fcc))
-
-
-### Docs
-
-* readme rewrite for clearer install + marketing scan ([#25](https://github.com/camadkins/promptcite/issues/25)) ([9574492](https://github.com/camadkins/promptcite/commit/95744927e7e959e48a8069102d6e13d9038ff5d6))
-
 ## [Unreleased]
+
+### Removed
+
+- **npm publishing.** The publish workflow is gone and PromptCite is not on the
+  npm registry. It never published successfully — npm refused the credential
+  because publishing from CI needs an Automation-type token to bypass 2FA — and
+  the human review gate did not work as designed, since release-please creates
+  its own GitHub Release and that fired the publish on merge rather than on a
+  deliberate click. Installing from GitHub needs no registry account and no
+  long-lived token sitting in repo secrets, so the trade was not worth it.
+
+  Nothing about how anyone installs PromptCite changes:
+  `npx -y github:camadkins/promptcite` is what the docs have always said.
+
+  Kept from that work, because none of it was npm-specific: the CLI
+  entry-point fix (below), the smaller published tree — `npm install
+  github:...` honours `package.json` `files` exactly as the registry would, so
+  a GitHub install is 12 files rather than 18 — and the signed provenance
+  bundle attached to each GitHub Release.
+
+## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
 
 ### BREAKING
 
@@ -72,12 +52,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **npm publishing**, triggered by a GitHub Release being *published* rather
-  than by a tag push — `release.yml` still creates a draft for review, and
-  clicking publish is the single irreversible gate. The job re-runs the tests,
-  checks the tag matches `package.json`, and installs the packed tarball to
-  prove the CLI works before anything reaches the registry. Publishes with
-  `--provenance`.
+- ~~**npm publishing**~~ — **shipped in the 2.0.0 notes but never actually
+  worked, and has been removed.** The workflow reached the registry and was
+  refused (`EOTP`: npm requires an Automation-type token to bypass 2FA in CI),
+  and the intended review gate did not hold either — release-please publishes
+  its own GitHub Release, so `release: published` fired on merge rather than on
+  a human clicking publish. PromptCite installs from GitHub, which needs no
+  registry account, no token in repo secrets, and no publish step.
+  `npx -y github:camadkins/promptcite` is the supported path.
 - **The release tarball now ships its signed provenance bundle** as
   `promptcite-<tag>.tar.gz.intoto.jsonl`. The attestation was already being
   produced, but only to GitHub's attestation API — anything reading release
@@ -246,6 +228,31 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - README hero block: switched the sample names to the same fictional
   values as `examples/brainstorm-receipt.json` (ENGL 251, Dr. Martinez,
   C. Hawkins).
+
+### Commits
+
+* ai_use is re-typed from an object to a non-empty array. metadata_source, the citation strings, and appendix move onto each session; outputs keeps only disclosure_statement. Consumers must branch on schema_version. bin/verify.js reads both 1.x and 2.0, and /receipt upgrades older receipts in place, so nothing is lost.
+* add hook-register install strategy for Claude Code and Codex ([#72](https://github.com/camadkins/promptcite/issues/72)) ([017eb78](https://github.com/camadkins/promptcite/commit/017eb787054d38f2f6245da91dcdf4fcdcc375e5))
+* add optional AI-use ledger and /receipt recall ([#70](https://github.com/camadkins/promptcite/issues/70)) ([e10e89a](https://github.com/camadkins/promptcite/commit/e10e89ad1abe801bb0d2feb4a2f16fc13832fc11))
+* add promptcite-hook, the observe-only ledger recorder ([#75](https://github.com/camadkins/promptcite/issues/75)) ([04cda98](https://github.com/camadkins/promptcite/commit/04cda98df42c0bf0ecb9faf012b2f51e8b1b5419))
+* receipt schema 2.0 — one receipt covers a whole assignment ([#78](https://github.com/camadkins/promptcite/issues/78)) ([2ce04d7](https://github.com/camadkins/promptcite/commit/2ce04d7cb823d5e905da9cc7571b2ca3a80cdc5f))
+* verify both schema generations and add a 2.0 example ([#81](https://github.com/camadkins/promptcite/issues/81)) ([4f5d183](https://github.com/camadkins/promptcite/commit/4f5d18312d6ab081f6687e9ca0bef6937ff546ac))
+* make the npm package correct and lightweight ([#82](https://github.com/camadkins/promptcite/issues/82)) ([e1f8b44](https://github.com/camadkins/promptcite/commit/e1f8b441bf83c3216582ae072d0b17218e6b8327))
+* remove file-system races in the hook's ledger and marker writes ([#76](https://github.com/camadkins/promptcite/issues/76)) ([439e408](https://github.com/camadkins/promptcite/commit/439e408e1e5eaf9d558bda6b310bbbb370968029))
+* add instructor guidance on the ledger and a software-review table ([#73](https://github.com/camadkins/promptcite/issues/73)) ([2d29f41](https://github.com/camadkins/promptcite/commit/2d29f4178201a3cd60c0da037afafbffb12955a6))
+* instructor guidance for multi-session receipts ([#80](https://github.com/camadkins/promptcite/issues/80)) ([996c7ff](https://github.com/camadkins/promptcite/commit/996c7ff9aca30c1329980795976e58c0fb45bd8e))
+
+## [1.1.0](https://github.com/camadkins/promptcite/compare/v1.0.0...v1.1.0) (2026-06-10)
+
+
+### Added
+
+* next build — 24 agents, schema 1.1, /receipt modes, verify + policy ([#41](https://github.com/camadkins/promptcite/issues/41)) ([ea5b8c8](https://github.com/camadkins/promptcite/commit/ea5b8c8c8b7a4eefd7295dbbe40568d91f8a8fcc))
+
+
+### Docs
+
+* readme rewrite for clearer install + marketing scan ([#25](https://github.com/camadkins/promptcite/issues/25)) ([9574492](https://github.com/camadkins/promptcite/commit/95744927e7e959e48a8069102d6e13d9038ff5d6))
 
 ## [1.0.0] — 2026-05-28
 
