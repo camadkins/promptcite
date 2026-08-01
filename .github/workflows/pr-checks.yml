@@ -118,12 +118,29 @@ jobs:
             [ -f "$f" ] || continue
             if ! node -e "
               const r = JSON.parse(require('fs').readFileSync('$f', 'utf8'));
-              const required = ['schema_version','generated_at','metadata_source','student','assignment','ai_use','outputs'];
+              const cats = ['brainstorm','outline','draft','edit','debug','explain','search'];
+              const sources = ['agent_reported','student_claimed'];
+              // Both schema generations are valid. Branch on schema_version,
+              // never on the runtime type of ai_use — an older receipt is not
+              // malformed, just older. See docs/SCHEMA-CHANGELOG.md.
+              const v2 = /^2\./.test(r.schema_version || '');
+              const required = v2
+                ? ['schema_version','generated_at','student','assignment','ai_use','outputs']
+                : ['schema_version','generated_at','metadata_source','student','assignment','ai_use','outputs'];
               const missing = required.filter(k => !(k in r));
               if (missing.length) { console.error('missing keys:', missing); process.exit(1); }
-              const cats = ['brainstorm','outline','draft','edit','debug','explain','search'];
-              if (!cats.includes(r.ai_use.category)) { console.error('invalid category'); process.exit(1); }
-              if (!['agent_reported','student_claimed'].includes(r.metadata_source)) { console.error('invalid metadata_source'); process.exit(1); }
+              if (v2) {
+                if (!Array.isArray(r.ai_use) || r.ai_use.length === 0) { console.error('ai_use must be a non-empty array in 2.0'); process.exit(1); }
+                r.ai_use.forEach((u, i) => {
+                  if (!cats.includes(u.category)) { console.error('invalid category in ai_use[' + i + ']'); process.exit(1); }
+                  if (!sources.includes(u.metadata_source)) { console.error('invalid metadata_source in ai_use[' + i + ']'); process.exit(1); }
+                  if (!u.citations || !u.citations.mla) { console.error('missing citations in ai_use[' + i + ']'); process.exit(1); }
+                });
+                if (!r.outputs.disclosure_statement) { console.error('missing outputs.disclosure_statement'); process.exit(1); }
+              } else {
+                if (!cats.includes(r.ai_use.category)) { console.error('invalid category'); process.exit(1); }
+                if (!sources.includes(r.metadata_source)) { console.error('invalid metadata_source'); process.exit(1); }
+              }
             " 2>/dev/null; then
               BAD_EXAMPLES="$BAD_EXAMPLES $f"
             fi
