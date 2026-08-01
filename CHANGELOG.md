@@ -4,6 +4,35 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* is valid and release-please needs it to cut a major.
+* ai_use is re-typed from an object to a non-empty array. metadata_source, the citation strings, and appendix move onto each session; outputs keeps only disclosure_statement. Consumers must branch on schema_version. bin/verify.js reads both 1.x and 2.0, and /receipt upgrades older receipts in place, so nothing is lost.
+
+### Added
+
+* add hook-register install strategy for Claude Code and Codex ([#72](https://github.com/camadkins/promptcite/issues/72)) ([017eb78](https://github.com/camadkins/promptcite/commit/017eb787054d38f2f6245da91dcdf4fcdcc375e5))
+* add optional AI-use ledger and /receipt recall ([#70](https://github.com/camadkins/promptcite/issues/70)) ([e10e89a](https://github.com/camadkins/promptcite/commit/e10e89ad1abe801bb0d2feb4a2f16fc13832fc11))
+* add promptcite-hook, the observe-only ledger recorder ([#75](https://github.com/camadkins/promptcite/issues/75)) ([04cda98](https://github.com/camadkins/promptcite/commit/04cda98df42c0bf0ecb9faf012b2f51e8b1b5419))
+* is valid and release-please needs it to cut a major. ([2ce04d7](https://github.com/camadkins/promptcite/commit/2ce04d7cb823d5e905da9cc7571b2ca3a80cdc5f))
+* receipt schema 2.0 — one receipt covers a whole assignment ([#78](https://github.com/camadkins/promptcite/issues/78)) ([2ce04d7](https://github.com/camadkins/promptcite/commit/2ce04d7cb823d5e905da9cc7571b2ca3a80cdc5f))
+* verify both schema generations and add a 2.0 example ([#81](https://github.com/camadkins/promptcite/issues/81)) ([4f5d183](https://github.com/camadkins/promptcite/commit/4f5d18312d6ab081f6687e9ca0bef6937ff546ac))
+
+
+### Fixed
+
+* make the npm package correct and lightweight ([#82](https://github.com/camadkins/promptcite/issues/82)) ([e1f8b44](https://github.com/camadkins/promptcite/commit/e1f8b441bf83c3216582ae072d0b17218e6b8327))
+* remove file-system races in the hook's ledger and marker writes ([#76](https://github.com/camadkins/promptcite/issues/76)) ([439e408](https://github.com/camadkins/promptcite/commit/439e408e1e5eaf9d558bda6b310bbbb370968029))
+
+
+### Docs
+
+* add instructor guidance on the ledger and a software-review table ([#73](https://github.com/camadkins/promptcite/issues/73)) ([2d29f41](https://github.com/camadkins/promptcite/commit/2d29f4178201a3cd60c0da037afafbffb12955a6))
+* instructor guidance for multi-session receipts ([#80](https://github.com/camadkins/promptcite/issues/80)) ([996c7ff](https://github.com/camadkins/promptcite/commit/996c7ff9aca30c1329980795976e58c0fb45bd8e))
+
 ## [1.1.0](https://github.com/camadkins/promptcite/compare/v1.0.0...v1.1.0) (2026-06-10)
 
 
