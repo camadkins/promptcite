@@ -13,5 +13,6 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0002](./0002-no-cryptographic-signing-in-v1.md) | No cryptographic signing in v1 | Accepted |
 | [0003](./0003-additive-schema-version-policy.md) | Additive schema-version policy | Accepted |
 | [0004](./0004-zero-runtime-dependencies.md) | Zero runtime dependencies | Accepted |
-| [0005](./0005-single-session-scope.md) | One receipt covers one session | Accepted |
+| [0005](./0005-single-session-scope.md) | One receipt covers one session | Superseded by 0007 |
 | [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |
+| [0007](./0007-multi-session-receipts.md) | One receipt covers a whole assignment | Accepted |

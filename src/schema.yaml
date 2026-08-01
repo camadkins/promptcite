@@ -12,7 +12,7 @@
 # change. Universities relying on the receipt format need a stable contract.
 # Migration strategy required before institutional adoption.
 
-schema_version: "1.1"
+schema_version: "2.0"
 
 # ---------------------------------------------------------------------------
 # Top-level shape
@@ -23,42 +23,28 @@ fields:
     type: string
     required: true
     description: |
-      Version of this schema the receipt conforms to. Currently "1.1".
+      Version of this schema the receipt conforms to. Currently "2.0".
       Receipts produced by older clients tagged with their schema_version
-      at generation time; consumers must check this before parsing.
+      at generation time; consumers MUST check this before parsing —
+      1.x and 2.0 differ in the shape of `ai_use` (object vs array).
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
   generated_at:
     type: string
     required: true
-    description: ISO-8601 timestamp at which the receipt was generated.
+    description: |
+      ISO-8601 timestamp at which the receipt was last written. A receipt
+      that gains a session is rewritten, so this moves forward while the
+      per-session `date` values do not. Changed meaning in 2.0: it is the
+      receipt's write time, not the time of the AI use it describes.
     format: iso8601
 
-  metadata_source:
-    type: string
-    required: true
-    description: |
-      How the tool/model/date fields under `ai_use` were filled at
-      generation time.
-
-      - `"agent_reported"`: the AI agent filled `tool`, `model`, and
-        `date` based on its own self-knowledge (student answered "this
-        session" in Step 0 of the interview). Reduces friction for
-        honest disclosure since the student doesn't have to remember
-        the exact model version or look up today's date.
-
-      - `"student_claimed"`: the student filled `tool`, `model`, and
-        `date` themselves because they were disclosing AI use from a
-        previous session or a different tool.
-
-      Important: the receipt JSON is locally editable after generation.
-      `metadata_source` is a transparency marker at generation time,
-      not a cryptographic claim. See `content_hash` for the tamper-
-      evident speed bump.
-    enum:
-      - agent_reported
-      - student_claimed
+  # NOTE (2.0): `metadata_source` used to live here. It describes how ONE
+  # session's tool/model/date were filled, so with several sessions a single
+  # top-level value is incoherent — a session disclosed inside the tool is
+  # agent_reported while one typed from memory is student_claimed. It now
+  # lives on each entry of `ai_use`.
 
   content_hash:
     type: string
@@ -141,10 +127,24 @@ fields:
         description: Assignment title (e.g. "Policy Analysis Essay").
 
   ai_use:
-    type: object
+    type: array
     required: true
-    description: How the AI was used in the production of this assignment.
-    fields:
+    min_items: 1
+    description: |
+      Every AI-use session that contributed to this assignment, ordered
+      chronologically by `date`.
+
+      **Changed in 2.0: this was a single object.** One assignment is
+      routinely worked across several days, tools, and purposes — an
+      outline on Monday, a debug session on Thursday. A single object
+      could not express that, so the interview told students to run
+      `/receipt` per session and combine by hand, which meant the common
+      case ended in under-disclosure. See ADR 0007.
+
+      A one-session receipt is an array of one. Consumers must not
+      special-case length 1.
+    item_type: object
+    item_fields:
       tool:
         type: string
         required: true
@@ -158,6 +158,28 @@ fields:
         required: true
         format: date
         description: Date of AI use, ISO 8601 date (YYYY-MM-DD).
+      metadata_source:
+        type: string
+        required: true
+        description: |
+          How THIS session's `tool`, `model`, and `date` were filled.
+          Moved here from the top level in 2.0 — it is a per-session fact,
+          and a receipt can hold sessions with different provenance.
+
+          - `"agent_reported"`: the AI agent filled them from its own
+            self-knowledge (the student answered "this session" at the
+            Step 0 provenance gate). Less friction for honest disclosure —
+            no remembering exact model versions or looking up dates.
+
+          - `"student_claimed"`: the student typed them, because they were
+            disclosing use from a previous session or a different tool.
+
+          Important: the receipt JSON is locally editable after
+          generation. This is a transparency marker at generation time,
+          not a cryptographic claim. See `content_hash`.
+        enum:
+          - agent_reported
+          - student_claimed
       category:
         type: string
         required: true
@@ -209,81 +231,94 @@ fields:
           in those workflows, and the field stays null in the JSON output.
           The disclosure paragraph's "I independently verified ..."
           sentence renders only when this field is `true`.
+      citations:
+        type: object
+        required: true
+        description: |
+          Formatted citation strings for THIS session. Moved here from
+          `outputs` in 2.0: a citation names one prompt, one tool, one
+          model, one date — it is a property of the session, not of the
+          submission. A three-session receipt carries three citations per
+          style.
+
+          All five styles are generated regardless of which the student
+          selected, so an instructor can use an alternate without asking
+          the student to re-run anything. Templates in receipt.md Step 5a.
+        fields:
+          mla:
+            type: string
+            required: true
+            description: MLA 9 citation string.
+          apa:
+            type: string
+            required: true
+            description: APA 7 citation string.
+          chicago:
+            type: string
+            required: true
+            description: Chicago 17 citation string.
+          ieee:
+            type: string
+            required: false
+            description: IEEE citation string. Optional — older emitters may omit it.
+          harvard:
+            type: string
+            required: false
+            description: Harvard author-date citation string. Optional.
+      appendix:
+        type: object
+        required: false
+        description: |
+          Optional extras for higher-stakes work. Never auto-captured;
+          always opt-in. Moved here from the top level in 2.0 — a share
+          link, transcript, or diff belongs to the conversation it came
+          from, so a receipt with three sessions can carry an appendix on
+          exactly the one that needed it.
+        fields:
+          share_link_or_excerpt:
+            type: string
+            required: false
+            description: |
+              A chat share link or short excerpt of the AI conversation.
+              Higher-stakes writing assignments. Opt-in only.
+          full_transcript:
+            type: string
+            required: false
+            description: |
+              Complete log of the AI conversation. High-stakes writing or
+              exams where the instructor requires full disclosure. Opt-in
+              only; never auto-captured.
+          diff_or_test_log:
+            type: string
+            required: false
+            description: |
+              For code assignments: a diff between AI-assisted and final
+              versions, or test output. Opt-in only.
 
   outputs:
     type: object
     required: true
     description: |
-      The derived artifacts. Generated by the agent from the ai_use
-      fields above using the templates in src/rules/receipt.md Step 5.
-      The three core citation styles (MLA/APA/Chicago) are always
-      included so an instructor can use an alternate without re-running;
-      IEEE and Harvard are included additionally when the agent supports
-      schema 1.1.
+      Artifacts describing the submission as a whole. In 2.0 this holds
+      only the disclosure paragraph — the citation strings moved onto each
+      `ai_use` entry, because they describe individual sessions. Kept as an
+      object rather than flattened so it has room to grow.
     fields:
-      citation_mla:
-        type: string
-        required: true
-        description: MLA-formatted citation string.
-      citation_apa:
-        type: string
-        required: true
-        description: APA-formatted citation string.
-      citation_chicago:
-        type: string
-        required: true
-        description: Chicago-formatted citation string.
-      citation_ieee:
-        type: string
-        required: false
-        description: |
-          IEEE-formatted citation string. Added in schema 1.1 (optional,
-          additive). Present when the agent supports it; older receipts
-          (schema 1.0) omit it. Serves engineering / CS coursework.
-      citation_harvard:
-        type: string
-        required: false
-        description: |
-          Harvard (author-date) citation string. Added in schema 1.1
-          (optional, additive). Serves international / business courses.
-          Older receipts (schema 1.0) omit it.
       disclosure_statement:
         type: string
         required: true
         description: |
-          Plain-language disclosure paragraph for the paper's header or
-          acknowledgments. One paragraph, 2–4 sentences. Generated from
-          the ai_use fields using the template in receipt.md Step 7b.
-        min_length: 1
-        max_length: 2000
+          The plain-language paragraph the student pastes into their
+          paper's header or acknowledgments. ONE paragraph covering every
+          session in `ai_use`, not one per session.
 
-  appendix:
-    type: object
-    required: false
-    description: |
-      Optional fields the student or instructor may elect to include
-      for higher-stakes assignments. Never auto-captured; always opt-in.
-    fields:
-      share_link_or_excerpt:
-        type: string
-        required: false
-        description: |
-          A chat share link or short excerpt of the AI conversation.
-          Higher-stakes writing assignments. Opt-in only.
-      full_transcript:
-        type: string
-        required: false
-        description: |
-          Complete log of the AI conversation. High-stakes writing or
-          exams where the instructor requires full disclosure. Opt-in
-          only; never auto-captured.
-      diff_or_test_log:
-        type: string
-        required: false
-        description: |
-          For code assignments: a diff between AI-assisted and final
-          versions, or test output. Higher-stakes CS assignments.
-          Opt-in only.
+          For a single session this is unchanged from 1.x: the
+          category-specific template in receipt.md Step 5b. For several,
+          the templates render one clause per session in date order,
+          closing with the student's revision statement. Generated from
+          the recorded fields; the student's own words are never rewritten.
+        min_length: 1
+        max_length: 4000
 
 # ---------------------------------------------------------------------------
 # Validation rules (consumer-side; not enforced by YAML itself)
@@ -291,25 +326,41 @@ fields:
 validation:
   - rule: schema_version_required
     message: schema_version must be present and match /^\d+\.\d+$/
-  - rule: use_category_enum
-    message: ai_use.category must be one of the seven listed values
-  - rule: outputs_complete
+  - rule: ai_use_is_array
     message: |
-      The three core citation styles (citation_mla, citation_apa,
-      citation_chicago) AND disclosure_statement must be present.
-      citation_ieee and citation_harvard are optional (schema 1.1+).
+      ai_use must be a non-empty array in 2.0. Consumers reading a 1.x
+      receipt will find a single object instead — branch on
+      schema_version, never on the runtime type.
+  - rule: use_category_enum
+    message: every ai_use[].category must be one of the seven listed values
+  - rule: metadata_source_per_session
+    message: |
+      every ai_use[].metadata_source must be "agent_reported" or
+      "student_claimed". In 1.x this was a single top-level field.
+  - rule: citations_complete
+    message: |
+      every ai_use[] entry must carry citations.mla, citations.apa, and
+      citations.chicago. citations.ieee and citations.harvard are optional.
+  - rule: outputs_complete
+    message: outputs.disclosure_statement must be present and non-empty.
   - rule: submission_hash_format
     message: |
       submission_hash, when present and non-null, must match
       /^[a-f0-9]{64}$/ (sha256 hex). It hashes the submitted file, not
       the receipt fields, and is never part of content_hash input.
   - rule: dates_iso8601
-    message: ai_use.date must be ISO 8601 date (YYYY-MM-DD); generated_at must be ISO 8601 datetime
+    message: |
+      every ai_use[].date must be an ISO 8601 date (YYYY-MM-DD);
+      generated_at must be an ISO 8601 datetime.
+  - rule: sessions_chronological
+    message: |
+      ai_use entries should be ordered by date, oldest first. Advisory,
+      not a hard failure — a student may disclose out of order.
   - rule: no_transcript_default
     message: |
-      appendix.full_transcript MUST NOT be present unless the student
-      explicitly opted in during the interview. The interview rule file
-      enforces this; downstream validators should reject receipts with
+      ai_use[].appendix.full_transcript MUST NOT be present unless the
+      student explicitly opted in during the interview. The interview rule
+      file enforces this; downstream validators should reject receipts with
       full_transcript present and no corresponding opt-in marker.
 
 # ---------------------------------------------------------------------------
@@ -321,12 +372,30 @@ migration:
     A 1.x → 2.0 bump may rename, remove, or re-type fields. A 1.0 → 1.1
     bump may add optional fields only. Consumers reading older receipts
     must handle absent optional fields gracefully.
+
+    2.0 is the first breaking bump. Consumers MUST support both shapes:
+    branch on schema_version and keep the 1.x path working. PromptCite's
+    own verifier (bin/verify.js) does this and will continue to.
   history: |
     1.0 — initial receipt format (MVP).
     1.1 — additive: optional outputs.citation_ieee, outputs.citation_harvard,
           and top-level submission_hash. No fields removed or re-typed;
           schema 1.0 receipts remain valid 1.1 receipts.
+    2.0 — BREAKING. ai_use becomes an ordered array of sessions so one
+          receipt can cover a whole assignment. metadata_source, the
+          citation strings, and appendix move onto each session;
+          outputs keeps only disclosure_statement. See ADR 0007 and
+          docs/SCHEMA-CHANGELOG.md for the field-by-field mapping.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
+  upgrade_1x_to_2_0: |
+    Mechanical, lossless, and performed in place by `/receipt` the first
+    time a session is added to an older receipt:
+      ai_use            → ai_use[0]
+      metadata_source   → ai_use[0].metadata_source
+      outputs.citation_*→ ai_use[0].citations.*   (drop the citation_ prefix)
+      appendix          → ai_use[0].appendix
+      outputs.disclosure_statement stays put
+      schema_version    → "2.0"; content_hash recomputed over the new shape
   open_questions:
     - How do we coordinate schema bumps with universities that have
       adopted the receipt format as a submission standard?
