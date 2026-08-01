@@ -23,7 +23,10 @@
 //   - No network, no telemetry, zero dependencies.
 
 import { randomBytes, createHash } from 'node:crypto';
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, realpathSync } from 'node:fs';
+import {
+  appendFileSync, mkdirSync, readFileSync, existsSync, realpathSync,
+  openSync, closeSync, fstatSync, ftruncateSync, writeSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join, extname, relative, resolve, basename } from 'node:path';
 
@@ -176,7 +179,10 @@ export function buildEvent({ tool, model, file, text, now = new Date() }) {
 }
 
 /**
- * Drop events past their TTL. Keeps the ledger from becoming an archive.
+ * Drop events past their TTL. Applied when the ledger is *read*, never when it
+ * is written — the hook is append-only on purpose (see `appendEvent`), so this
+ * exists for consumers: `/receipt` ignores expired events and purges what it
+ * consumes.
  *
  * @param {string[]} lines
  * @param {number} ttlDays
@@ -194,20 +200,68 @@ export function pruneExpired(lines, ttlDays, now = new Date()) {
 }
 
 /**
+ * Append one event. Strictly append-only, and that is a correctness
+ * requirement rather than a simplification: agents run tools in parallel, so
+ * several hook processes can be writing this file at the same moment. An
+ * earlier version read the whole ledger, dropped expired lines, and wrote it
+ * back before appending — which silently destroys any event another process
+ * appended between the read and the write.
+ *
+ * `appendFileSync` opens with O_APPEND, so concurrent writes of a single short
+ * line interleave safely instead of overwriting each other. TTL is applied by
+ * the reader (`/receipt` already ignores events older than `ttl_days` and
+ * purges what it consumes), so nothing here needs to rewrite the file.
+ *
  * @param {string} ledgerPath
  * @param {LedgerEvent} event
- * @param {number} ttlDays
  */
-function appendEvent(ledgerPath, event, ttlDays) {
+function appendEvent(ledgerPath, event) {
   mkdirSync(join(ledgerPath, '..'), { recursive: true });
-  if (existsSync(ledgerPath)) {
-    const existing = readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean);
-    const kept = pruneExpired(existing, ttlDays);
-    if (kept.length !== existing.length) {
-      writeFileSync(ledgerPath, kept.length ? `${kept.join('\n')}\n` : '');
-    }
-  }
   appendFileSync(ledgerPath, `${JSON.stringify(event)}\n`);
+}
+
+/**
+ * Add a marker to a file without racing the agent that just wrote it.
+ *
+ * Checking the path and then acting on the path is two operations on something
+ * that can change in between. Here that matters more than usual: this is the
+ * student's source file, and losing a write means losing their code, not a log
+ * line. So we hold one descriptor for the whole read-modify-write, and confirm
+ * through that same descriptor that nothing changed underneath us before
+ * committing. If anything looks different, we skip — a missing marker is
+ * harmless, a clobbered file is not.
+ *
+ * @param {string} filePath
+ * @param {(contents: string) => string | null} transform
+ * @returns {boolean} whether the file was modified
+ */
+function rewriteIfUnchanged(filePath, transform) {
+  /** @type {number | undefined} */
+  let fd;
+  try {
+    fd = openSync(filePath, 'r+');
+    const before = fstatSync(fd);
+    const contents = readFileSync(fd, 'utf8');
+    const next = transform(contents);
+    if (next === null || next === contents) return false;
+
+    // Same descriptor, so this is the file we read — not whatever the path
+    // points at now.
+    const after = fstatSync(fd);
+    if (after.size !== before.size || after.mtimeMs !== before.mtimeMs) {
+      debug('file changed while we were reading it; leaving it alone');
+      return false;
+    }
+
+    const buffer = Buffer.from(next, 'utf8');
+    ftruncateSync(fd, 0);
+    writeSync(fd, buffer, 0, buffer.length, 0);
+    return true;
+  } catch {
+    return false; // unreadable, unwritable, or gone — never fatal
+  } finally {
+    if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ }
+  }
 }
 
 /**
@@ -317,16 +371,17 @@ export function run(payload, { tool = 'unknown', cwd: rawCwd = process.cwd() } =
     file: rel.startsWith('..') ? basename(filePath) : rel,
     text,
   });
-  appendEvent(resolveLedgerPath(cwd), event, config.ttlDays);
+  appendEvent(resolveLedgerPath(cwd), event);
   debug(`recorded ${event.event_id} ${event.file}`);
 
-  if (!config.markersEnabled || !existsSync(filePath)) return;
-  const contents = readFileSync(filePath, 'utf8');
-  if (!shouldMark({ toolName, text, file: event.file, contents, minLines: config.minLines, style: config.style })) {
-    return debug('marker guards not met');
-  }
-  writeFileSync(filePath, injectMarker(contents, text, event, config.style));
-  debug(`marked ${event.file}`);
+  if (!config.markersEnabled) return;
+  const marked = rewriteIfUnchanged(filePath, (contents) => {
+    if (!shouldMark({ toolName, text, file: event.file, contents, minLines: config.minLines, style: config.style })) {
+      return null;
+    }
+    return injectMarker(contents, text, event, config.style);
+  });
+  debug(marked ? `marked ${event.file}` : 'marker guards not met');
 }
 
 function readStdin() {

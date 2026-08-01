@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
@@ -306,4 +306,96 @@ test('marker mode writes exactly one marker into the file', () => {
 
 test('the real home directory is never touched by these tests', () => {
   assert.ok(!existsSync(join(homedir(), '.promptcite', 'ledgers', 'test-sentinel.jsonl')));
+});
+
+// ---------------------------------------------------------------------------
+// Concurrency — agents run tools in parallel, so several hooks race
+// ---------------------------------------------------------------------------
+
+test('concurrent appends do not lose events', async () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    enableLedger(cwd);
+
+    // Seed expired entries so this exercises the path that used to rewrite the
+    // whole file before appending.
+    //
+    // Honest note on what this test is and isn't: it asserts the append-only
+    // *invariant*, not a reproduction of the old bug. The previous
+    // read-prune-write implementation was a genuine TOCTOU, but it only rewrote
+    // when something had actually expired — and the first process to run
+    // cleared that condition for everyone else — so the losing interleaving is
+    // not reliably reachable through the binary. This guards against anyone
+    // reintroducing a rewrite here, which is the property that matters.
+    const ledger = resolveLedgerPath(cwd, home);
+    mkdirSync(join(ledger, '..'), { recursive: true });
+    writeFileSync(ledger, Array.from({ length: 3 }, (_, i) =>
+      JSON.stringify({ schema_version: '1.0', event_id: `old0${i}`, ts: '2020-01-01T00:00:00Z', tool: 't', file: `old${i}.py`, lines_added: 1 })).join('\n') + '\n');
+
+    const N = 12;
+    await Promise.all(Array.from({ length: N }, (_, i) => new Promise((done, fail) => {
+      const child = spawn('node', [HOOK, '--tool', 'claude-code'], {
+        cwd, env: { ...process.env, HOME: home }, stdio: ['pipe', 'ignore', 'ignore'],
+      });
+      child.on('error', fail);
+      child.on('exit', () => done(undefined));
+      child.stdin.end(JSON.stringify(writePayload(`file${i}.py`, 'a\nb\nc\n')));
+    })));
+
+    const fresh = ledgerLines(home, cwd).filter((e) => !e.file.startsWith('old'));
+    assert.equal(fresh.length, N, 'every concurrent event must survive');
+    assert.equal(new Set(fresh.map((e) => e.file)).size, N, 'no event overwritten by another');
+  } finally { cleanup(); }
+});
+
+test('every ledger line stays parseable under concurrent writes', async () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    enableLedger(cwd);
+    await Promise.all(Array.from({ length: 10 }, (_, i) => new Promise((done) => {
+      const child = spawn('node', [HOOK, '--tool', 't'], {
+        cwd, env: { ...process.env, HOME: home }, stdio: ['pipe', 'ignore', 'ignore'],
+      });
+      child.on('exit', () => done(undefined));
+      child.stdin.end(JSON.stringify(writePayload(`f${i}.py`, 'x\n')));
+    })));
+    const raw = readFileSync(resolveLedgerPath(cwd, home), 'utf8');
+    for (const line of raw.split('\n').filter(Boolean)) {
+      assert.doesNotThrow(() => JSON.parse(line), `line torn by interleaved write: ${line}`);
+    }
+  } finally { cleanup(); }
+});
+
+test('marker skips the file if it changed since we read it', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    enableLedger(cwd, { markers: { enabled: true } });
+    const file = join(cwd, 'a.py');
+    writeFileSync(file, `x = 0\n${BLOCK}`);
+
+    // Stand in for the agent writing again between our read and our write:
+    // the text we were told about is no longer what is on disk.
+    const newer = 'y = 99\n# the agent rewrote this file\n';
+    writeFileSync(file, newer);
+
+    runHook({
+      hook_event_name: 'PostToolUse', tool_name: 'Edit',
+      tool_input: { file_path: file, old_string: '', new_string: BLOCK },
+    }, { cwd, home });
+
+    assert.equal(readFileSync(file, 'utf8'), newer, 'newer content must not be clobbered');
+  } finally { cleanup(); }
+});
+
+test('a missing file never crashes the marker path', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    enableLedger(cwd, { markers: { enabled: true } });
+    const out = runHook({
+      hook_event_name: 'PostToolUse', tool_name: 'Edit',
+      tool_input: { file_path: join(cwd, 'gone.py'), old_string: '', new_string: BLOCK },
+    }, { cwd, home });
+    assert.equal(out, '');
+    assert.equal(ledgerLines(home, cwd).length, 1, 'the event is still recorded');
+  } finally { cleanup(); }
 });
