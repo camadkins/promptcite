@@ -25,34 +25,78 @@ Required structure:
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "2.0",
   "generated_at": "2026-05-27T14:30:00Z",
-  "metadata_source": "agent_reported" | "student_claimed",
   "content_hash": "<sha256 of the receipt fields, or null>",
   "submission_hash": "<sha256 of the submitted file, or null>",
   "student": "<name or ID>",
   "assignment": { "course": "...", "instructor": "...", "title": "..." },
-  "ai_use": {
-    "tool": "...", "model": "...", "date": "YYYY-MM-DD",
-    "category": "brainstorm|outline|draft|edit|debug|explain|search",
-    "prompt_summary": "<student-written summary>",
-    "direct_content_used": true | false,
-    "revision_statement": "<student-written>",
-    "source_verification": true | false | null
-  },
-  "outputs": { "citation_mla": "...", "citation_apa": "...",
-                "citation_chicago": "...", "citation_ieee": "...",
-                "citation_harvard": "...", "disclosure_statement": "..." }
+  "ai_use": [
+    {
+      "tool": "...", "model": "...", "date": "YYYY-MM-DD",
+      "metadata_source": "agent_reported" | "student_claimed",
+      "category": "brainstorm|outline|draft|edit|debug|explain|search",
+      "prompt_summary": "<student-written summary>",
+      "direct_content_used": true | false,
+      "revision_statement": "<student-written>",
+      "source_verification": true | false | null,
+      "citations": { "mla": "...", "apa": "...", "chicago": "...",
+                     "ieee": "...", "harvard": "..." }
+    }
+  ],
+  "outputs": { "disclosure_statement": "..." }
 }
 ```
 
-`citation_ieee`, `citation_harvard`, and `submission_hash` arrived in
-schema 1.1 and are optional — receipts from older clients (schema 1.0)
-simply omit them. See [`docs/SCHEMA-CHANGELOG.md`](./SCHEMA-CHANGELOG.md)
-for the version history.
+**`ai_use` is a list.** One receipt covers one *assignment*, and an assignment is
+routinely worked across several days — an outline on Monday, a debug session on
+Thursday. Each entry is one session, ordered oldest first, carrying its own
+tool/model/date, its own provenance, and its own citations. A student who used AI
+once has a list of one.
+
+**You may still receive schema 1.x receipts**, where `ai_use` is a single object,
+`metadata_source` sits at the top level, and the citations live under
+`outputs.citation_mla` and friends. Those are valid, not malformed — the format
+changed in 2.0 and the verifier reads both. See
+[`docs/SCHEMA-CHANGELOG.md`](./SCHEMA-CHANGELOG.md) for the field-by-field
+mapping and the version history.
+
+## Reading a receipt with several sessions
+
+Take the sessions in order and read them as a narrative of how the work was done.
+`promptcite-verify` prints one line each:
+
+```
+Session 1:  ChatGPT (GPT-4o) on 2026-05-14, used to outline
+            Asked for a structure for an essay arguing against a carbon tax
+            provenance: agent-reported (the AI filled tool/model/date)
+Session 2:  Claude (Claude Sonnet 4.6) on 2026-05-16, used to debug
+            Asked why my citation-parsing script dropped the last entry
+            provenance: student-claimed (the student typed tool/model/date)
+```
+
+**The number of sessions is not a measure of anything.** This is the one thing
+worth being deliberate about. A receipt listing four short sessions is not worse
+than one listing a single long one, and it is certainly not worse than a
+submission with no receipt at all. The count reflects how the student's week was
+shaped and how thoroughly they disclosed — not how much of the work was theirs.
+If a long list reads as suspicious, the tool has made you a worse reader, and
+PromptCite deliberately never totals or scores the sessions for exactly that
+reason.
+
+What *is* worth reading closely, per session: the `category`, whether
+`direct_content_used` is true, and the `revision_statement`. Those describe the
+work. A four-session receipt where every session is `explain` with
+`direct_content_used: false` describes a student who used AI to understand
+material and then wrote their own — which is usually what you were hoping for.
+
+Sessions may have **different provenance**, and that is expected rather than
+inconsistent: a session disclosed inside the tool is `agent_reported`, one added
+later from the student's notes is `student_claimed`. See below.
 
 ## The `metadata_source` field — what it tells you
 
+Per session in schema 2.0 — each entry in `ai_use` carries its own.
 This is the most important field for your reading.
 
 ### `"agent_reported"`
@@ -102,8 +146,10 @@ npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
 ```
 
 The verifier also validates the receipt against the schema and prints a
-plain-English summary (student, assignment, AI tool/model/date, hash
-status, schema status) so you don't have to read the raw JSON.
+plain-English summary — student, assignment, one line per session
+(tool/model/date, category, provenance), hash status, and which schema
+generation it found — so you don't have to read the raw JSON. It accepts
+both 1.x and 2.0 receipts.
 
 Exit codes:
 - `0` hash matches AND the receipt is well-formed (unmodified, valid)
@@ -116,7 +162,7 @@ Exit codes:
 
 ### `submission_hash` — binding the receipt to the work
 
-A schema-1.1 receipt may also carry a `submission_hash`: the SHA-256 of
+A receipt (schema 1.1 or later) may also carry a `submission_hash`: the SHA-256 of
 the **actual file the student submitted** (their essay, their source
 file), as opposed to `content_hash` which only covers the receipt's own
 fields. When present, you can confirm a receipt belongs to a specific
@@ -160,7 +206,7 @@ some patterns that work:
 
 **Per-assignment policy:**
 > "AI use on this assignment must be disclosed via a PromptCite
-> receipt (see promptcite.io/install). Receipts should accompany the
+> receipt (see github.com/camadkins/promptcite). Receipts should accompany the
 > submission as a JSON attachment. Failure to disclose AI use is
 > treated as a violation of the course's academic integrity policy."
 
@@ -278,9 +324,12 @@ For institutional deployment, see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).
   declares.
 - **English-only output:** receipt language is English. Non-English
   disclosure templates may come later.
-- **One session per receipt:** a student who used AI across multiple
-  sessions for one assignment runs `/receipt` once per session and
-  combines manually. Receipt aggregation is not built in.
+- **Aggregation stops at the assignment:** one receipt covers one assignment,
+  however many sessions went into it. There is no combined view across several
+  assignments or a whole term, by design.
+- **More sessions is not more proof.** A receipt with four sessions is exactly as
+  verifiable as one with a single session — which is to say, it is a disclosure,
+  not evidence. See the local-editability note above.
 - **The ledger is incomplete by construction:** it only sees insertions an
   agent makes into a file. AI use that never becomes an insertion — an
   explanation the student types up themselves, a conversation in a browser —
