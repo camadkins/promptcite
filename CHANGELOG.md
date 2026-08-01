@@ -29,6 +29,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   See `docs/adr/0006-ledger-outside-the-repository.md`.
 - **`/receipt recall`** — read-only look at your own ledger. Does not interview,
   generate, or purge.
+- **`promptcite-hook`** (`bin/hook.js`) — the optional recorder that feeds the
+  ledger. One binary for every agent: Claude Code and Codex CLI emit the same
+  `PostToolUse` envelope, and any agent that can run a command on a post-tool
+  event works unchanged. Zero dependencies, no network, silent, and always
+  exits 0 — it can never block, alter, or auto-approve a tool call, and never
+  the reason an edit fails. Off unless the ledger is enabled.
+- **Optional markers** — with `markers.enabled`, the hook writes one short
+  comment above a sufficiently large inserted block
+  (`// @ai-assisted 2026-08-01 Claude Opus 5 via PromptCite (pc:a4f21)`).
+  Off by default, skipped for whole-file writes, short edits, unrecognized file
+  types, ambiguous targets, and anything already marked. Absence of a marker
+  attests nothing.
 - **New optional settings** `ledger` and `markers` in `promptcite.config.json`,
   and **new optional policy keys** `require_ledger` / `require_markers` in
   `promptcite.policy.json` so an instructor can set the norm for a whole class.
