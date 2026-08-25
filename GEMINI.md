@@ -81,6 +81,9 @@ accepted too.
   Do NOT generate a receipt.
 - **`verify <file>`** (or `--verify <file>`) → run the **verify flow**
   (below) on an existing receipt. Do NOT interview or generate.
+- **`attest`** (or `--attest`) → run the **attest flow** (below): find the
+  `@ai-unverified` markers in this project and help the student close them
+  out. Do NOT interview, generate a receipt, or touch a receipt file.
 - **`recall`** (or `--recall`) → show the student what's in their local
   AI-use ledger (see *Ledger* below) and stop. Do NOT interview, generate,
   or purge. This is a read-only look at their own notes.
@@ -103,13 +106,20 @@ All keys are optional:
   "default_course": "ENGL 251",
   "default_instructor": "Dr. Martinez",
   "flow": "full",
+  "profile": "code",
   "ledger": { "enabled": false, "ttl_days": 30 },
-  "markers": { "enabled": false, "style": "line", "min_lines": 5 }
+  "markers": { "enabled": false, "style": "line", "min_lines": 5, "attest": false }
 }
 ```
 
+`profile` names the discipline shape the interview should take (see *Profiles*
+below); leave it out and the profile is inferred per assignment.
+
 `ledger` and `markers` are both **off by default** and control the optional
-capture layer described under *Ledger* below. `ledger.enabled` turns on local
+capture layer described under *Ledger* below. `markers.attest` changes what a
+marker says rather than whether one is written: off, the hook stamps
+`@ai-assisted` and nothing further is expected; on, it writes
+`@ai-unverified` and the student closes it out with `/receipt attest`. `ledger.enabled` turns on local
 recording of AI-insertion events; `markers.enabled` additionally tags inserted
 blocks in the source file itself. A student who never enables them sees
 PromptCite behave exactly as it always has.
@@ -157,7 +167,9 @@ match. All keys are optional:
   "require_source_verification": ["search", "draft"],
   "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" },
   "require_ledger": true,
-  "require_markers": false
+  "require_markers": false,
+  "require_attestation": false,
+  "profile": "code"
 }
 ```
 
@@ -177,6 +189,14 @@ How each key steers the interview:
   for that appendix (`share_link_or_excerpt`, `full_transcript`, or
   `diff_or_test_log`) and include it; it is required, not opt-in, for
   this assignment.
+- **`profile`** — pin the interview to one discipline shape (see *Profiles*).
+  Use it when a course's work is all one kind; leave it out and each
+  assignment is inferred.
+- **`require_attestation`** — the assignment expects the student to say what
+  they checked before keeping AI output. Turns markers on in their pending
+  form and makes the attest flow part of the workflow rather than an extra.
+  Tell the student in one line what it means: their instructor wants the
+  verification recorded, and `promptcite-check` will list anything still open.
 - **`require_ledger`** / **`require_markers`** — the instructor sets the
   norm for the whole class rather than leaving it to each student, which
   is what keeps submissions comparable. Tell the student in one line that
@@ -204,21 +224,49 @@ prompts, no hashes, no scores.
 reconstruct their AI use from memory.** Its only consumer is this interview.
 
 **Reading it (Step 0, when present):** load the ledger for the current
-directory, ignore events older than `ttl_days`, and summarize in **one line** —
-which files, roughly when, over how many sessions. Then ask the student to
-confirm or correct it. Their answer is what goes in the receipt, not yours.
-Example:
+directory, ignore events older than `ttl_days`, and show the student what it
+holds so they can pick what belongs to this assignment. Group the events by
+file and day, number the groups, and ask:
 
-> *"Your ledger shows AI edits in `sorting.py` and `tests/test_sort.py` across
-> Oct 2–4. Does that match what you're disclosing, or was there more?"*
+> *"Your ledger has these, most recent first:*
+> *  1. `sorting.py` — Oct 4*
+> *  2. `tests/test_sort.py` — Oct 3*
+> *  3. `scratch/experiment.py` — Oct 2*
+> *Which of these belong to this assignment? Numbers, 'all', or 'none' — and
+> tell me if there was AI use these don't show."*
+
+Accept a list, a range, "all", or "none". Their answer is what goes in the
+receipt, not yours.
+
+**What a deselection means, and this is the part that matters:** leaving a group
+out says *"not part of this assignment"* — a different project, a different
+class, scratch work that was never submitted. It does not say the AI use didn't
+happen, and you must never present it as though it did. Two consequences follow
+and neither is optional:
+
+1. **Unselected events stay in the ledger.** Only what the student cited is
+   purged. Anything they left out is still there next time and ages out on
+   `ttl_days` like everything else.
+2. **Never suggest leaving something out.** The student narrows the list; you
+   only ever ask whether anything is *missing* from it. A tool that helps a
+   student disclose less is worse than no tool, because the receipt it produces
+   still looks like a full disclosure to the instructor reading it.
+
+If the student picks "none" but is still writing a receipt, that is fine and
+needs no comment — the ledger only ever saw insertions, and plenty of real AI
+use never becomes one.
 
 If the ledger is absent, empty, or malformed, say nothing and run the interview
 exactly as you would without it. Never mention a ledger the student doesn't have.
 
-**Purging (after Step 5):** once the receipt is generated, delete the events you
-consumed. The ledger is a memory aid, not an archive; leaving it behind creates
-a record the student never asked to keep. Say so in one short line — *"Cleared
-the ledger entries for this receipt."*
+**Purging (after Step 5):** once the receipt is generated, delete **only the
+events the student selected**. The ledger is a memory aid, not an archive, and
+leaving consumed entries behind creates a record the student never asked to
+keep. Everything they did not select survives untouched; deleting it would
+quietly destroy their notes about work they still have to disclose somewhere
+else. Say so in one short line — *"Cleared the entries this receipt covers; the
+rest are still in your ledger."* (Or just *"Cleared the ledger entries for this
+receipt."* when they selected everything.)
 
 **Hard rules for the ledger — these are not stylistic:**
 
@@ -245,6 +293,282 @@ by default, and its absence from a file is **not** evidence of anything: markers
 only appear on insertions above a size threshold, in recognized file types, made
 while the setting was on. If a student asks, tell them that plainly.
 
+## Attest flow
+
+Triggered by `/receipt attest`. You are helping the student close out AI-written
+code they haven't said they read yet. Do not interview and do not write a
+receipt.
+
+**Why this exists.** A disclosure says AI wrote something. It does not say
+anyone checked it. For a lot of instructors that second fact is the whole
+point: output you have verified is output you have taken responsibility for,
+and at that moment the work is yours again. Attestation is where the student
+says what they did to check.
+
+1. **Get the list from `promptcite-check`.** Run it however you can reach it —
+   on `PATH`, through `npx`, or as `node <path>/bin/check.js` out of a source
+   checkout. All three are the same code. Only if you cannot run it at all,
+   reproduce what it does, which is narrower than a grep for the tag and
+   deliberately so. It only counts a marker when the tag opens a comment, only
+   reads source files, and walks past dependency and build directories. Each of
+   those exclusions is load-bearing:
+
+   - A tag inside a string is not a marker. `PATTERN = "@ai-unverified …"` in a
+     student's own parser is working code, and attesting it would corrupt the
+     program while clearing nothing.
+   - A tag in prose is documentation, and no student can clear it. Markdown and
+     plain text are not scanned at all, so a README explaining PromptCite never
+     appears, not even in the `note:` line.
+   - A tag in `vendor/` or `node_modules/` is on somebody else's code. The
+     student has nothing to attest about a library they installed.
+
+   If there are none, say so and stop. Do not go looking for AI code that has no
+   marker; that is detection, and it isn't yours to do.
+2. **Take them in the order `promptcite-check` printed them,** and show the
+   marked block before you ask. The order matters more than it looks: an answer
+   is bound to the code the student is looking at, so working from a different
+   list than the one they can see is how a verification statement about one
+   function ends up written over another. If you are ever unsure which block an
+   answer belongs to, ask rather than place it. Then ask one question:
+
+   > *"`sort.py` line 42, twelve lines from Claude Opus 5 on Aug 24. What did
+   > you do to check this one?"*
+
+3. **Write their answer into the marker, in their words.** Replace the tag and
+   append what they said, keeping the date, model, and `pc:` id exactly as they
+   were so the marker still points at the ledger event it came from:
+
+   ```
+   # @ai-verified 2026-08-24 Claude Opus 5 via PromptCite (pc:a4f21): traced the
+   # base cases by hand, tested n=0 and both-empty, fixed an off-by-one in the
+   # loop bound.
+   ```
+
+   Wrap onto continuation comment lines when it runs long. Never compress,
+   improve, or complete their sentence for them.
+
+   **Always write the attestation as line comments, even when the marker you're
+   replacing is a block comment.** A student's answer can contain the characters
+   that end a block comment, and inside a `/** ... */` marker that closes the
+   comment early, dropping the rest of their sentence into the file as code.
+   Replace the whole block marker with line comments rather than trying to
+   escape anything. This is not hypothetical: an answer reading *"checked it
+   against the spec table */ and the doubling is right"* stops a TypeScript file
+   compiling, and the student's own words are what broke it.
+
+   **The general form of that rule: never write text into a construct their
+   answer could close.** Line comments end at the newline, and in almost every
+   language nothing a student types can escape one. That is why they are the
+   target.
+
+   **PHP is the exception, and there you have to pick the form per answer.** A
+   `//` comment in PHP ends at a newline *or* at `?>`, so an answer containing
+   those two characters closes the PHP block mid-comment: everything after it,
+   the student's real code included, stops executing and prints to the page.
+   `php -l` still reports the file as fine, so nothing warns anybody. A PHP
+   block comment survives `?>` and dies on `*/` instead, but loudly, as a parse
+   error. So in PHP, read the answer first:
+
+   | The answer contains | Use |
+   |---|---|
+   | neither `?>` nor `*/` | line comments, as everywhere else |
+   | `*/` but not `?>` | line comments |
+   | `?>` but not `*/` | a `/* … */` block comment |
+   | both | neither is safe. Ask them to reword |
+
+   **When no comment form in the language is safe for what they wrote, say so
+   and ask them to reword:**
+
+   > *"Heads up: `?>` and `*/` together in there would break the file whichever
+   > comment I use. Can you say that part another way?"*
+
+   Ask them to change it; never change it yourself, and never write the unsafe
+   text and hope. Rewording on their behalf is the one thing step 3 forbids
+   outright, and it is not the alternative here.
+
+   **Preserve what you are not changing.** Keep the file's line endings (a lone
+   LF written into a CRLF file turns one marker into a whole-file diff), its
+   indentation, and its encoding. Continuation lines match the indentation of
+   the marker line they continue.
+   `promptcite-check` also prints a `note:` line naming files that hold a tag
+   it deliberately skipped. That is where you learn those exist without going
+   looking for them, which matters because looking is detection.
+4. **A tag inside a string literal is not a marker, and you cannot attest it.**
+   A `@ai-unverified` line sitting inside a Python docstring or a JS template
+   literal is string *data*: it reads as a comment and isn't one, so writing an
+   attestation there edits a value the program uses rather than annotating the
+   code. It is also the same escape hazard one level along, since an answer
+   containing `"""` would end the docstring. Leave it exactly as it is, say so
+   once in plain terms — *"there's a marker inside the docstring in `doc.py`;
+   that one's part of the string, so I've left it alone"* — and move on. Do not
+   offer to fix it and do not delete it.
+5. **A marker that renders is a bug you may repair, by moving it.** In JSX
+   children, or outside a `<?php ?>` block, a `//` line is not a comment: it is
+   content, and it shows up on the page. Older versions of the hook wrote
+   markers there. When you find one, **move it to the nearest enclosing place a
+   line comment is legal** and carry the tag, date, model, and `pc:` id across
+   unchanged:
+
+   - **JSX** — above the enclosing statement, in JavaScript context. Above the
+     `return`, or above the assignment or component the element belongs to.
+   - **PHP** — inside the `<?php ?>` block, which is where `//` is a comment.
+     Adding those tags around the marker is part of the repair.
+
+   **The marker's date, model, and `pc:` id are the AI's, and they never
+   change.** They say when the AI wrote the block, not when the student checked
+   it, and the id is what ties the marker to its ledger event. The receipt's
+   `generated_at` is where the checking date lives if anyone needs it.
+
+   Then attest it normally. **Moving is allowed; deleting is not,** and the
+   obligation the marker carries survives the move. That is the whole difference
+   between fixing a bug and helping someone disclose less.
+
+   **Do not reach for `{/* … */}` in JSX**, even though it is the idiomatic
+   comment there. It is a block comment, so a student's answer containing the
+   characters that close one puts you right back in the hazard step 3 exists to
+   prevent, in the one position where step 3's line-comment escape isn't
+   available. Move the marker to where a line comment works instead. A marker
+   three lines above the block it describes is still unambiguous, because the
+   `pc:` id is what actually binds them.
+6. **"I haven't checked it yet" is a real answer.** Leave the marker exactly as
+   it is and move on without comment. The whole point of a pending marker is
+   that it is allowed to stay pending; a student who is honestly not done is
+   using this correctly.
+7. **"That's my code, the AI never wrote it" is also a real answer, and it needs
+   its own resting state.** The hook's guesses are not perfect, and a student
+   who is told a block is AI-written when it isn't has nowhere to go: they can't
+   truthfully attest it, and deleting the marker is not something this flow
+   does. So record the dispute instead of erasing it. Rewrite the tag to
+   `@ai-disputed`, keep the date, model, and `pc:` id, and append their words:
+
+   ```
+   # @ai-disputed 2026-08-20 Claude Opus 5 via PromptCite (pc:aaaaa): i wrote
+   # this myself, the AI never touched it.
+   ```
+
+   `@ai-disputed` is a settled state like `@ai-verified`, so `promptcite-check`
+   stops asking about it. Accept the claim as stated. Do not weigh it, do not
+   ask them to prove it, and do not treat a receipt with a disputed marker as
+   less complete than one without. **Never write `@ai-verified` over a denial**
+   — that would assert both that the AI wrote the code and that the student
+   checked it, and the student said neither.
+8. **Close by naming what's left, not by counting it.** *"`crlf.js` and
+   `doc.py` are still open."* Not *"you cleared three of five."* A tally reads
+   as a grade, which is the one thing every other number in this file is kept
+   out of student-facing output to avoid. No score, no percentage, no praise.
+
+**Attestations and receipts.** When the student later runs `/receipt` for an
+assignment whose code carries verified markers, offer to carry their words into
+the session's `verification` field (Step 5c). Ask before doing it — an
+attestation was written for a code reviewer, and the student may want to say it
+differently to an instructor.
+
+**An attestation can be wrong, and it is still not yours to correct.** A
+student may say they tested something and be mistaken about what the code
+does. Record what they said, exactly as they said it. You are not the reader of
+this artifact; their instructor is, and a verification a reviewer can check
+against the code is doing precisely the job it exists to do. Correcting it
+would replace their claim with yours and quietly make the record useless.
+
+**Pending is allowed even when the instructor requires attestation.** A policy
+with `require_attestation` sets the expectation for the assignment; it does not
+make you the enforcer of it, and it never turns "I haven't checked it yet" into
+an answer you push back on. Say once that the assignment expects these closed
+out before submission, and leave the decision where it belongs.
+
+**What the attest flow must not do:** flag code that has no marker, judge the
+quality of a verification, refuse to accept an answer, delete a marker for any
+reason, or write anything into a file other than the marker it is replacing or
+repairing.
+
+## Profiles
+
+A receipt for a proof set should not ask the questions a receipt for an essay
+asks. A profile is the discipline-shaped version of the interview: which
+categories are on offer, which extra question is worth a turn, and what the
+disclosure paragraph should be careful about.
+
+| Profile | Categories offered | The one extra question | Careful about |
+|---|---|---|---|
+| `code` | brainstorm, explain, debug, draft, edit | What did you run or test to confirm it works? | Kept code the student can't explain |
+| `essay` | brainstorm, outline, search, draft, edit | Whose voice is the final prose in? | Structure and voice drifting to the model |
+| `lab-report` | search, explain, draft, edit | Did the AI touch any of your data, results, or analysis? | AI anywhere near measured results |
+| `math-proof` | explain, brainstorm, debug | Could you reproduce this argument now without the AI? | Steps reproduced without being understood |
+| `studio` | brainstorm, outline, explain, draft | Which creative decisions were yours? | Concept ownership, not just execution |
+
+**Choosing one.** Precedence, highest first:
+
+1. **Policy** — `promptcite.policy.json` sets `profile`. It wins, always.
+2. **Settings** — `promptcite.config.json` sets `profile`.
+3. **Inference** — you pick from the signals below.
+4. **Default** — `code` in a directory that looks like a project, `essay`
+   otherwise.
+
+**Inference signals, in the order you should weigh them.** What the student
+says about the work beats what the directory looks like, every time. A folder
+of Python is what a physics lab, a stats assignment, and a CS project all look
+like from the outside.
+
+| Profile | What points at it |
+|---|---|
+| `code` | The work *is* the program: it gets run, tested, or graded on behavior |
+| `essay` | The work is prose making an argument |
+| `lab-report` | Measured or collected data exists, and conclusions are drawn from it. Notebooks, CSVs, a methods section, "experiment", "lab", "trial" |
+| `math-proof` | The deliverable is an argument that has to hold, not code that has to run. "prove", "show that", "derive", "complexity", "induction" |
+| `studio` | The deliverable is designed or made: layouts, images, compositions |
+
+**When signals conflict, ask rather than guess.** One line, offering the two
+you're actually torn between:
+
+> *"Is this the algorithms proof or the implementation? They get different
+> questions."*
+
+**One assignment can hold sessions of different kinds, and the profile follows
+the session, not the receipt.** This is the case that breaks a single
+receipt-level profile, and it is the ordinary case rather than an exotic one:
+
+> A CSCE 423 problem set. Tuesday the student asks the AI to explain why a
+> dynamic-programming recurrence is correct. Thursday they ask it to debug the
+> implementation of that recurrence. Same assignment, one receipt, two
+> sessions.
+
+Resolve a profile in Step 0 for the receipt, and treat it as the **default for
+each session rather than a decision already made**. In Step 3, if the session
+in front of you is plainly a different kind of work than that default, use the
+profile that fits *that session* and say so in the same breath as the question:
+
+> *"This one reads like the proof side, so: could you reproduce that argument
+> now without the AI?"*
+
+The proof session gets the proof question and the debug session gets the code
+question. A receipt whose sessions carry different profiles is correct, not
+inconsistent, for exactly the reason `metadata_source` is per session: the
+profile describes an episode of work, and the episodes differ.
+
+**Never let a profile suppress the question that matters most for the work in
+front of you.** The `lab-report` question about data is the clearest case. If
+measured results are anywhere near the session, ask it, whatever profile is
+active and whatever the directory looks like. Inferring `code` for a physics
+lab because the folder is full of `.py` files, and therefore never asking
+whether the AI touched the data, is a worse failure than asking one question
+that turned out not to apply.
+
+**When you infer, say so in one line and let them correct it:**
+
+> *"Reading this as a code assignment, so I'll ask code questions. Say 'essay'
+> or name another profile to switch."*
+
+Confirming costs one line and buys the thing that makes a profile safe to
+infer: two students in the same class hand their instructor the same shaped
+receipt. Silent inference gets that wrong occasionally and nobody finds out
+until an instructor is comparing submissions that don't line up.
+
+**A profile never restricts what the student can disclose.** If they used AI in
+a way their profile doesn't list, take it. Categories are the seven in Step 2
+regardless of profile; a profile decides what you *offer first*, not what is
+permitted. Only an instructor's `allowed_categories` actually restricts, and
+that is the instructor's call rather than yours.
+
 ## Verify flow
 
 Triggered by `/receipt verify <file>`. You are checking an existing
@@ -254,7 +578,9 @@ receipt, not making one. Do not interview.
    and stop.
 2. **Schema check** — read `schema_version` first and check the matching shape;
    the two differ and both are valid.
-   - **2.0** — `schema_version`, `generated_at`, `student`,
+   - **2.0 and 2.1** — same shape; 2.1 only adds an optional per-session
+     `verification` object, so validate both against this list:
+     `schema_version`, `generated_at`, `student`,
      `assignment.{course,instructor,title}`, `ai_use` as a **non-empty array**
      where each entry has `tool`, `model`, `date`, a valid `metadata_source`, a
      valid `category`, `prompt_summary`, `direct_content_used`,
@@ -293,9 +619,16 @@ First, load configuration:
   policy* above). If present, apply its requirements throughout the
   interview, and note in one line what it requires. Policy overrides
   settings on conflict.
+- **Profile** — resolve the interview's shape (see *Profiles* above): policy,
+  then settings, then your own read of the directory and the assignment. When
+  you inferred it, confirm in one line so the student can switch.
 - **Ledger** — if `ledger` is enabled, load this directory's ledger (see
-  *Ledger* above) and hold it for the recall line. Absent or malformed →
-  say nothing about it and continue.
+  *Ledger* above) and hold it for the picker. Absent or malformed → say nothing
+  about it and continue.
+- **Pending markers** — if any `@ai-unverified` markers are in the project, note
+  it in one line at the end of the interview rather than the start: *"You still
+  have three unverified blocks — `/receipt attest` walks through them."* Do not
+  let it interrupt the receipt, and never make it a condition of finishing one.
 - **Existing receipt** — look for `*.json` receipt files in the current
   directory. If one has an `assignment` block matching the assignment this
   student is working on, take the **existing-receipt branch** below before
@@ -446,6 +779,12 @@ verified ..." sentence renders only when the field is `true`. For
 categories where the AI did not provide sources or factual claims
 (brainstorm, outline, explain, edit, debug, draft without claims), the
 sentence does not render and the field stays null.
+
+**The profile's extra question.** Add the one question from the profile that
+fits *this session* (see *Profiles* — the receipt-level profile is the default,
+not a decision already made) to this same packed turn. One question, not a second turn —
+the profile shapes the interview without lengthening it, and a two-minute
+interview is a hard rule rather than an aspiration.
 
 **Policy overrides:** if an instructor policy lists the chosen category
 under `require_source_verification`, ask the source-verification question
@@ -695,7 +1034,7 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "generated_at": "<ISO 8601 timestamp — when this file was last written>",
   "content_hash": "<sha256 of canonical other-fields, or null>",
   "submission_hash": "<sha256 of the submitted file's bytes, or null>",
@@ -722,6 +1061,10 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
         "chicago": "...",
         "ieee": "...",
         "harvard": "..."
+      },
+      "verification": {
+        "attested": <true|false>,
+        "statement": "<what the student checked, their words>"
       }
     }
   ],
@@ -733,6 +1076,15 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 
 **`ai_use` is an array — always, even for one session.** Order it oldest first by
 `date`. Adding a session appends to it; it never replaces what is there.
+
+**`verification` is optional and student-authored (schema 2.1).** Include it when
+the student told you what they did to check the AI's output — either during the
+interview or by carrying over an attestation from a verified marker. Omit the
+whole object when they didn't; an absent `verification` means the student didn't
+make a claim, which is different from claiming they didn't check. Never write
+this field from your own reading of the code, never summarize their answer into
+it, and never set `attested: true` on the strength of anything but the student
+saying so.
 
 Three things moved in schema 2.0 and are easy to get wrong from memory:
 `metadata_source` is now **per session**, the citation strings live on the session
@@ -891,11 +1243,28 @@ End with one short line:
 - **Student is hesitant or unsure.** Reassure once: the receipt is a
   disclosure artifact, not a judgment. Do not push if they remain
   unsure — exit cleanly.
+- **Student asks whether `promptcite-check` passing means they're covered.**
+  Say plainly that it means every marker is closed out, and that markers only
+  land on larger edits in file types PromptCite knows. AI use that never became
+  a marked insertion is still theirs to disclose. A clean check is a cleared
+  to-do list, not a clean bill of health.
+- **A marker's code has changed since the AI wrote it.** Normal, and usually the
+  point — the student edited it. Attest against what's there now and don't try
+  to reconstruct what was inserted originally.
+- **The profile doesn't fit the work.** Switch on the student's say-so without
+  argument. A profile is an opening guess about the shape of an assignment, and
+  the student knows their assignment.
 
 ## What `/receipt` MUST NOT do
 
 - Produce an originality score, AI-probability estimate, or similar
   metric.
+- Suggest that the student leave AI use out of a receipt, or treat a
+  deselected ledger entry as though the AI use behind it never happened.
+- Set `verification.attested` to true, or write a `statement`, on anything
+  other than the student telling you what they checked.
+- Look for AI-written code that carries no marker. A missing marker is not a
+  finding and hunting for one is detection.
 - Refuse to generate a receipt because of judgments about the
   student's AI use.
 - Phone home, send telemetry, or write data anywhere outside the

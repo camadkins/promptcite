@@ -65,13 +65,22 @@ const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'str_replace_editor',
  * Objective-C and MATLAB) or whose files are markup rather than code are
  * omitted; an unknown extension simply means no marker.
  *
+ * `.jsx`, `.tsx`, and `.php` were in this table and are deliberately not any
+ * more. All three are two languages in one file, and the comment token is only
+ * a comment in one of them. A `//` line inside JSX children compiles to a
+ * string and renders on the page; outside a `<?php` block it is printed to the
+ * browser verbatim. Both were reproduced against a real transpiler and a real
+ * `php` binary. A marker that appears in someone's submitted output is worse
+ * than no marker at all, and there is no way to tell which half of the file an
+ * insertion landed in without parsing it.
+ *
  * @type {Record<string, string>}
  */
 const LINE_COMMENT = {
-  '.js': '//', '.mjs': '//', '.cjs': '//', '.jsx': '//', '.ts': '//', '.tsx': '//',
+  '.js': '//', '.mjs': '//', '.cjs': '//', '.ts': '//',
   '.java': '//', '.c': '//', '.h': '//', '.cpp': '//', '.hpp': '//', '.cc': '//',
   '.cs': '//', '.go': '//', '.rs': '//', '.swift': '//', '.kt': '//', '.kts': '//',
-  '.scala': '//', '.php': '//', '.dart': '//', '.zig': '//', '.groovy': '//', '.sol': '//',
+  '.scala': '//', '.dart': '//', '.zig': '//', '.groovy': '//', '.sol': '//',
   '.py': '#', '.rb': '#', '.sh': '#', '.bash': '#', '.zsh': '#', '.pl': '#',
   '.r': '#', '.jl': '#', '.ex': '#', '.exs': '#', '.nim': '#', '.cr': '#',
   '.sql': '--', '.hs': '--', '.lua': '--', '.elm': '--',
@@ -127,9 +136,27 @@ export function loadConfig(cwd) {
   const policy = readJsonIfPresent(join(cwd, 'promptcite.policy.json')) || {};
   const ledger = settings.ledger || {};
   const markers = settings.markers || {};
+  // The master switch, and it beats the instructor's policy on purpose.
+  //
+  // A student has to be able to stop their own machine recording, in the same
+  // way they can uninstall. An instructor sets an expectation for an
+  // assignment; they do not get a switch inside someone else's computer, and a
+  // policy file that could force local recording back on would make this a
+  // surveillance tool the first time somebody pointed it at a class. The
+  // instructor's recourse is the receipt they are handed, which is the only
+  // place it ever was.
+  if (settings.enabled === false) {
+    return { ledgerEnabled: false, markersEnabled: false, attest: false, ttlDays: DEFAULT_TTL_DAYS, minLines: DEFAULT_MIN_LINES, style: /** @type {MarkerStyle} */ ('line') };
+  }
+  // Attest mode changes what a marker says, not whether one is written — but it
+  // has nothing to say without one, so asking for attestation asks for markers.
+  // Not implying that made `require_attestation: true` a policy key that
+  // silently did nothing, which is the worst kind of config.
+  const attest = policy.require_attestation === true || markers.attest === true;
   return {
     ledgerEnabled: policy.require_ledger === true || ledger.enabled === true,
-    markersEnabled: policy.require_markers === true || markers.enabled === true,
+    markersEnabled: attest || policy.require_markers === true || markers.enabled === true,
+    attest,
     ttlDays: Number.isFinite(ledger.ttl_days) ? ledger.ttl_days : DEFAULT_TTL_DAYS,
     minLines: Number.isFinite(markers.min_lines) ? markers.min_lines : DEFAULT_MIN_LINES,
     style: /** @type {MarkerStyle} */ (markers.style === 'block' ? 'block' : 'line'),
@@ -278,11 +305,25 @@ export function commentFor(file, style) {
   return { kind: 'line', token };
 }
 
-/** @param {LedgerEvent} event */
-export function markerText(event) {
+/**
+ * Two markers, one shape. `@ai-assisted` is a provenance stamp and nothing more:
+ * it states who wrote the block and stops. `@ai-unverified` is a claim the
+ * student has not made yet, and `/receipt attest` is where they make it. The
+ * difference matters because a stamp decorates code while a pending claim asks
+ * for something, and only one of those gets a student to reread what the AI
+ * handed them.
+ *
+ * Defaults to the stamp. Flipping every existing install to `@ai-unverified`
+ * would retroactively mark already-submitted work as unfinished.
+ *
+ * @param {LedgerEvent} event
+ * @param {boolean} [attest]
+ */
+export function markerText(event, attest = false) {
   const date = event.ts.slice(0, 10);
   const model = event.model ? ` ${event.model}` : '';
-  return `@ai-assisted ${date}${model} via PromptCite (pc:${event.event_id})`;
+  const tag = attest ? '@ai-unverified' : '@ai-assisted';
+  return `${tag} ${date}${model} via PromptCite (pc:${event.event_id})`;
 }
 
 /**
@@ -307,7 +348,54 @@ export function shouldMark({ toolName, text, file, contents, minLines, style }) 
   if (first === -1) return false;                  // text isn't in the file as written
   if (contents.indexOf(text, first + 1) !== -1) return false; // ambiguous target
   if (first !== 0 && contents[first - 1] !== '\n') return false; // mid-line insertion
+  // Nothing goes above line 1. A marker there displaces whatever has to come
+  // first: a `#!` line (which stops the script being executable at all — the
+  // shell then tries to run Python as bash), an XML prolog, a YAML `---`. The
+  // marker is optional and the first line is not, so the first line wins.
+  if (first === 0) return false;
+  if (insideStringLiteral(contents.slice(0, first))) return false;
+  // Already marked from a previous pass. The `pc:` check above only catches a
+  // marker that sits *inside* the replaced text, and a marker never does — it
+  // sits on the line above it. Without this, editing one function with the AI
+  // four times leaves four stacked markers over it.
+  if (alreadyMarked(contents, first)) return false;
   return true;
+}
+
+/**
+ * Whether the line directly above the insertion point is already a marker.
+ *
+ * @param {string} contents
+ * @param {number} at offset the inserted text starts at, always a line start
+ */
+export function alreadyMarked(contents, at) {
+  const lines = contents.slice(0, at).split('\n');
+  const previous = lines[lines.length - 2];
+  return previous !== undefined && previous.includes('via PromptCite');
+}
+
+/**
+ * Whether the insertion point sits inside a multi-line string.
+ *
+ * Counting delimiters is not parsing and will not survive an escaped or nested
+ * case, which is fine: it only has to be wrong in the safe direction. A marker
+ * inside a Python docstring or a JS template literal silently becomes part of
+ * that string's value, so a false "yes, inside" costs one missing marker while
+ * a false "no" corrupts data the student is shipping.
+ *
+ * @param {string} before text preceding the insertion point
+ */
+export function insideStringLiteral(before) {
+  const odd = (/** @type {string} */ token) => {
+    let count = 0;
+    let at = before.indexOf(token);
+    while (at !== -1) {
+      count += 1;
+      at = before.indexOf(token, at + token.length);
+    }
+    return count % 2 === 1;
+  };
+  return odd('"""') || odd("'''") || odd('`');
 }
 
 /**
@@ -317,16 +405,21 @@ export function shouldMark({ toolName, text, file, contents, minLines, style }) 
  * @param {string} text
  * @param {LedgerEvent} event
  * @param {MarkerStyle} style
+ * @param {boolean} [attest]
  */
-export function injectMarker(contents, text, event, style) {
+export function injectMarker(contents, text, event, style, attest = false) {
   const at = contents.indexOf(text);
   const indent = (text.match(/^[ \t]*/) || [''])[0];
-  const body = markerText(event);
+  const body = markerText(event, attest);
   const comment = commentFor(event.file, style);
   if (!comment) return contents;
+  // Match the file's own line ending. Dropping an LF line into a CRLF file
+  // leaves mixed endings in the student's diff, which is noise they then have
+  // to explain to whoever reviews it.
+  const eol = contents.includes('\r\n') ? '\r\n' : '\n';
   const line = comment.kind === 'block'
-    ? `${indent}/** ${body} */\n`
-    : `${indent}${comment.token} ${body}\n`;
+    ? `${indent}/** ${body} */${eol}`
+    : `${indent}${comment.token} ${body}${eol}`;
   return contents.slice(0, at) + line + contents.slice(at);
 }
 
@@ -380,7 +473,7 @@ export function run(payload, { tool = 'unknown', cwd: rawCwd = process.cwd() } =
     if (!shouldMark({ toolName, text, file: event.file, contents, minLines: config.minLines, style: config.style })) {
       return null;
     }
-    return injectMarker(contents, text, event, config.style);
+    return injectMarker(contents, text, event, config.style, config.attest);
   });
   debug(marked ? `marked ${event.file}` : 'marker guards not met');
 }

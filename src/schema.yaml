@@ -12,7 +12,7 @@
 # change. Universities relying on the receipt format need a stable contract.
 # Migration strategy required before institutional adoption.
 
-schema_version: "2.0"
+schema_version: "2.1"
 
 # ---------------------------------------------------------------------------
 # Top-level shape
@@ -23,10 +23,12 @@ fields:
     type: string
     required: true
     description: |
-      Version of this schema the receipt conforms to. Currently "2.0".
+      Version of this schema the receipt conforms to. Currently "2.1".
       Receipts produced by older clients tagged with their schema_version
       at generation time; consumers MUST check this before parsing —
       1.x and 2.0 differ in the shape of `ai_use` (object vs array).
+      2.1 is 2.0 plus an optional per-session `verification` block, so a
+      2.0 receipt is already a valid 2.1 receipt and needs no migration.
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
@@ -294,6 +296,42 @@ fields:
             description: |
               For code assignments: a diff between AI-assisted and final
               versions, or test output. Opt-in only.
+      verification:
+        type: object
+        required: false
+        description: |
+          What the student did to check the AI's output before keeping it.
+          Added in 2.1, optional, and absent from every receipt written
+          before attestation existed.
+
+          This is the field that answers what a disclosure alone cannot:
+          not "did AI touch this" but "did you read it." It exists because
+          for some instructors the pedagogy lives entirely in the second
+          question — output you have checked is output you have taken
+          responsibility for, and that is the point at which the work
+          becomes the student's again.
+
+          Student-authored, like every other content field. Nothing here is
+          validated, scored, or compared against the code. A student who
+          writes "looks fine" has produced a weak attestation rather than a
+          false one, and PromptCite has no opinion about which it is.
+        fields:
+          attested:
+            type: boolean
+            required: true
+            description: |
+              Whether the student made a verification claim for this
+              session. False is a legitimate answer and reads as "I have
+              not checked this yet", which is more useful to an instructor
+              than a blank.
+          statement:
+            type: string
+            required: false
+            description: |
+              The student's own account of what they checked, in their own
+              words. Present when `attested` is true. Never generated,
+              never paraphrased, never improved by the agent.
+            max_length: 2000
 
   outputs:
     type: object
@@ -341,6 +379,12 @@ validation:
     message: |
       every ai_use[] entry must carry citations.mla, citations.apa, and
       citations.chicago. citations.ieee and citations.harvard are optional.
+  - rule: verification_shape
+    message: |
+      when ai_use[].verification is present it must carry a boolean
+      `attested`; `statement` is optional and free-form. Absent
+      verification is valid at every schema version and means the receipt
+      predates attestation or the student chose not to use it.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
   - rule: submission_hash_format
@@ -386,6 +430,9 @@ migration:
           citation strings, and appendix move onto each session;
           outputs keeps only disclosure_statement. See ADR 0007 and
           docs/SCHEMA-CHANGELOG.md for the field-by-field mapping.
+    2.1 — additive: optional per-session ai_use[].verification, recording what
+          the student checked before keeping the AI output. No field removed
+          or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
   upgrade_1x_to_2_0: |
     Mechanical, lossless, and performed in place by `/receipt` the first

@@ -178,6 +178,43 @@ node bin/install.js --all              # install for everything detected
 | `--list` | Print the full agent matrix and exit. |
 | `--doctor` | Diagnose your install: per-agent detection, whether each rule file is present / stale, and whether `promptcite.config.json` / `promptcite.policy.json` exist. Writes nothing. |
 | `--print-rule` / `--manual` | Print the `/receipt` rule to stdout (universal install for any agent not in the matrix). Writes nothing. |
+
+### Turning it on and off
+
+Recording is per folder and off until you say otherwise. Turn it on when you
+start an assignment, off when it's handed in.
+
+```bash
+promptcite on          # record AI edits here, mark larger blocks @ai-unverified
+promptcite on --no-attest   # record and mark, but nothing to clear
+promptcite off         # stop recording here
+promptcite status      # what's on in this folder
+```
+
+`off` writes `"enabled": false` into `promptcite.config.json`, which stops the
+hook doing anything in this directory. It does not remove markers already in
+your files or entries already in your ledger, because those are a record of
+work you actually did.
+
+**The switch beats an instructor's policy file, on purpose.** A policy sets the
+expectation for an assignment; it cannot make your machine record against your
+wishes. `promptcite status` tells you when the two disagree so you don't hand
+something in having quietly turned it off.
+
+### `promptcite-check`
+
+Lists AI-written blocks you haven't verified yet and exits non-zero while any
+remain, so it drops into a pre-submit script the same way a linter does.
+
+```bash
+npx -y github:camadkins/promptcite promptcite-check        # this directory
+npx -y github:camadkins/promptcite promptcite-check src    # one subtree
+```
+
+Exit `0` nothing pending, `1` something is still unverified, `3` bad path.
+It needs the hook installed with `markers.attest` (or an instructor's
+`require_attestation`) turned on, since it reads the markers the hook writes.
+A clean run means no pending markers, which is not the same as no AI use.
 | `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
 | `--force` | Re-run even if already installed. |
 | `--uninstall` | Remove everything. |

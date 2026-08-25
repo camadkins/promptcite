@@ -317,3 +317,53 @@ test('formatReport renders a 1.x receipt with its top-level provenance', () => {
   assert.match(report, /AI use:\s+ChatGPT/);
   assert.match(report, /agent-reported/);
 });
+
+/** A 2.1 receipt: one session, carrying an attestation. */
+const attested = {
+  schema_version: '2.1',
+  generated_at: '2026-08-24T16:32:00Z',
+  content_hash: null,
+  submission_hash: null,
+  student: 'C. Hawkins',
+  assignment: { course: 'CSCE 423', instructor: 'Dr. Reed', title: 'Problem Set 3' },
+  ai_use: [{
+    tool: 'Claude',
+    model: 'Claude Opus 5',
+    date: '2026-08-24',
+    metadata_source: 'agent_reported',
+    category: 'debug',
+    prompt_summary: 'Asked why my memoized LCS returned one less than expected',
+    direct_content_used: true,
+    revision_statement: 'Fixed the loop bound myself once I understood it.',
+    source_verification: null,
+    citations: { mla: 'a', apa: 'b', chicago: 'c', ieee: 'd', harvard: 'e' },
+    verification: {
+      attested: true,
+      statement: 'Traced the base cases by hand and tested n=0 and both-empty.',
+    },
+  }],
+  outputs: { disclosure_statement: 'd' },
+};
+
+test('a 2.1 receipt validates on the 2.0 array shape', () => {
+  assert.deepEqual(validateSchema(attested), []);
+});
+
+test('the report shows what the student says they checked', () => {
+  const report = formatReport(attested, 'UNVERIFIABLE', []);
+  assert.match(report, /verified by the student: Traced the base cases/);
+});
+
+test('an unattested session reads as not yet checked, not as absent', () => {
+  const pending = structuredClone(attested);
+  pending.ai_use[0].verification = { attested: false };
+  assert.match(formatReport(pending, 'UNVERIFIABLE', []), /has not marked this as verified/);
+});
+
+test('receipts without verification still report cleanly', () => {
+  const bare = structuredClone(attested);
+  delete bare.ai_use[0].verification;
+  const report = formatReport(bare, 'UNVERIFIABLE', []);
+  assert.doesNotMatch(report, /verified by the student/);
+  assert.deepEqual(validateSchema(bare), []);
+});

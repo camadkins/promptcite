@@ -8,7 +8,8 @@
   "bin": {
     "promptcite": "bin/install.js",
     "promptcite-verify": "bin/verify.js",
-    "promptcite-hook": "bin/hook.js"
+    "promptcite-hook": "bin/hook.js",
+    "promptcite-check": "bin/check.js"
   },
   "engines": {
     "node": ">=18"
@@ -46,7 +47,7 @@
     "list": "node bin/install.js --list",
     "dry-run": "node bin/install.js --dry-run --all",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "node bin/install.js --version && node bin/install.js --list && node bin/install.js --help && node bin/install.js --dry-run --all",
+    "prepublishOnly": "node bin/install.js --version && node bin/install.js --list && node bin/install.js --help && node bin/install.js --dry-run --all && node bin/check.js --help",
     "test": "node --test tests/*.test.js"
   },
   "devDependencies": {

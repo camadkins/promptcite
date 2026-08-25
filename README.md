@@ -42,6 +42,16 @@ separately installed, stored outside your repo, and purged once used — it
 exists to make honest disclosure easier, never to report on you. See
 [INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
 
+Optionally, for courses where the point is that **you own what you verify**,
+PromptCite can mark AI-written code `@ai-unverified` and ask you what you
+checked before you keep it. Your answer goes in the comment, in your words, and
+`promptcite-check` lists anything you haven't got to yet. It's a to-do list you
+run on yourself, not a report anyone else reads.
+
+Recording is per folder and off by default: `promptcite on` when you start an
+assignment, `promptcite off` when it's handed in, `promptcite status` to see
+where you are.
+
 It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
 
 ## See it in action

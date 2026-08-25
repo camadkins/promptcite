@@ -65,3 +65,32 @@ Initial receipt format (MVP). Established the top-level shape: `schema_version`,
 `generated_at`, `metadata_source`, `content_hash`, `student`, `assignment`,
 `ai_use` (with the seven-value `category` enum), `outputs` (MLA/APA/Chicago
 citations + disclosure paragraph), and the opt-in `appendix`.
+
+## 2.1
+
+**Additive. Every 2.0 receipt is a valid 2.1 receipt and needs no migration.**
+
+Added one optional field, `ai_use[].verification`:
+
+```json
+"verification": {
+  "attested": true,
+  "statement": "Traced the base cases by hand, tested n=0 and both-empty, fixed an off-by-one in the loop bound."
+}
+```
+
+`attested` is a boolean the student sets by saying so. `statement` is their own
+account of what they checked, present when `attested` is true, and never written
+or paraphrased by the agent.
+
+**Why.** A receipt records that AI was used. It doesn't record that anyone read
+the output. For instructors whose position is that verified output belongs to the
+student who verified it, that second fact is the one they want, and 2.0 had
+nowhere to put it. See ADR 0008.
+
+**Reading a 2.1 receipt.** Nothing else changed. `verification` is absent from
+most receipts, including every receipt written before this version existed, and
+its absence means the student made no verification claim. It does not mean they
+skipped the reading, and a receipt without it is not a lesser receipt.
+
+**Field mapping from 2.0:** none. No field was renamed, removed, or re-typed.

@@ -16,3 +16,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0005](./0005-single-session-scope.md) | One receipt covers one session | Superseded by 0007 |
 | [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |
 | [0007](./0007-multi-session-receipts.md) | One receipt covers a whole assignment | Accepted |
+| [0008](./0008-attestation-over-provenance.md) | Attestation: record the verification, not just the provenance | Accepted |

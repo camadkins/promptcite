@@ -261,3 +261,72 @@ test('the packaged file list still contains everything the CLI reads', () => {
     assert.ok(existsSync(new URL(`../${bin}`, import.meta.url).pathname), `${bin} listed in package.bin must exist`);
   }
 });
+
+// --- The on/off switch. A student turns this on for an assignment and off when
+// --- it's handed in, without hand-editing JSON.
+
+const readConfig = (dir) => JSON.parse(readFileSync(join(dir, 'promptcite.config.json'), 'utf8'));
+
+test('on turns recording and attestation on for this folder', () => inTempDir((dir) => {
+  assert.equal(run(['on'], dir).code, 0);
+  const config = readConfig(dir);
+  assert.equal(config.ledger.enabled, true);
+  assert.equal(config.markers.enabled, true);
+  assert.equal(config.markers.attest, true);
+  assert.equal(config.enabled, undefined, 'on clears the master switch rather than setting it true');
+}));
+
+test('on --no-attest gives plain provenance', () => inTempDir((dir) => {
+  run(['on', '--no-attest'], dir);
+  assert.equal(readConfig(dir).markers.attest, false);
+}));
+
+test('off writes an explicit false, which is what beats a policy', () => inTempDir((dir) => {
+  run(['on'], dir);
+  assert.equal(run(['off'], dir).code, 0);
+  assert.equal(readConfig(dir).enabled, false);
+}));
+
+test('the switch keeps settings it did not come for', () => inTempDir((dir) => {
+  writeFileSync(join(dir, 'promptcite.config.json'), JSON.stringify({ citation_style: 'APA', student: 'C. Hawkins' }));
+  run(['on'], dir);
+  run(['off'], dir);
+  const config = readConfig(dir);
+  assert.equal(config.citation_style, 'APA');
+  assert.equal(config.student, 'C. Hawkins');
+}));
+
+test('a config that is not valid JSON is replaced rather than fatal', () => inTempDir((dir) => {
+  writeFileSync(join(dir, 'promptcite.config.json'), '{ not json');
+  const { code, out } = run(['on'], dir);
+  assert.equal(code, 0);
+  assert.match(out, /isn't valid JSON/);
+  assert.equal(readConfig(dir).ledger.enabled, true);
+}));
+
+test('status says what is on and what the assignment expects', () => inTempDir((dir) => {
+  writeFileSync(join(dir, 'promptcite.policy.json'), JSON.stringify({ require_attestation: true }));
+  run(['off'], dir);
+  const { out } = run(['status'], dir);
+  assert.match(out, /recording: .*off/);
+  assert.match(out, /this assignment expects require_attestation/);
+  assert.match(out, /Your switch wins on your machine/);
+}));
+
+test('--on and --off are accepted as aliases', () => inTempDir((dir) => {
+  assert.equal(run(['--on'], dir).code, 0);
+  assert.equal(readConfig(dir).ledger.enabled, true);
+  assert.equal(run(['--off'], dir).code, 0);
+  assert.equal(readConfig(dir).enabled, false);
+}));
+
+test('an unknown command is user error, not a silent install', () => inTempDir((dir) => {
+  const { code, out } = run(['sideways'], dir);
+  assert.equal(code, 2);
+  assert.match(out, /unknown command "sideways"/);
+  assert.equal(existsSync(join(dir, 'promptcite.config.json')), false);
+}));
+
+test('two commands at once is refused', () => inTempDir((dir) => {
+  assert.equal(run(['on', 'off'], dir).code, 2);
+}));

@@ -235,6 +235,15 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       lines.push(`${label}  ${u.tool ?? '?'} (${u.model ?? '?'}) on ${u.date ?? '?'}, used to ${u.category ?? '?'}`);
       if (u.prompt_summary) lines.push(`            ${u.prompt_summary}`);
       lines.push(`            provenance: ${provenance(u.metadata_source)}`);
+      // Attestation (schema 2.1) is what the student says they checked before
+      // keeping the output. Absent on most receipts, and absence means the
+      // student didn't use the feature — never that they skipped the reading.
+      const v = u.verification;
+      if (v && typeof v === 'object') {
+        lines.push(v.attested
+          ? `            verified by the student: ${v.statement || '(no detail given)'}`
+          : '            the student has not marked this as verified');
+      }
     });
   }
 

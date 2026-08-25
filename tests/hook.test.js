@@ -17,6 +17,8 @@ import {
   markerText,
   shouldMark,
   injectMarker,
+  insideStringLiteral,
+  alreadyMarked,
 } from '../bin/hook.js';
 
 const HOOK = new URL('../bin/hook.js', import.meta.url).pathname;
@@ -398,4 +400,182 @@ test('a missing file never crashes the marker path', () => {
     assert.equal(out, '');
     assert.equal(ledgerLines(home, cwd).length, 1, 'the event is still recorded');
   } finally { cleanup(); }
+});
+
+
+// The pending tag is assembled rather than written whole, here and below, so
+// these lines aren't themselves markers that promptcite-check flags when it
+// walks this repo. Same trick bin/check.js plays on its own regex.
+const PENDING_TAG = `@ai-${'unverified'}`;
+
+test('attest mode swaps the stamp for a claim the student still has to make', () => {
+  const event = buildEvent({ tool: 't', model: 'Claude Opus 5', file: 'a.py', text: 'x', now: new Date('2026-08-01T12:00:00Z') });
+  const text = markerText(event, true);
+  assert.ok(text.startsWith(`${PENDING_TAG} 2026-08-01 Claude Opus 5 via PromptCite (pc:`));
+  assert.match(text, /\(pc:[0-9a-f]{5}\)$/);
+});
+
+test('attest is off unless something turns it on, so old installs read the same', () => {
+  const event = buildEvent({ tool: 't', file: 'a.py', text: 'x' });
+  assert.match(markerText(event), /^@ai-assisted /);
+  const indented = '    def f():\n        return 1\n';
+  assert.ok(injectMarker(`class A:\n${indented}`, indented, event, 'line').includes('# @ai-assisted'));
+});
+
+test('injectMarker writes the pending form when attest is on', () => {
+  const indented = '    def f():\n        return 1\n';
+  const event = buildEvent({ tool: 't', file: 'a.py', text: indented });
+  const out = injectMarker(`class A:\n${indented}`, indented, event, 'line', true);
+  assert.ok(out.includes(`    # ${PENDING_TAG}`));
+  assert.ok(out.includes(indented));
+});
+
+test('a student setting turns attest on', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ markers: { enabled: true, attest: true } }));
+    assert.equal(loadConfig(cwd).attest, true);
+  } finally {
+    cleanup();
+  }
+});
+
+test('instructor policy turns attest on for the whole class', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.policy.json'), JSON.stringify({ require_attestation: true }));
+    assert.equal(loadConfig(cwd).attest, true);
+    assert.equal(loadConfig(cwd).ledgerEnabled, false);
+  } finally {
+    cleanup();
+  }
+});
+
+test('asking for attestation asks for the markers it attests against', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.policy.json'), JSON.stringify({ require_attestation: true }));
+    const config = loadConfig(cwd);
+    assert.equal(config.attest, true);
+    assert.equal(config.markersEnabled, true, 'attestation with no marker to attest against is a no-op');
+  } finally {
+    cleanup();
+  }
+});
+
+test('markers without attest stay the plain provenance stamp', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ markers: { enabled: true } }));
+    const config = loadConfig(cwd);
+    assert.equal(config.markersEnabled, true);
+    assert.equal(config.attest, false);
+  } finally {
+    cleanup();
+  }
+});
+
+// --- Regressions found by stress-testing the marker against hostile file
+// --- shapes. Each of these corrupted a real file before it was guarded.
+
+const FIVE = 'def helper():\n    a = 1\n    b = 2\n    c = 3\n    return a\n';
+const mark = (file, text, contents) =>
+  shouldMark({ toolName: 'Edit', text, file, contents, minLines: 5, style: 'line' });
+
+test('nothing is written above line 1, because the shebang lives there', () => {
+  const script = `#!/usr/bin/env python3\n${FIVE}`;
+  assert.equal(mark('run.py', script, script), false);
+});
+
+test('JSX and PHP get no marker, because the comment token is only a comment half the time', () => {
+  // `// ...` inside JSX children compiles to a rendered string; outside a
+  // <?php block it is printed to the browser. Verified against a transpiler
+  // and the php binary before these extensions were dropped.
+  assert.equal(commentFor('List.jsx', 'line'), null);
+  assert.equal(commentFor('App.tsx', 'line'), null);
+  assert.equal(commentFor('card.php', 'line'), null);
+  assert.deepEqual(commentFor('a.ts', 'line'), { kind: 'line', token: '//' });
+});
+
+test('a marker never lands inside a docstring or a template literal', () => {
+  const doc = `def f():\n    """\n${FIVE}    """\n`;
+  assert.equal(mark('a.py', FIVE, doc), false);
+  const tpl = 'const q = `\n' + FIVE + '`;\n';
+  assert.equal(mark('a.js', FIVE, tpl), false);
+});
+
+test('a closed string does not block the next insertion', () => {
+  assert.equal(mark('a.py', FIVE, `def f():\n    """doc"""\n    pass\n\n${FIVE}`), true);
+  assert.equal(mark('a.js', FIVE, 'const q = `select 1`;\n\n' + FIVE), true);
+});
+
+test('insideStringLiteral counts delimiters and fails toward leaving files alone', () => {
+  assert.equal(insideStringLiteral('x = """abc'), true);
+  assert.equal(insideStringLiteral('x = """abc"""'), false);
+  assert.equal(insideStringLiteral("x = '''abc"), true);
+  assert.equal(insideStringLiteral('const a = `x'), true);
+  assert.equal(insideStringLiteral('const a = `x`'), false);
+  assert.equal(insideStringLiteral('x = 1'), false);
+});
+
+test('the marker matches the file line ending instead of mixing them', () => {
+  const crlf = FIVE.replace(/\n/g, '\r\n');
+  const event = buildEvent({ tool: 't', file: 'a.py', text: crlf });
+  const out = injectMarker(`import os\r\n\r\n${crlf}`, crlf, event, 'line', true);
+  const markerLine = out.split('\r\n')[2];
+  assert.ok(markerLine.startsWith('# @ai-'), markerLine);
+  assert.equal(out.includes('\n\n#'), false, 'no bare LF was introduced');
+});
+
+test('a re-edited block does not collect a second marker', () => {
+  const first = injectMarker(`import os\n\n${FIVE}`, FIVE, buildEvent({ tool: 't', file: 'a.py', text: FIVE }), 'line', true);
+  const revised = FIVE.replace('a = 1', 'a = 2');
+  const contents = first.replace(FIVE, revised);
+  assert.equal(mark('a.py', revised, contents), false);
+});
+
+test('alreadyMarked looks at the line above, not the whole file', () => {
+  const contents = `# @ai-assisted 2026-08-01 via PromptCite (pc:aaaaa)\nx = 1\ny = 2\n`;
+  assert.equal(alreadyMarked(contents, contents.indexOf('x = 1')), true);
+  assert.equal(alreadyMarked(contents, contents.indexOf('y = 2')), false);
+});
+
+test('the master switch beats an instructor policy, because it has to', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.policy.json'), JSON.stringify({ require_attestation: true, require_ledger: true, require_markers: true }));
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ enabled: false }));
+    const config = loadConfig(cwd);
+    assert.equal(config.ledgerEnabled, false);
+    assert.equal(config.markersEnabled, false);
+    assert.equal(config.attest, false);
+  } finally {
+    cleanup();
+  }
+});
+
+test('an absent master switch means on, so nothing changes for existing installs', () => {
+  const { cwd, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ ledger: { enabled: true } }));
+    assert.equal(loadConfig(cwd).ledgerEnabled, true);
+  } finally {
+    cleanup();
+  }
+});
+
+test('switching off records nothing, even for a write the hook would have logged', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ enabled: false, ledger: { enabled: true } }));
+    writeFileSync(join(cwd, 'a.py'), BLOCK);
+    runHook({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: join(cwd, 'a.py'), old_string: '', new_string: BLOCK },
+    }, { cwd, home });
+    assert.equal(ledgerLines(home, cwd).length, 0);
+  } finally {
+    cleanup();
+  }
 });

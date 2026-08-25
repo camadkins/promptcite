@@ -59,6 +59,22 @@ is responsible for accuracy; the reader evaluates plausibility.
 - **Marker** — the optional one-line comment the hook writes above an inserted
   block in the source file itself (`// @ai-assisted <date> <model> …`). Off by
   default. Its absence from a file attests nothing.
+- **Attestation** — the student's statement of what they did to check the AI's
+  output before keeping it. Written in their own words, into the marker by
+  `/receipt attest` and optionally into the receipt as `ai_use[].verification`
+  (schema 2.1). Never generated, never validated, never scored. Distinct from
+  **verification**, which is what an instructor does to a *receipt* with
+  `promptcite-verify`: attestation is the student's claim about their work,
+  verification is a reader's check on an artifact. See ADR 0008.
+- **Pending marker** — a marker in its `@ai-unverified` form, written when
+  `markers.attest` is on. It is a claim the student has not made yet.
+  `promptcite-check` lists what is still pending and exits non-zero while any
+  remain. It finds markers, never AI use — see the coverage note in ADR 0008.
+- **Profile** — the discipline-shaped version of the interview (`code`,
+  `essay`, `lab-report`, `math-proof`, `studio`): which categories are offered
+  first and which extra question is worth a turn. Resolved policy → settings →
+  inference → default, and confirmed in one line when inferred. A profile
+  changes what is *offered*, never what is permitted.
 - **Adapter** — per-agent install logic in [`bin/install.js`](./bin/install.js).
   Three strategies: global skill install, per-project rule-file drop, and
   surgical begin/end block append into a shared file (`AGENTS.md`, etc.).

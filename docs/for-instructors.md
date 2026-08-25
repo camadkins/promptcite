@@ -277,6 +277,64 @@ the rational move is to stop disclosing, and you'll get less signal than you had
 before. Saying plainly that honest disclosure is never itself the problem costs
 nothing and is what makes the rest of this work.
 
+### Optional: attestation, for the "verify it and it's yours" position
+
+If your position is that an LLM's output becomes the student's work at the
+moment they verify it, attestation is the part of PromptCite built for you. It
+records the verification rather than the provenance.
+
+Turn it on with one key:
+
+```json
+{ "require_attestation": true }
+```
+
+What the student then experiences: AI-written blocks above a size threshold get
+a comment reading `@ai-unverified`. Running `/receipt attest` walks them
+through each one and asks what they did to check it. Their answer is written
+into the comment, in their words:
+
+```
+// @ai-verified 2026-08-24 Claude Opus 5 via PromptCite (pc:a4f21): traced the
+// base cases by hand, tested n=0 and both-empty, fixed an off-by-one in the
+// loop bound.
+```
+
+Before submitting they can run `promptcite-check`, which lists anything still
+pending and exits non-zero while any remain. It is a to-do list they run on
+themselves.
+
+**Students can switch it off, and that is deliberate.** `promptcite off` stops
+recording on their machine, and it overrides your policy file. A tool that
+could be pointed at a class and made to record against a student's wishes is a
+surveillance tool, which is the one thing this cannot become. Your policy sets
+the expectation and the receipt is what you read; the enforcement you have is
+the one you already had.
+
+**Two things to be clear-eyed about before you require it.**
+
+*It cannot tell you whether they actually checked.* Nothing compares the
+attestation to the code. A student who writes "looks fine" has written a weak
+attestation, not a false one. The trust model is a citation's, the same as
+everything else here.
+
+*A clean `promptcite-check` is not a clean submission.* Markers land only on
+larger insertions, made by an edit rather than a whole-file write, in file types
+whose comment syntax PromptCite knows. AI-assisted work that never became one of
+those leaves nothing to find, so a clean run means "no pending markers" and
+never "no unverified AI here." If you plan to treat a passing check as evidence
+of anything, don't require the feature — you'll be reading it as a detector, and
+it will mislead you.
+
+What it does buy, and the reason it's worth requiring: a student clearing
+markers is rereading code the model wrote. That is the behavior the position is
+actually about, and no amount of receipt-filing after the fact produces it.
+
+The attestation can also travel in the receipt, as an optional per-session
+`verification` object (schema 2.1). Absent on most receipts, including every one
+written before this existed. Absence means the student made no claim, not that
+they skipped the reading.
+
 ### Optional: the AI-use ledger
 
 Students can install a hook that records their AI insertions locally, so
@@ -310,7 +368,8 @@ PromptCite is usually easier to approve than it looks:
 | Third-party dependencies? | Zero runtime dependencies — Node built-ins only, CI-enforced. |
 | Where does student data live? | On the student's machine, and nowhere else. |
 | Is the source auditable? | Yes — AGPL-3.0-only, ~1,100 lines, on GitHub. |
-| What does it install? | One rule file per agent. The hook is separate and opt-in. |
+| What does it install? | One rule file per agent. The hook and the attestation gate are separate and opt-in. |
+| Does the check tool report anywhere? | No. `promptcite-check` reads files, prints to the terminal, and exits. It writes nothing and sends nothing. |
 | Can it be removed cleanly? | Yes — `--uninstall` per agent; the hook removes only its own entry. |
 
 For institutional deployment, see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).
@@ -330,6 +389,13 @@ For institutional deployment, see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).
 - **More sessions is not more proof.** A receipt with four sessions is exactly as
   verifiable as one with a single session — which is to say, it is a disclosure,
   not evidence. See the local-editability note above.
+- **Attestation coverage is partial by construction:** markers only appear on
+  larger edit-insertions in known file types, so `promptcite-check` clears the
+  markers that exist rather than the AI use that happened. Treating a passing
+  check as proof reads the tool as a detector, which it is not.
+- **Attestations are unverified:** the student's account of what they checked is
+  student-authored like every other content field. Nothing compares it to the
+  code.
 - **The ledger is incomplete by construction:** it only sees insertions an
   agent makes into a file. AI use that never becomes an insertion — an
   explanation the student types up themselves, a conversation in a browser —

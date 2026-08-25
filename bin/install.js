@@ -768,6 +768,98 @@ async function printRule() {
 }
 
 /**
+ * Turn recording on or off for this folder.
+ *
+ * The whole point is that a student shouldn't have to hand-edit JSON to start
+ * an assignment and stop when they're done. `on` in the homework folder, `off`
+ * when it's handed in.
+ *
+ * Off writes an explicit `"enabled": false` rather than removing keys, because
+ * removing them would be indistinguishable from never having configured it,
+ * and because an explicit false is what overrides an instructor policy. See
+ * the master-switch note in bin/hook.js for why that override exists.
+ *
+ * Nothing here touches a marker already in a file or an entry already in the
+ * ledger. Off stops new recording; it does not erase what happened.
+ *
+ * @param {InstallContext} ctx
+ * @param {{ on: boolean, attest?: boolean }} options
+ */
+async function setSwitch(ctx, { on, attest = true }) {
+  const targetPath = join(ctx.cwd, 'promptcite.config.json');
+  const existing = await ctx.adapter.readFileIfPresent(targetPath);
+  /** @type {Record<string, any>} */
+  let config = {};
+  if (existing) {
+    try {
+      config = JSON.parse(existing);
+    } catch {
+      ctx.log(`${c.yellow('note:')} ${targetPath} isn't valid JSON, so I'm replacing it.`);
+      config = {};
+    }
+  }
+
+  if (on) {
+    delete config.enabled;
+    config.ledger = { ...(config.ledger || {}), enabled: true };
+    config.markers = { ...(config.markers || {}), enabled: true, attest };
+  } else {
+    config.enabled = false;
+    if (config.ledger) config.ledger.enabled = false;
+    if (config.markers) config.markers.enabled = false;
+  }
+
+  await ctx.adapter.writeFile(targetPath, `${JSON.stringify(config, null, 2)}\n`);
+
+  if (on) {
+    ctx.log(`${c.green('on')} for ${ctx.cwd}`);
+    ctx.log(attest
+      ? 'AI edits get recorded, and larger blocks get an @ai-unverified comment you clear with /receipt attest.'
+      : 'AI edits get recorded and larger blocks get an @ai-assisted comment. No attestation expected.');
+    ctx.log('Turn it off with "promptcite off" when the assignment is in.');
+  } else {
+    ctx.log(`${c.yellow('off')} for ${ctx.cwd}`);
+    ctx.log('Nothing new gets recorded here. Markers already in your files and');
+    ctx.log('entries already in your ledger are untouched.');
+  }
+}
+
+/**
+ * Say what's on in this folder, and whether the assignment expects otherwise.
+ *
+ * @param {InstallContext} ctx
+ */
+async function printSwitchStatus(ctx) {
+  const readJson = async (/** @type {string} */ name) => {
+    const raw = await ctx.adapter.readFileIfPresent(join(ctx.cwd, name));
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+  const config = (await readJson('promptcite.config.json')) || {};
+  const policy = await readJson('promptcite.policy.json');
+  const off = config.enabled === false;
+  const ledger = !off && (policy?.require_ledger === true || config.ledger?.enabled === true);
+  const attest = !off && (policy?.require_attestation === true || config.markers?.attest === true);
+  const markers = !off && (attest || policy?.require_markers === true || config.markers?.enabled === true);
+
+  ctx.log(`folder:   ${ctx.cwd}`);
+  ctx.log(`recording: ${ledger ? c.green('on') : c.yellow('off')}`);
+  ctx.log(`markers:   ${markers ? c.green('on') : c.yellow('off')}${markers && attest ? ' (attestation expected)' : ''}`);
+  if (off) ctx.log(`${c.yellow('note:')} switched off here, which overrides everything below.`);
+  if (policy) {
+    const wants = ['require_ledger', 'require_markers', 'require_attestation'].filter((k) => policy[k] === true);
+    ctx.log(wants.length
+      ? `policy:    this assignment expects ${wants.join(', ')}`
+      : 'policy:    promptcite.policy.json is present');
+    if (off && wants.length) {
+      ctx.log('Your switch wins on your machine. The assignment still expects these,');
+      ctx.log('so turn it back on with "promptcite on" before you work on it.');
+    }
+  }
+  ctx.log('Pending markers: run "promptcite-check".');
+}
+
+/**
  * Scaffold a starter promptcite.config.json in the cwd so the student can
  * set consistent-across-sessions defaults (citation style, etc.) that
  * /receipt reads to skip repeat questions. Personal fields are left out so
@@ -795,6 +887,18 @@ USAGE
   promptcite [options]
   npx -y github:camadkins/promptcite [options]
 
+COMMANDS
+  on                     Start recording AI edits in this folder. Add --no-attest
+                         for plain provenance markers with nothing to clear.
+  off                    Stop recording here. Markers already in your files and
+                         entries already in your ledger are left alone.
+  status                 Show what's on in this folder and what the assignment
+                         expects. Run "promptcite-check" for pending markers.
+
+  Run "on" when you start an assignment and "off" when it's handed in. The
+  setting is per folder, so turning it on for homework leaves everything else
+  alone.
+
 OPTIONS
   -h, --help                 Show this help and exit
   -v, --version              Print version and exit
@@ -820,6 +924,9 @@ EXAMPLES
   promptcite --with-init --only cursor
   promptcite --doctor                            # check what's installed + drift
   promptcite --print-rule > my-agent-rules.md   # any agent, even unlisted
+  promptcite on                                  # start recording in this folder
+  promptcite off                                 # stop when the assignment is in
+  promptcite status                              # what's on here
   promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
@@ -835,9 +942,9 @@ DOCS  https://github.com/camadkins/promptcite`);
  * @param {string[]} argv
  */
 function parseCli(argv) {
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: argv,
-    allowPositionals: false,
+    allowPositionals: true,
     options: {
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
@@ -855,8 +962,22 @@ function parseCli(argv) {
       'non-interactive': { type: 'boolean' },
       'no-color': { type: 'boolean' },
       'config-dir': { type: 'string' },
+      on: { type: 'boolean' },
+      off: { type: 'boolean' },
+      status: { type: 'boolean' },
+      'no-attest': { type: 'boolean' },
     },
   });
+
+  // Bare words are the primary form and --flags are aliases, matching how
+  // /receipt already takes its modes.
+  const command = positionals[0] ?? null;
+  if (command !== null && !['on', 'off', 'status'].includes(command)) {
+    throw new UserError(`unknown command "${command}". Expected on, off, or status.`);
+  }
+  if (positionals.length > 1) {
+    throw new UserError('one command at a time, please.');
+  }
 
   const only = values.only ?? null;
   if (only && !providerById.has(only)) {
@@ -876,6 +997,10 @@ function parseCli(argv) {
     doctor: values.doctor === true,
     printRule: values['print-rule'] === true || values.manual === true,
     initConfig: values['init-config'] === true,
+    switchOn: command === 'on' || values.on === true,
+    switchOff: command === 'off' || values.off === true,
+    switchStatus: command === 'status' || values.status === true,
+    attest: values['no-attest'] !== true,
     only,
     all: only === null,
     withInit: values['with-init'] === true,
@@ -984,6 +1109,16 @@ async function main(argv) {
 
   if (parsed.doctor) {
     await runDoctor(ctx);
+    return 0;
+  }
+
+  if (parsed.switchStatus) {
+    await printSwitchStatus(ctx);
+    return 0;
+  }
+
+  if (parsed.switchOn || parsed.switchOff) {
+    await setSwitch(ctx, { on: parsed.switchOn, attest: parsed.attest });
     return 0;
   }
 
