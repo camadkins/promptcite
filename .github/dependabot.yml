@@ -31,3 +31,11 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "chore(actions)"
+    groups:
+      # codeql-action/init and codeql-action/analyze have to run the same
+      # version. Bumped separately, each PR fails with "Loaded a configuration
+      # file for version X, but running version Y" and neither can merge on its
+      # own. Grouping them means one PR that is green or red as a unit.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
