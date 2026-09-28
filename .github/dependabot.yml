@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# Dependabot — keeps devDeps current and surfaces security advisories.
+# PromptCite has zero runtime deps; this scans devDeps + GitHub Actions
+# versions weekly.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    # PRs still require CLA signature per branch protection — Dependabot's
+    # CLA signing is handled via cla-assistant's allowlist (configured
+    # separately via the bot's web UI).
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"
+    groups:
+      # codeql-action/init and codeql-action/analyze have to run the same
+      # version. Bumped separately, each PR fails with "Loaded a configuration
+      # file for version X, but running version Y" and neither can merge on its
+      # own. Grouping them means one PR that is green or red as a unit.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"

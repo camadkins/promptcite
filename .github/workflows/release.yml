@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# Release pipeline. v* tag push triggers two jobs in sequence:
+#   1. verify: runs typecheck, unit tests, install dry-run on the tagged
+#      commit. if any of those fail, no release happens.
+#   2. release: only runs if verify succeeded. builds tarball, sigstore-
+#      attests it, creates a DRAFT GitHub Release with the matching
+#      CHANGELOG section as the body (plus auto-generated PR list).
+#      maintainer reviews the draft and clicks publish.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Top-level defaults to read-only. Per-job perms scoped up as needed.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: '18'
+
+      - name: Install devDeps
+        run: bun install
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: node --test tests/*.test.js
+
+      - name: install.js --list
+        run: node bin/install.js --list
+
+      - name: install.js --help
+        run: node bin/install.js --help
+
+      - name: install.js --version
+        run: node bin/install.js --version
+
+      - name: install.js --dry-run --all (no files should be written)
+        run: |
+          SANDBOX="/tmp/promptcite-release-sandbox-$$"
+          rm -rf "$SANDBOX"
+          node bin/install.js --dry-run --all --config-dir "$SANDBOX"
+          if [ -e "$SANDBOX" ]; then
+            echo "ERROR: --dry-run created the sandbox path"
+            exit 1
+          fi
+
+      - name: Verifier passes on example receipt
+        run: node bin/verify.js examples/brainstorm-receipt.json
+
+  release:
+    name: Release ${{ github.ref_name }}
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the GitHub Release
+      id-token: write       # sigstore attestation needs OIDC
+      attestations: write   # required for actions/attest-build-provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build release tarball
+        run: |
+          # Write to /tmp first so tar isn't reading the directory it's
+          # writing into (race causes tar exit 1).
+          tar -czf /tmp/promptcite-${{ github.ref_name }}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='*.tar.gz' \
+            .
+          mv /tmp/promptcite-${{ github.ref_name }}.tar.gz .
+
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: 'promptcite-${{ github.ref_name }}.tar.gz'
+
+      # The attestation above goes to GitHub's attestation API, which
+      # `gh attestation verify` reads. Anything inspecting RELEASE ASSETS --
+      # OpenSSF Scorecard's Signed-Releases check, and anyone verifying without
+      # the gh CLI -- sees only an unsigned tarball unless the bundle ships
+      # alongside it. Copy it next to the artifact under the usual name.
+      - name: Attach the attestation bundle to the release
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "promptcite-${{ github.ref_name }}.tar.gz.intoto.jsonl"
+
+      - name: Build release body file
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          {
+            echo "# PromptCite ${GITHUB_REF_NAME}"
+            echo
+            # Extract the matching CHANGELOG section, fall back to a stub
+            # if not found. The node script writes the section to stdout.
+            node -e "
+              const fs = require('fs');
+              const v = process.argv[1];
+              const md = fs.readFileSync('CHANGELOG.md', 'utf8');
+              const lines = md.split('\n');
+              const re = new RegExp('^## \\\\[' + v.replace(/\\./g, '\\\\.') + '\\\\]');
+              const start = lines.findIndex((l) => re.test(l));
+              if (start === -1) { process.exit(0); }
+              const after = lines.slice(start + 1);
+              const next = after.findIndex((l) => /^## \\[/.test(l));
+              const section = after.slice(0, next === -1 ? after.length : next).join('\n').trim();
+              process.stdout.write(section);
+            " "$VERSION"
+            echo
+            echo
+            echo "---"
+            echo
+            echo "## Install"
+            echo
+            echo '```bash'
+            echo "curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/${GITHUB_REF_NAME}/install.sh | bash"
+            echo '```'
+            echo
+            echo "See [INSTALL.md](https://github.com/camadkins/promptcite/blob/${GITHUB_REF_NAME}/INSTALL.md) for per-agent install paths."
+            echo
+            echo "## Verify the release"
+            echo
+            echo '```bash'
+            echo "gh attestation verify promptcite-${GITHUB_REF_NAME}.tar.gz \\"
+            echo "  --repo camadkins/promptcite"
+            echo '```'
+          } > /tmp/release-body.md
+
+      - name: Create GitHub Release (draft)
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            promptcite-${{ github.ref_name }}.tar.gz
+            promptcite-${{ github.ref_name }}.tar.gz.intoto.jsonl
+          body_path: /tmp/release-body.md
