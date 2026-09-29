@@ -123,18 +123,11 @@ jobs:
           "
 
   gemini-sync:
-    name: GEMINI.md synced from receipt.md
+    name: Locales valid and GEMINI.md in sync
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Verify sync
-        run: |
-          # GEMINI.md should match receipt.md body (skip GEMINI's 4 sync-header lines + blank, skip receipt's 3 SPDX lines)
-          if diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) > /dev/null; then
-            echo "OK: GEMINI.md is in sync with src/rules/receipt.md"
-          else
-            echo "ERROR: GEMINI.md has drifted from src/rules/receipt.md"
-            echo "Run: { head -4 GEMINI.md; echo; tail -n +4 src/rules/receipt.md; } > GEMINI.md.new && mv GEMINI.md.new GEMINI.md"
-            diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) | head -40
-            exit 1
-          fi
+      - name: Verify locales and sync
+        # GEMINI.md is receipt.md with every src/locales/ file composed in.
+        # Fix a failure with: node bin/rule.js --write-gemini
+        run: node bin/rule.js --check

@@ -3,6 +3,7 @@
   "profile": "code",
   "allowed_categories": ["brainstorm", "outline", "search"],
   "required_citation_style": "APA",
+  "disclosure_language": "en",
   "require_source_verification": ["search", "draft"],
   "required_appendix": {
     "draft": "share_link_or_excerpt",

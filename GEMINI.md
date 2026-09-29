@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <!-- Copyright (c) 2026 Cam Adkins -->
-<!-- AUTO-SYNCED FROM src/rules/receipt.md. do not edit directly. -->
-<!-- Source of truth lives in src/rules/receipt.md; this file is the Gemini CLI extension context surface. -->
+<!-- AUTO-GENERATED FROM src/rules/receipt.md + src/locales/. do not edit directly. -->
+<!-- Regenerate with: node bin/rule.js --write-gemini -->
 
 # PromptCite — `/receipt` Interview Rule
 
@@ -102,6 +102,7 @@ All keys are optional:
 ```json
 {
   "citation_style": "MLA",
+  "disclosure_language": "en",
   "student": "C. Hawkins",
   "default_course": "ENGL 251",
   "default_instructor": "Dr. Martinez",
@@ -114,6 +115,9 @@ All keys are optional:
 
 `profile` names the discipline shape the interview should take (see *Profiles*
 below); leave it out and the profile is inferred per assignment.
+
+`disclosure_language` picks the language of the disclosure paragraph (see
+Step 5b); leave it out for English.
 
 `ledger` and `markers` are both **off by default** and control the optional
 capture layer described under *Ledger* below. `markers.attest` changes what a
@@ -164,6 +168,7 @@ match. All keys are optional:
 {
   "allowed_categories": ["brainstorm", "outline", "search"],
   "required_citation_style": "APA",
+  "disclosure_language": "en",
   "require_source_verification": ["search", "draft"],
   "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" },
   "require_ledger": true,
@@ -189,6 +194,9 @@ How each key steers the interview:
   for that appendix (`share_link_or_excerpt`, `full_transcript`, or
   `diff_or_test_log`) and include it; it is required, not opt-in, for
   this assignment.
+- **`disclosure_language`** — write the disclosure paragraph in this
+  language (see Step 5b). Overrides the student's own setting, since the
+  instructor decides what a valid disclosure reads like.
 - **`profile`** — pin the interview to one discipline shape (see *Profiles*).
   Use it when a course's work is all one kind; leave it out and each
   assignment is inferred.
@@ -914,77 +922,57 @@ Example:
 OpenAI (2026) ChatGPT (GPT-4o) [Large language model].
 ```
 
-#### 5b — Disclosure paragraph (category-specific templates)
+#### 5b — Disclosure paragraph (built from the disclosure strings)
 
-One paragraph, 2–4 sentences, plain English. Use the template matching
-the chosen `use_category`. Wording within each template can be varied
-naturally; the *structure* and the *facts cited* are what the template
-locks in.
+One paragraph, 2–4 sentences. It is assembled from the **disclosure strings**
+listed at the end of this section, one set per language. Each category's
+recipe below names the strings to use, in order; `{placeholders}` are filled
+from the receipt.
 
 **There is one disclosure paragraph per receipt, not per session** — the student
-pastes one paragraph into one submission. For a single session, use the matching
-template below exactly as written; a one-session receipt reads the same as it
-always has. For several, see *Multiple sessions* at the end of this section.
+pastes one paragraph into one submission. For a single session, follow the
+matching recipe below; a one-session receipt reads the same as it always has.
+For several, see *Multiple sessions* at the end of this section.
 
-**`brainstorm`:**
-> I used <Tool> (<Model>) on <date> to brainstorm <prompt summary, in
-> noun-phrase form> for this assignment. <If direct_content_used=false:
-> "No AI-generated text appears in the final submission." | If true:
-> "Approximately <X%> of the brainstorm appears verbatim in the
-> submission."> <Revision statement.>
+**Language.** Write the paragraph in the language named by
+`disclosure_language`: the instructor policy's value wins, then the student's
+settings, then `en`. If that language is not in the list at the end of this
+section, write in English and tell the student in one line that their
+language isn't available yet. The strings are reviewed wording, so use them as
+written. In English, wording may be varied naturally as long as the structure
+and the facts cited stay put; in any other language, change only what grammar
+requires. Write the filled-in `{placeholders}` in the same language as the
+paragraph, except the student's revision statement, which is always quoted
+in their own words.
 
-**`outline`:**
-> I used <Tool> (<Model>) on <date> to outline <topic> for this
-> assignment. The structure of my submission <followed closely / loosely
-> followed / did not follow> the AI's outline. <If direct_content_used=
-> false: "No AI-generated text appears verbatim." | If true: "Some text
-> from the outline appears in the submission." > <Revision statement.>
+**Recipes.** Always start with the category's `.lead` string. `<Revision
+statement>` is the student's `revision_statement`, omitted when empty.
 
-**`search`:**
-> I used <Tool> (<Model>) on <date> to search for <type of sources or
-> information>. <If source_verification=true: "I independently verified
-> those sources against <where the student verified — readings / library
-> databases / primary sources>." | If false: "I did not independently
-> verify those sources; consult them directly before relying on any
-> referenced claim." > The sources are cited in this submission's
-> bibliography directly, not through the AI. <Revision statement.>
-
-**`explain`:**
-> I used <Tool> (<Model>) on <date> to have <concept> explained. No
-> AI-generated content appears in the final submission. <Revision
-> statement.>
-
-**`edit`:**
-> I used <Tool> (<Model>) on <date> to edit <portion of the work — e.g.
-> "the introduction" / "the methods section">. The AI <only fixed small
-> issues like grammar and spelling | rewrote paragraphs | restructured
-> the argument | changed the voice of the writing>. <If
-> direct_content_used=false: "No AI-rewritten text appears verbatim." |
-> If true: "Some AI-rewritten text appears in the submission." >
-> <Revision statement.>
-
-**`debug`:**
-> I used <Tool> (<Model>) on <date> to debug <problem — e.g. "a sorting
-> algorithm" / "a null pointer exception in the data processor">. The
-> AI <only explained what was wrong | generated code I kept | generated
-> code I modified before keeping>. <Revision statement.>
-
-**`draft`:**
-> I used <Tool> (<Model>) on <date> to draft <section or content — e.g.
-> "an introduction paragraph" / "boilerplate setup code">. Approximately
-> <X%> appears verbatim in the final submission. <Revision statement —
-> what was changed, rejected, or rewritten.> <If source_verification=
-> true AND the draft contained factual claims: "I independently verified
-> the factual claims against <readings / primary sources>." >
+- **`brainstorm`:** `brainstorm.lead` · then `brainstorm.content_not_used`
+  if `direct_content_used` is false, or `brainstorm.content_used` if true ·
+  `<Revision statement>`.
+- **`outline`:** `outline.lead` · how closely the submission followed the
+  outline: `outline.followed_closely`, `outline.followed_loosely`, or
+  `outline.not_followed` · `outline.content_not_used` or
+  `outline.content_used` by `direct_content_used` · `<Revision statement>`.
+- **`search`:** `search.lead` · `search.verified` if `source_verification`
+  is true, or `search.not_verified` if false · `search.cited` ·
+  `<Revision statement>`.
+- **`explain`:** `explain.lead` · `explain.content` · `<Revision statement>`.
+- **`edit`:** `edit.lead` · what the AI changed: `edit.scope_grammar`,
+  `edit.scope_rewrote`, `edit.scope_restructured`, or `edit.scope_voice` ·
+  `edit.content_not_used` or `edit.content_used` by `direct_content_used` ·
+  `<Revision statement>`.
+- **`debug`:** `debug.lead` · what happened to the AI's help:
+  `debug.explained_only`, `debug.code_kept`, or `debug.code_modified` ·
+  `<Revision statement>`.
+- **`draft`:** `draft.lead` · `draft.verbatim` · `<Revision statement —
+  what was changed, rejected, or rewritten>` · `draft.verified` only if
+  `source_verification` is true AND the draft contained factual claims.
 
 **Provenance addendum (agent_reported only):** if `metadata_source ==
-"agent_reported"`, append ONE additional sentence to the disclosure
-paragraph after the category-specific text:
-
-> "This receipt was generated inside <Tool> itself, so the tool, model,
-> and date fields above were agent-verified rather than student-reported."
-
-Do NOT append this sentence for `student_claimed` receipts — they are
+"agent_reported"`, append `provenance.agent_reported` after the category's
+sentences. Do NOT append it for `student_claimed` receipts — they are
 self-reported and should read as such.
 
 **Output discipline:** prose only — no markdown bullets or headers in
@@ -995,24 +983,24 @@ form.
 **Multiple sessions.** When `ai_use` holds more than one session, write one
 paragraph covering all of them, in date order:
 
-1. Open with the earliest session's template sentence, naming its tool, model,
+1. Open with the earliest session's `.lead` string, naming its tool, model,
    and date as usual.
-2. Give each later session its own sentence, using that session's template as the
+2. Give each later session its own sentence, using that session's recipe as the
    pattern. Say what changed between them — a different tool, a different
    purpose — rather than repeating the same construction. Sessions sharing a tool
    and category may be combined into one sentence ("I used Claude again on May 18
    and May 21 to debug the sorting logic").
 3. State kept content once, across the whole assignment, rather than per session:
-   *"None of the AI-generated text appears in the final submission"* if every
+   `multi.content_not_used` if every
    session has `direct_content_used: false`, otherwise name which sessions it
    came from.
 4. Close with the student's revision statement. If sessions have different
    revision statements, use the most recent and let the earlier ones stand in the
    JSON — do not stitch them into a run-on sentence.
 5. Append the provenance addendum only if **every** session is
-   `agent_reported`. If they are mixed, say so plainly instead: *"The May 14
-   session was recorded inside ChatGPT; the May 16 details are from my own
-   notes."*
+   `agent_reported`. If they are mixed, say so plainly instead with
+   `multi.mixed_provenance`, e.g. *"The May 14 session was recorded inside
+   ChatGPT; the May 16 details are from my own notes."*
 
 Aim for six sentences or fewer. Past four sessions, group by tool and category
 rather than listing each. **Never state a session count as a metric and never
@@ -1027,6 +1015,47 @@ Worked example, two sessions (`outline` then `debug`):
 > explained what was wrong without generating code I kept. None of the
 > AI-generated text appears in the final submission. I rewrote the outline in my
 > own words and fixed the parsing bug myself once I understood it.
+
+**Disclosure strings.** The text every recipe above is built from. Each
+language lives in its own file under `src/locales/` and is filled in here
+when the rule is built, so this list is complete as installed.
+
+Languages available: `en`.
+
+**English (`en`)**
+
+- `brainstorm.lead`: I used {tool} ({model}) on {date} to brainstorm {summary} for this assignment.
+- `brainstorm.content_not_used`: No AI-generated text appears in the final submission.
+- `brainstorm.content_used`: Approximately {percent} of the brainstorm appears verbatim in the submission.
+- `outline.lead`: I used {tool} ({model}) on {date} to outline {topic} for this assignment.
+- `outline.followed_closely`: The structure of my submission followed the AI's outline closely.
+- `outline.followed_loosely`: The structure of my submission loosely followed the AI's outline.
+- `outline.not_followed`: The structure of my submission did not follow the AI's outline.
+- `outline.content_not_used`: No AI-generated text appears verbatim.
+- `outline.content_used`: Some text from the outline appears in the submission.
+- `search.lead`: I used {tool} ({model}) on {date} to search for {sources}.
+- `search.verified`: I independently verified those sources against {verified_against}.
+- `search.not_verified`: I did not independently verify those sources; consult them directly before relying on any referenced claim.
+- `search.cited`: The sources are cited in this submission's bibliography directly, not through the AI.
+- `explain.lead`: I used {tool} ({model}) on {date} to have {concept} explained.
+- `explain.content`: No AI-generated content appears in the final submission.
+- `edit.lead`: I used {tool} ({model}) on {date} to edit {portion}.
+- `edit.scope_grammar`: The AI only fixed small issues like grammar and spelling.
+- `edit.scope_rewrote`: The AI rewrote paragraphs.
+- `edit.scope_restructured`: The AI restructured the argument.
+- `edit.scope_voice`: The AI changed the voice of the writing.
+- `edit.content_not_used`: No AI-rewritten text appears verbatim.
+- `edit.content_used`: Some AI-rewritten text appears in the submission.
+- `debug.lead`: I used {tool} ({model}) on {date} to debug {problem}.
+- `debug.explained_only`: The AI only explained what was wrong.
+- `debug.code_kept`: The AI generated code I kept.
+- `debug.code_modified`: The AI generated code I modified before keeping.
+- `draft.lead`: I used {tool} ({model}) on {date} to draft {section}.
+- `draft.verbatim`: Approximately {percent} appears verbatim in the final submission.
+- `draft.verified`: I independently verified the factual claims against {verified_against}.
+- `provenance.agent_reported`: This receipt was generated inside {tool} itself, so the tool, model, and date fields above were agent-verified rather than student-reported.
+- `multi.content_not_used`: None of the AI-generated text appears in the final submission.
+- `multi.mixed_provenance`: The {date_recorded} session was recorded inside {tool}; the {date_reported} details are from my own notes.
 
 #### 5c — Receipt JSON
 

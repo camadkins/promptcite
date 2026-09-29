@@ -84,9 +84,12 @@ is responsible for accuracy; the reader evaluates plausibility.
 ## Single source of truth
 
 [`src/rules/receipt.md`](./src/rules/receipt.md) defines all `/receipt`
-behavior. Every agent adapter loads it verbatim; `GEMINI.md` is
-auto-synced from it (CI enforces the diff). **Behavioral changes happen in
-`receipt.md` only** — never duplicate logic into adapters or `GEMINI.md`.
+behavior. The disclosure paragraph's wording lives in
+[`src/locales/`](./src/locales/), one file per language. `bin/rule.js`
+composes the two into the rule every adapter installs, and into `GEMINI.md`
+(CI enforces it with `node bin/rule.js --check`). **Behavioral changes happen
+in `receipt.md` only; wording changes in `src/locales/` only** — never
+duplicate either into adapters or edit `GEMINI.md` by hand.
 
 ## Non-negotiables
 

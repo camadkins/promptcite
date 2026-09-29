@@ -242,6 +242,13 @@ prevent dishonesty (a student can ignore or edit the file). Same trust
 model as everything else here. Where a student's saved settings conflict
 with your policy, the policy wins.
 
+**Disclosure language.** Set `"disclosure_language": "es"` (or any language
+PromptCite ships) and every student's disclosure paragraph comes out in that
+language, built from reviewed wording rather than a fresh machine
+translation. The receipt JSON and citations stay in English. The languages
+available are the files in [`src/locales/`](../src/locales/); an unavailable
+language falls back to English and the student is told.
+
 **Policy that PromptCite explicitly does not support:**
 > ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite
 > does not verify anything. It is a disclosure artifact, not a
