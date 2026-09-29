@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 import process from 'node:process';
+import { composeRule } from './rule.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -171,12 +172,7 @@ function createDryRunAdapter(log) {
  * @returns {Promise<string>}
  */
 async function readRuleSource(ctx) {
-  const target = join(ctx.repoRoot, 'src', 'rules', 'receipt.md');
-  try {
-    return await readFile(target, 'utf8');
-  } catch {
-    throw new Error(`rule source missing at ${target}`);
-  }
+  return composeRule(ctx.repoRoot);
 }
 
 /**
@@ -755,8 +751,7 @@ async function runDoctor(ctx) {
 }
 
 async function printRule() {
-  const target = resolve(__dirname, '..', 'src', 'rules', 'receipt.md');
-  const body = await readFile(target, 'utf8');
+  const body = await composeRule(resolve(__dirname, '..'));
   // Universal fallback: any agent NOT in `--list` can still run PromptCite
   // if a human drops this rule into wherever that agent reads its custom
   // instructions / system prompt / rules file. No adapter code required.

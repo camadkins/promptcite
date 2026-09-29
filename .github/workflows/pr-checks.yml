@@ -48,7 +48,7 @@ jobs:
 
           # 1. SPDX header on every source file in bin/ src/ install.sh install.ps1
           MISSING_SPDX=""
-          for f in bin/install.js bin/verify.js bin/hook.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml src/ledger.schema.yaml; do
+          for f in bin/install.js bin/verify.js bin/hook.js bin/rule.js install.sh install.ps1 src/rules/receipt.md src/schema.yaml src/ledger.schema.yaml src/locales/*.md; do
             if [ -f "$f" ] && ! grep -q "SPDX-License-Identifier" "$f"; then
               MISSING_SPDX="$MISSING_SPDX $f"
             fi
@@ -59,11 +59,11 @@ jobs:
             mark_pass "SPDX header present on all source files"
           fi
 
-          # 2. GEMINI.md synced from src/rules/receipt.md
-          if diff <(tail -n +4 src/rules/receipt.md) <(tail -n +6 GEMINI.md) > /dev/null 2>&1; then
-            mark_pass "GEMINI.md is synced from src/rules/receipt.md"
+          # 2. Locales valid and GEMINI.md composed from receipt.md + src/locales/
+          if node bin/rule.js --check > /dev/null 2>&1; then
+            mark_pass "Locales valid and GEMINI.md in sync"
           else
-            mark_fail "GEMINI.md has drifted from src/rules/receipt.md — see CI gemini-sync job"
+            mark_fail "Locale files invalid or GEMINI.md out of date. Run: node bin/rule.js --check"
           fi
 
           # 3. No network calls in shipped code (no-network rule)
