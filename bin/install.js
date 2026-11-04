@@ -5,7 +5,7 @@
 
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm, access, readdir } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -83,6 +83,8 @@ class UserError extends Error {
  * @property {boolean} dryRun
  * @property {(msg: string) => void} log
  * @property {Adapter} adapter
+ * @property {string | null} only
+ * @property {Set<string>} emptied  folders an uninstall left empty, reported at the end
  */
 
 /** @param {string} target */
@@ -260,10 +262,12 @@ class StubSkipError extends Error {
 
 /** @param {string} id */
 const STUB_MESSAGE = (id) =>
-  `[${id}] adapter coming in next release — for now use 'npx skills add camadkins/promptcite -a ${id}' (validates against vercel-labs/skills registry once promptcite is added)`;
+  `installs per project. Run it inside your project: promptcite --only ${id} --with-init`;
 
 const RULE_HEADER = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
 
+// Agent Skills frontmatter: the skill is invoked as /receipt in agents whose
+// skill loader requires `name` to equal the parent folder (Cursor).
 const CLAUDE_FRONTMATTER = `---
 name: receipt
 description: Generate a structured AI-use receipt for academic assignments. Conducts a short interview (under 2 minutes) and emits a citation string, plain-language disclosure paragraph, and JSON receipt validated against schema.yaml. Use when the student types /receipt, "generate my AI receipt", or any variant indicating they want to disclose AI use on coursework.
@@ -274,6 +278,9 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * strategy and give it a detect spec + target path. No new install/uninstall
  * code. Strategies:
  *   - global-skill:  write the rule (with frontmatter) to a user-config path
+ *   - skill-drop:    like global-skill, but the skill folder may be shared with
+ *                    the user's own files, so uninstall deletes only SKILL.md
+ *                    (and the folder only if that leaves it empty)
  *   - rule-drop:     drop a standalone rule file into a per-project rules dir
  *                    (safe — its own file, never clobbers the user's content)
  *   - block-append:  surgically append a begin/end block into a SHARED file
@@ -297,7 +304,7 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @typedef {Object} AgentSpec
  * @property {string} id
  * @property {string} name
- * @property {'global-skill'|'rule-drop'|'block-append'|'cli-extension'|'hook-register'} strategy
+ * @property {'global-skill'|'skill-drop'|'rule-drop'|'block-append'|'cli-extension'|'hook-register'} strategy
  * @property {{ cwdPaths?: string[], homePaths?: string[], command?: string }} detect
  * @property {'cwd'|'configDir'|'home'} [base]
  * @property {string} [path]
@@ -310,9 +317,26 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @property {boolean} [optIn]
  * @property {string} [tool]
  * @property {string} [event]
+ * @property {GlobalSpec[]} [global]
  * @property {string[]} [events]  Every hook event to register for (default: PostToolUse only).
  * @property {string} [matcher]
  */
+
+/**
+ * A user-level (home) install for an agent that also has a per-project path.
+ * Plain `promptcite` writes these; the agent's own per-project entry only runs
+ * with --with-init. Each item is a full strategy entry (rule-drop, block-append
+ * or skill-drop) rooted at $HOME, so uninstall removes exactly what install wrote.
+ * @typedef {Object} GlobalSpec
+ * @property {'rule-drop'|'block-append'|'skill-drop'} strategy
+ * @property {string} path  path under $HOME
+ * @property {string} display
+ * @property {string} [frontmatter]
+ */
+
+const COMMAND_FRONTMATTER = `---
+description: Generate a structured AI-use receipt for academic assignments (PromptCite)
+---`;
 
 /** The three events bin/hook.js handles (ADR 0010). */
 const HOOK_EVENTS = ['PostToolUse', 'UserPromptSubmit', 'SessionStart'];
@@ -327,7 +351,10 @@ const MANIFEST = [
     cli: { bin: 'gemini', installArgs: ['extensions', 'install', 'https://github.com/camadkins/promptcite'], uninstallArgs: ['extensions', 'uninstall', 'promptcite'] },
     display: '(gemini CLI extension store)', detect: { command: 'gemini' } },
   { id: 'cursor', name: 'Cursor', strategy: 'rule-drop', base: 'cwd',
-    path: '.cursor/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'hint', detect: { cwdPaths: ['.cursor'] } },
+    path: '.cursor/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'hint', detect: { cwdPaths: ['.cursor'], homePaths: ['.cursor'] },
+    // Cursor keeps user rules in its settings UI, not on disk, but loads user-level skills and
+    // exposes them as /receipt. https://cursor.com/docs/context/skills
+    global: [{ strategy: 'skill-drop', path: '.cursor/skills/receipt/SKILL.md', frontmatter: CLAUDE_FRONTMATTER, display: '~/.cursor/skills/receipt/SKILL.md' }] },
   { id: 'windsurf', name: 'Windsurf', strategy: 'rule-drop', base: 'cwd',
     path: '.windsurf/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.windsurf'] } },
   { id: 'copilot', name: 'GitHub Copilot', strategy: 'block-append', base: 'cwd',
@@ -335,13 +362,24 @@ const MANIFEST = [
   // AGENTS.md is a shared cross-agent convention — block-append preserves any
   // existing content, and this same file covers Amp / opencode / Crush / Jules.
   { id: 'codex', name: 'Codex CLI', strategy: 'block-append', base: 'cwd',
-    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENTS.md'], homePaths: ['.codex'] } },
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENTS.md'], homePaths: ['.codex'] },
+    // Global AGENTS.md in the Codex home. https://learn.chatgpt.com/docs/agent-configuration/agents-md
+    // (redirect target of developers.openai.com/codex/guides/agents-md)
+    global: [{ strategy: 'block-append', path: '.codex/AGENTS.md', display: '~/.codex/AGENTS.md' }] },
   { id: 'cline', name: 'Cline', strategy: 'rule-drop', base: 'cwd',
-    path: '.clinerules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.clinerules', '.cline'] } },
+    path: '.clinerules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.clinerules', '.cline'], homePaths: ['Documents/Cline'] },
+    // Global rules dir, same path on macOS/Linux. https://docs.cline.bot/features/cline-rules
+    global: [{ strategy: 'rule-drop', path: 'Documents/Cline/Rules/promptcite-receipt.md', display: '~/Documents/Cline/Rules/promptcite-receipt.md' }] },
   { id: 'continue', name: 'Continue', strategy: 'rule-drop', base: 'cwd',
     path: '.continue/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.continue'] } },
   { id: 'roo', name: 'Roo Code', strategy: 'rule-drop', base: 'cwd',
-    path: '.roo/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.roo'] } },
+    path: '.roo/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.roo'], homePaths: ['.roo'] },
+    // Global rules https://roocodeinc.github.io/Roo-Code/features/custom-instructions
+    // and global slash commands https://roocodeinc.github.io/Roo-Code/features/slash-commands
+    global: [
+      { strategy: 'rule-drop', path: '.roo/rules/promptcite-receipt.md', display: '~/.roo/rules/promptcite-receipt.md' },
+      { strategy: 'rule-drop', path: '.roo/commands/receipt.md', frontmatter: COMMAND_FRONTMATTER, display: '~/.roo/commands/receipt.md' },
+    ] },
   // Aider loads CONVENTIONS.md (via .aider.conf.yml 'read:' or --read); shared
   // file, so block-append.
   { id: 'aider', name: 'Aider', strategy: 'block-append', base: 'cwd',
@@ -352,7 +390,9 @@ const MANIFEST = [
   { id: 'amazonq', name: 'Amazon Q Developer', strategy: 'rule-drop', base: 'cwd',
     path: '.amazonq/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.amazonq'], command: 'q' } },
   { id: 'kiro', name: 'Kiro', strategy: 'rule-drop', base: 'cwd',
-    path: '.kiro/steering/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.kiro'] } },
+    path: '.kiro/steering/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.kiro'], homePaths: ['.kiro'] },
+    // Global steering, always-on by default. https://kiro.dev/docs/steering/
+    global: [{ strategy: 'rule-drop', path: '.kiro/steering/promptcite-receipt.md', display: '~/.kiro/steering/promptcite-receipt.md' }] },
   { id: 'augment', name: 'Augment Code', strategy: 'rule-drop', base: 'cwd',
     path: '.augment/rules/promptcite-receipt.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.augment'] } },
   { id: 'trae', name: 'Trae', strategy: 'rule-drop', base: 'cwd',
@@ -361,7 +401,9 @@ const MANIFEST = [
   { id: 'junie', name: 'JetBrains Junie', strategy: 'block-append', base: 'cwd',
     path: '.junie/guidelines.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.junie'] } },
   { id: 'goose', name: 'Goose', strategy: 'block-append', base: 'cwd',
-    path: '.goosehints', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.goosehints', '.goose'], command: 'goose' } },
+    path: '.goosehints', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['.goosehints', '.goose'], homePaths: ['.config/goose'], command: 'goose' },
+    // https://goose-docs.ai/docs/guides/context-engineering/using-goosehints
+    global: [{ strategy: 'block-append', path: '.config/goose/.goosehints', display: '~/.config/goose/.goosehints' }] },
   { id: 'replit', name: 'Replit Agent', strategy: 'block-append', base: 'cwd',
     path: 'replit.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['replit.md', '.replit'] } },
   { id: 'openhands', name: 'OpenHands', strategy: 'block-append', base: 'cwd',
@@ -377,11 +419,31 @@ const MANIFEST = [
   //     overlapping installs just no-op). Jules is cloud/GitHub-based with no
   //     local footprint — never auto-detected; install explicitly with --only.
   { id: 'opencode', name: 'opencode', strategy: 'block-append', base: 'cwd',
-    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['opencode.json', '.opencode'], command: 'opencode' } },
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['opencode.json', '.opencode'], homePaths: ['.config/opencode'], command: 'opencode' },
+    // Global rules https://opencode.ai/docs/rules/ and commands https://opencode.ai/docs/commands/
+    global: [
+      { strategy: 'block-append', path: '.config/opencode/AGENTS.md', display: '~/.config/opencode/AGENTS.md' },
+      { strategy: 'rule-drop', path: '.config/opencode/commands/receipt.md', frontmatter: COMMAND_FRONTMATTER, display: '~/.config/opencode/commands/receipt.md' },
+    ] },
   { id: 'amp', name: 'Amp (Sourcegraph)', strategy: 'block-append', base: 'cwd',
-    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENT.md'], command: 'amp' } },
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['AGENT.md'], homePaths: ['.config/amp'], command: 'amp' },
+    // https://ampcode.com/docs/customize/agents-md
+    global: [{ strategy: 'block-append', path: '.config/amp/AGENTS.md', display: '~/.config/amp/AGENTS.md' }] },
   { id: 'crush', name: 'Crush (Charm)', strategy: 'block-append', base: 'cwd',
-    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['crush.json', '.crush.json'], command: 'crush' } },
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub', detect: { cwdPaths: ['crush.json', '.crush.json'], homePaths: ['.config/crush'], command: 'crush' },
+    // Crush loads ~/.config/AGENTS.md as global context. https://github.com/charmbracelet/crush
+    global: [{ strategy: 'block-append', path: '.config/AGENTS.md', display: '~/.config/AGENTS.md' }] },
+  // --- added after the first 24 ---
+  // GitHub Copilot CLI is separate from the repo-level Copilot entry above: it reads a
+  // user-level file. https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions
+  { id: 'copilot-cli', name: 'GitHub Copilot CLI', strategy: 'block-append', base: 'home',
+    path: '.copilot/copilot-instructions.md', display: '~/.copilot/copilot-instructions.md',
+    detect: { homePaths: ['.copilot'], command: 'copilot' } },
+  // Factory Droid reads AGENTS.md in the project and in ~/.factory/. https://docs.factory.com/cli/configuration/agents-md
+  { id: 'droid', name: 'Factory Droid', strategy: 'block-append', base: 'cwd',
+    path: 'AGENTS.md', requiresInit: true, onMissingInit: 'stub',
+    detect: { cwdPaths: ['.factory'], homePaths: ['.factory'], command: 'droid' },
+    global: [{ strategy: 'block-append', path: '.factory/AGENTS.md', display: '~/.factory/AGENTS.md' }] },
   // --- AI-use hook (opt-in only) ---------------------------------------
   //     Never installed by --all. These change how the user's agent behaves,
   //     so they are an explicit `--only <id>` decision. Registering the hook
@@ -421,6 +483,64 @@ function targetOf(ctx, entry) {
     : entry.base === 'home' ? homedir()
       : ctx.cwd;
   return join(base, ...String(entry.path).split('/'));
+}
+
+/**
+ * Other agents whose block-append target (project or user-level) is the same file.
+ * @param {InstallContext} ctx @param {any} entry @param {string} targetPath @returns {string[]}
+ */
+function sharersOf(ctx, entry, targetPath) {
+  const names = [];
+  for (const other of MANIFEST) {
+    if (other.id === entry.id) continue;
+    const specs = [other, ...(other.global ?? []).map((/** @type {any} */ g) => ({ ...g, base: 'home' }))];
+    if (specs.some((s) => s.strategy === 'block-append' && targetOf(ctx, s) === targetPath)) names.push(other.id);
+  }
+  return names;
+}
+
+/**
+ * Remember a folder an uninstall emptied. We never delete it ourselves: it may be
+ * the agent's own config folder (~/.codex), so the user gets a one-line rmdir.
+ * @param {InstallContext} ctx @param {string} dir
+ */
+async function noteIfEmptied(ctx, dir) {
+  if (ctx.dryRun || dir === ctx.cwd || dir === homedir() || dir === ctx.configDir) return;
+  try {
+    if ((await readdir(dir)).length === 0) ctx.emptied.add(dir);
+  } catch { /* already gone */ }
+}
+
+/** Where the bundled help docs go. One copy for every agent, matching this version. */
+function helpDir() {
+  return join(homedir(), '.promptcite', 'help');
+}
+
+/**
+ * Copy src/help/*.md to ~/.promptcite/help so any agent can answer "how do I"
+ * questions offline from docs that match the installed version.
+ * @param {InstallContext} ctx @param {string} version
+ */
+async function installHelp(ctx, version) {
+  const src = join(ctx.repoRoot, 'src', 'help');
+  if (!(await pathExists(src))) return;
+  const dest = helpDir();
+  await ctx.adapter.ensureDirectory(dest);
+  for (const name of (await readdir(src)).filter((n) => n.endsWith('.md'))) {
+    const body = await readFile(join(src, name), 'utf8');
+    if ((await ctx.adapter.readFileIfPresent(join(dest, name))) !== body) {
+      await ctx.adapter.writeFile(join(dest, name), body);
+    }
+  }
+  if ((await ctx.adapter.readFileIfPresent(join(dest, 'VERSION'))) !== `${version}\n`) {
+    await ctx.adapter.writeFile(join(dest, 'VERSION'), `${version}\n`);
+  }
+}
+
+/** @param {InstallContext} ctx */
+async function uninstallHelp(ctx) {
+  if (await ctx.adapter.pathExists(helpDir())) await ctx.adapter.deleteDirectory(helpDir());
+  await noteIfEmptied(ctx, dirname(helpDir()));
 }
 
 /** Absolute path to the recorder we register. No PATH lookup, no network. */
@@ -559,13 +679,30 @@ const STRATEGIES = {
       if (await ctx.adapter.pathExists(skillDir)) {
         await ctx.adapter.deleteDirectory(skillDir);
       }
+      await noteIfEmptied(ctx, dirname(skillDir));
+    },
+  },
+  'skill-drop': {
+    async install(ctx, entry) {
+      const ruleBody = await readRuleSource(ctx);
+      await dropRuleFile({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry), header: entry.frontmatter, ruleBody });
+    },
+    async uninstall(ctx, entry) {
+      const file = targetOf(ctx, entry);
+      if (await ctx.adapter.pathExists(file)) await ctx.adapter.deleteFile(file);
+      const dir = dirname(file);
+      // Only remove the folder if we left it empty; it may hold the user's own files.
+      if (!ctx.dryRun && (await pathExists(dir)) && (await readdir(dir)).length === 0) {
+        await ctx.adapter.deleteDirectory(dir);
+      }
     },
   },
   'rule-drop': {
     async install(ctx, entry) {
       if (!gateInit(ctx, entry, 'install')) return;
       const ruleBody = await readRuleSource(ctx);
-      await dropRuleFile({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry), header: RULE_HEADER, ruleBody });
+      const header = entry.frontmatter ? `${entry.frontmatter}\n\n${RULE_HEADER}` : RULE_HEADER;
+      await dropRuleFile({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry), header, ruleBody });
     },
     async uninstall(ctx, entry) {
       if (!gateInit(ctx, entry, 'uninstall')) return;
@@ -573,6 +710,7 @@ const STRATEGIES = {
       if (await ctx.adapter.pathExists(targetPath)) {
         await ctx.adapter.deleteFile(targetPath);
       }
+      await noteIfEmptied(ctx, dirname(targetPath));
     },
   },
   'block-append': {
@@ -583,7 +721,20 @@ const STRATEGIES = {
     },
     async uninstall(ctx, entry) {
       if (!gateInit(ctx, entry, 'uninstall')) return;
-      await removeCopilotBlock({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry) });
+      const targetPath = targetOf(ctx, entry);
+      // One block serves every agent that reads this file (AGENTS.md is read by
+      // codex, copilot, amp, crush, droid...). `--only amp --uninstall` must not
+      // take the rule away from the others; --force or a full uninstall does.
+      if (ctx.only && !ctx.force) {
+        const others = sharersOf(ctx, entry, targetPath);
+        const existing = await ctx.adapter.readFileIfPresent(targetPath);
+        if (others.length && existing?.includes(copilotMarker('begin'))) {
+          ctx.log(`kept: ${targetPath} (the block is shared with ${others.join(', ')}). Remove it anyway with --force.`);
+          return;
+        }
+      }
+      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
+      await noteIfEmptied(ctx, dirname(targetPath));
     },
   },
   'hook-register': {
@@ -671,6 +822,20 @@ function runStrategy(entry, op, ctx) {
   return strategy[op](ctx, entry);
 }
 
+/**
+ * Agents with a user-level install do that part on every run; the per-project
+ * entry (the manifest entry itself) only runs with --with-init.
+ * @param {any} entry @param {'install'|'uninstall'} op @param {InstallContext} ctx @returns {Promise<void>}
+ */
+async function runWithGlobals(entry, op, ctx) {
+  const globals = /** @type {GlobalSpec[]} */ (entry.global ?? []);
+  for (const g of globals) {
+    await runStrategy({ ...g, id: entry.id, name: entry.name, base: 'home' }, op, ctx);
+  }
+  if (globals.length && !ctx.withInit) return;
+  await runStrategy(entry, op, ctx);
+}
+
 /** @param {any} spec @returns {() => boolean} */
 function makeDetect(spec) {
   return () => {
@@ -688,8 +853,8 @@ const providers = MANIFEST.map((entry) => ({
   id: entry.id,
   name: entry.name,
   detect: makeDetect(entry.detect),
-  install: (/** @type {InstallContext} */ ctx) => runStrategy(entry, 'install', ctx),
-  uninstall: (/** @type {InstallContext} */ ctx) => runStrategy(entry, 'uninstall', ctx),
+  install: (/** @type {InstallContext} */ ctx) => runWithGlobals(entry, 'install', ctx),
+  uninstall: (/** @type {InstallContext} */ ctx) => runWithGlobals(entry, 'uninstall', ctx),
   autoActivates: entry.autoActivates !== false,
   targetPaths: [entry.display ?? entry.path ?? entry.id],
   entry,
@@ -761,7 +926,8 @@ async function runDoctor(ctx) {
     if (e.strategy === 'cli-extension') {
       artifact = 'CLI-managed';
     } else {
-      const content = await readFileIfPresent(targetOf(ctx, e));
+      const probe = e.global?.length ? { ...e.global[0], base: 'home' } : e;
+      const content = await readFileIfPresent(targetOf(ctx, probe));
       if (content === null) artifact = 'missing';
       else if (content.includes(ruleNeedle)) artifact = 'up-to-date';
       else artifact = 'STALE (re-install)';
@@ -1260,7 +1426,7 @@ function parseCli(argv) {
 }
 
 /**
- * @param {{ withInit: boolean, force: boolean, dryRun: boolean, configDir: string | null }} parsed
+ * @param {{ withInit: boolean, force: boolean, dryRun: boolean, configDir: string | null, only?: string | null }} parsed
  * @returns {InstallContext}
  */
 function buildContext(parsed) {
@@ -1279,6 +1445,8 @@ function buildContext(parsed) {
     dryRun: parsed.dryRun,
     log,
     adapter,
+    only: parsed.only ?? null,
+    emptied: new Set(),
   };
 }
 
@@ -1405,8 +1573,8 @@ async function main(argv) {
           ctx.log(`${c.yellow('skipping')} ${provider.id}: ${STUB_MESSAGE(provider.id)}`);
           continue;
         }
-        console.error(`${c.red('error:')} ${STUB_MESSAGE(provider.id)}`);
-        return 2;
+        console.error(`${c.red('error:')} ${provider.id} ${STUB_MESSAGE(provider.id)}`);
+        return 1;
       }
 
       console.error(`${c.red('error:')} ${action} failed for ${provider.id}: ${formatError(error)}`);
@@ -1414,9 +1582,18 @@ async function main(argv) {
     }
   }
 
+  if (parsed.uninstall && !parsed.only) await uninstallHelp(ctx);
+  if (!parsed.uninstall && successCount > 0) await installHelp(ctx, await readPackageVersion());
+
   if (parsed.uninstall) {
     const summary = `${c.green('uninstalled.')} ${successCount} agent(s) processed.`;
     ctx.log(skipCount > 0 ? `${summary} ${skipCount} skipped.` : summary);
+    if (ctx.emptied.size) {
+      const dirs = [...ctx.emptied].map((d) => (d.includes(' ') ? `"${d}"` : d));
+      ctx.log('');
+      ctx.log(`${c.dim('left empty:')} ${dirs.join(', ')}. They take no space. Keep them, or remove them with:`);
+      ctx.log(`  rmdir ${dirs.join(' ')}`);
+    }
     return 0;
   }
 
@@ -1426,6 +1603,7 @@ async function main(argv) {
   if (successCount > 0) {
     ctx.log('');
     ctx.log(`${c.bold('next:')} open a fresh session in your agent and type ${c.cyan('/receipt')} to try it.`);
+    ctx.log(`help: ask your agent "how do I use /receipt?" (it reads ${helpDir()})`);
     ctx.log(`docs: https://github.com/camadkins/promptcite`);
   }
   return 0;

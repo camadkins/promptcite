@@ -27,9 +27,10 @@ What it does:
 
 - Auto-detects every supported agent installed on your machine
   (Claude Code, Cursor, Codex, Gemini CLI, Copilot, etc.).
-- For each one, runs that agent's native install path (plugin /
-  extension / rule file / `npx skills add`).
-- Wires Claude Code hooks where applicable.
+- For each one, writes that agent's rule where it reads it (a global skill,
+  or for per-project agents a rule file in your project when you pass
+  `--with-init`).
+- Leaves the optional AI-use hooks alone. Those install only with `--only`.
 - Skips anything you don't have. Safe to re-run. ~30 seconds end-to-end.
 
 Want to preview before installing? Use `--dry-run`:
@@ -48,28 +49,35 @@ runs under the hood), use the table below. Every row also works as
 |---|---|:-:|
 | **Claude Code** | `claude plugin marketplace add camadkins/promptcite && claude plugin install promptcite@promptcite` | Yes |
 | **Gemini CLI** | `gemini extensions install https://github.com/camadkins/promptcite` | Yes |
-| **Codex CLI** | `npx -y github:camadkins/promptcite --only codex --with-init` | Surgical block in `AGENTS.md` at project root |
-| **Cursor** | `npx -y github:camadkins/promptcite --only cursor --with-init` | Per-project rule file at `.cursor/rules/promptcite-receipt.md` |
+| **Codex CLI** | `npx -y github:camadkins/promptcite --only codex` | Global: surgical block in `~/.codex/AGENTS.md`. With `--with-init`, also `AGENTS.md` at project root |
+| **Cursor** | `npx -y github:camadkins/promptcite --only cursor` | Global: skill at `~/.cursor/skills/receipt/SKILL.md` (type `/receipt`). With `--with-init`, also `.cursor/rules/promptcite-receipt.md` |
 | **Windsurf** | `npx -y github:camadkins/promptcite --only windsurf --with-init` | Per-project rule file at `.windsurf/rules/promptcite-receipt.md` |
-| **Cline** | `npx -y github:camadkins/promptcite --only cline --with-init` | Per-project rule file at `.clinerules/promptcite-receipt.md` |
+| **Cline** | `npx -y github:camadkins/promptcite --only cline` | Global: `~/Documents/Cline/Rules/promptcite-receipt.md`. With `--with-init`, also `.clinerules/promptcite-receipt.md` |
 | **GitHub Copilot** | `npx -y github:camadkins/promptcite --only copilot --with-init` | Repo-wide instructions via `--with-init` |
 | **Continue** | `npx -y github:camadkins/promptcite --only continue --with-init` | Per-project rule file at `.continue/rules/promptcite-receipt.md` |
-| **Roo Code** | `npx -y github:camadkins/promptcite --only roo --with-init` | Per-project rule file at `.roo/rules/promptcite-receipt.md` |
+| **Roo Code** | `npx -y github:camadkins/promptcite --only roo` | Global: `~/.roo/rules/promptcite-receipt.md` and the `/receipt` command at `~/.roo/commands/receipt.md`. With `--with-init`, also `.roo/rules/promptcite-receipt.md` |
 | **Aider** | `npx -y github:camadkins/promptcite --only aider --with-init` | Surgical block in `CONVENTIONS.md` at project root (load via `--read CONVENTIONS.md` or `.aider.conf.yml`) |
 | **Amazon Q Developer** | `npx -y github:camadkins/promptcite --only amazonq --with-init` | Per-project rule file at `.amazonq/rules/promptcite-receipt.md` |
-| **Kiro** | `npx -y github:camadkins/promptcite --only kiro --with-init` | Steering file at `.kiro/steering/promptcite-receipt.md` |
+| **Kiro** | `npx -y github:camadkins/promptcite --only kiro` | Global: `~/.kiro/steering/promptcite-receipt.md`. With `--with-init`, also `.kiro/steering/promptcite-receipt.md` |
 | **Augment Code** | `npx -y github:camadkins/promptcite --only augment --with-init` | Per-project rule file at `.augment/rules/promptcite-receipt.md` |
 | **Trae** | `npx -y github:camadkins/promptcite --only trae --with-init` | Per-project rule file at `.trae/rules/promptcite-receipt.md` |
 | **JetBrains Junie** | `npx -y github:camadkins/promptcite --only junie --with-init` | Surgical block in `.junie/guidelines.md` |
-| **Goose** | `npx -y github:camadkins/promptcite --only goose --with-init` | Surgical block in `.goosehints` at project root |
+| **Goose** | `npx -y github:camadkins/promptcite --only goose` | Global: surgical block in `~/.config/goose/.goosehints`. With `--with-init`, also `.goosehints` at project root |
 | **Replit Agent** | `npx -y github:camadkins/promptcite --only replit --with-init` | Surgical block in `replit.md` at project root |
 | **OpenHands** | `npx -y github:camadkins/promptcite --only openhands --with-init` | Surgical block in `.openhands/microagents/repo.md` |
 | **Qodo** | `npx -y github:camadkins/promptcite --only qodo --with-init` | Surgical block in `best_practices.md` at project root |
 | **Zed** | `npx -y github:camadkins/promptcite --only zed --with-init` | Surgical block in `.rules` at project root |
-| **opencode** | `npx -y github:camadkins/promptcite --only opencode --with-init` | Surgical block in `AGENTS.md` at project root |
-| **Amp (Sourcegraph)** | `npx -y github:camadkins/promptcite --only amp --with-init` | Surgical block in `AGENTS.md` at project root |
-| **Crush (Charm)** | `npx -y github:camadkins/promptcite --only crush --with-init` | Surgical block in `AGENTS.md` at project root |
+| **opencode** | `npx -y github:camadkins/promptcite --only opencode` | Global: block in `~/.config/opencode/AGENTS.md` and the `/receipt` command at `~/.config/opencode/commands/receipt.md`. With `--with-init`, also `AGENTS.md` at project root |
+| **Amp (Sourcegraph)** | `npx -y github:camadkins/promptcite --only amp` | Global: surgical block in `~/.config/amp/AGENTS.md`. With `--with-init`, also `AGENTS.md` at project root |
+| **Crush (Charm)** | `npx -y github:camadkins/promptcite --only crush` | Global: surgical block in `~/.config/AGENTS.md`. With `--with-init`, also `AGENTS.md` at project root |
+| **GitHub Copilot CLI** | `npx -y github:camadkins/promptcite --only copilot-cli` | Global: surgical block in `~/.copilot/copilot-instructions.md` |
+| **Factory Droid** | `npx -y github:camadkins/promptcite --only droid` | Global: surgical block in `~/.factory/AGENTS.md`. With `--with-init`, also `AGENTS.md` at project root |
 | **Jules (Google)** | `npx -y github:camadkins/promptcite --only jules --with-init` | Surgical block in `AGENTS.md` (cloud agent — install explicitly; not auto-detected) |
+
+Agents marked **Global** install to your user-level config with a plain
+`promptcite` run, so one install covers every project. `--with-init` adds the
+per-project file too. Uninstall removes exactly what install wrote and leaves
+the rest of your own `AGENTS.md` / rules files alone.
 
 The full agent matrix lives in `bin/install.js` under the `MANIFEST`
 array — each agent is one declarative entry (strategy + detect + path).
@@ -272,8 +280,17 @@ curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/main/install.s
 
 Or, from a clone: `node bin/install.js --uninstall`.
 
+Install also copies a few help pages to `~/.promptcite/help/`, matching the
+version you installed, so your agent can answer "how do I..." and
+troubleshooting questions offline. A full `--uninstall` removes them.
+
 Removes the slash command from every agent the installer touched, the
 shared rule file, and any `--with-init` artifacts in the current repo.
+
+Removing one agent with `--only <id> --uninstall` keeps a block another
+agent still reads (one `AGENTS.md` block serves Codex, Copilot, Amp, Crush,
+Droid and the rest). Add `--force` to remove it anyway. Folders left empty
+are listed at the end with an `rmdir` line; they're yours to keep or delete.
 
 ## Privacy
 

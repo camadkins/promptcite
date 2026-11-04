@@ -10,6 +10,17 @@ import { join } from 'node:path';
 
 const cli = new URL('../bin/install.js', import.meta.url).pathname;
 
+// Every subprocess gets a throwaway HOME so global installs can never touch the
+// real machine. Tests that need to inspect it pass their own via `env`.
+const SANDBOX_HOME = mkdtempSync(join(tmpdir(), 'pc-home-'));
+let activeEnv = null;
+function sandboxEnv(home = SANDBOX_HOME) {
+  const env = { ...process.env, HOME: home, USERPROFILE: home };
+  delete env.CLAUDE_CONFIG_DIR;
+  delete env.CODEX_HOME;
+  return env;
+}
+
 // install.js runs main() + process.exit() on import, so it can't be imported
 // like verify.js — exercise it as a subprocess instead. Each run uses a fresh
 // temp cwd so we can assert read-only commands write nothing there.
@@ -19,6 +30,7 @@ function run(args, cwd, script = cli, extra = []) {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: activeEnv ?? sandboxEnv(),
     });
     return { code: 0, out };
   } catch (e) {
@@ -76,7 +88,7 @@ test('--list shows the full agent matrix', () => {
     for (const id of ['claude', 'cursor', 'codex', 'amazonq', 'junie', 'zed', 'opencode']) {
       assert.match(out, new RegExp(`\\b${id}\\b`));
     }
-    assert.match(out, /of 24 agents/);
+    assert.match(out, /of 26 agents/);
   });
 });
 
@@ -112,8 +124,19 @@ test('per-project adapter without --with-init is skipped, not errored, in --all'
     // (stub), exit 0. --dry-run keeps any globally-detected agent (e.g. Claude)
     // from writing to the real config dir during the test.
     writeFileSync(join(dir, '.replit'), '');
-    const { code } = run(['--all', '--dry-run'], dir);
+    const { code, out } = run(['--all', '--dry-run', '--no-color'], dir);
     assert.equal(code, 0);
+    // the skip line tells the student how to install it, not "coming soon"
+    assert.match(out, /skipping replit: installs per project\. Run it inside your project: promptcite --only replit --with-init/);
+    assert.doesNotMatch(out, /coming in next release|npx skills add/);
+  });
+});
+
+test('--only a per-project adapter without --with-init is a user error with the fix', () => {
+  inTempDir((dir) => {
+    const { code, out } = run(['--only', 'zed'], dir);
+    assert.equal(code, 1);
+    assert.match(out, /zed installs per project\. Run it inside your project: promptcite --only zed --with-init/);
   });
 });
 
@@ -354,4 +377,157 @@ test('an unknown command is user error, not a silent install', () => inTempDir((
 
 test('two commands at once is refused', () => inTempDir((dir) => {
   assert.equal(run(['on', 'off'], dir).code, 2);
+}));
+
+// ---------------------------------------------------------------------------
+// global (user-level) installs — all in a sandbox HOME, never the real one
+// ---------------------------------------------------------------------------
+
+// id -> [files written under HOME, and whether each is a shared file (block)]
+const GLOBALS = {
+  cursor: [['.cursor/skills/receipt/SKILL.md', false]],
+  codex: [['.codex/AGENTS.md', true]],
+  cline: [['Documents/Cline/Rules/promptcite-receipt.md', false]],
+  roo: [['.roo/rules/promptcite-receipt.md', false], ['.roo/commands/receipt.md', false]],
+  kiro: [['.kiro/steering/promptcite-receipt.md', false]],
+  goose: [['.config/goose/.goosehints', true]],
+  opencode: [['.config/opencode/AGENTS.md', true], ['.config/opencode/commands/receipt.md', false]],
+  amp: [['.config/amp/AGENTS.md', true]],
+  crush: [['.config/AGENTS.md', true]],
+  'copilot-cli': [['.copilot/copilot-instructions.md', true]],
+  droid: [['.factory/AGENTS.md', true]],
+};
+
+function inSandbox(fn) {
+  const home = mkdtempSync(join(tmpdir(), 'pc-home-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'pc-cwd-'));
+  activeEnv = sandboxEnv(home);
+  try {
+    return fn(home, cwd);
+  } finally {
+    activeEnv = null;
+    rmSync(home, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+for (const [id, files] of Object.entries(GLOBALS)) {
+  test(`${id}: plain install writes the user-level files and uninstall removes them`, () => inSandbox((home, cwd) => {
+    // pre-existing user content in every shared file must survive
+    for (const [rel, shared] of files) {
+      if (!shared) continue;
+      mkdirSync(join(home, rel, '..'), { recursive: true });
+      writeFileSync(join(home, rel), '# mine\nKeep me.\n');
+    }
+    assert.equal(run(['--only', id], cwd).code, 0);
+    for (const [rel] of files) {
+      assert.ok(existsSync(join(home, rel)), `${rel} should exist`);
+      assert.match(readFileSync(join(home, rel), 'utf8'), /`\/receipt` Interview Rule/);
+    }
+    assert.deepEqual(readdirSync(cwd), [], 'no per-project files without --with-init');
+    assert.equal(run(['--only', id, '--uninstall'], cwd).code, 0);
+    for (const [rel, shared] of files) {
+      if (shared) {
+        const left = readFileSync(join(home, rel), 'utf8');
+        assert.match(left, /Keep me\./);
+        assert.doesNotMatch(left, /PromptCite/);
+      } else {
+        assert.ok(!existsSync(join(home, rel)), `${rel} should be gone`);
+      }
+    }
+  }));
+}
+
+test('a shared skill folder keeps the user\'s own files on uninstall', () => inSandbox((home, cwd) => {
+  const dir = join(home, '.cursor/skills/receipt');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'notes.md'), 'mine');
+  assert.equal(run(['--only', 'cursor'], cwd).code, 0);
+  assert.equal(run(['--only', 'cursor', '--uninstall'], cwd).code, 0);
+  assert.ok(existsSync(join(dir, 'notes.md')));
+  assert.ok(!existsSync(join(dir, 'SKILL.md')));
+}));
+
+test('--with-init adds the per-project file on top of the global install', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'roo', '--with-init'], cwd).code, 0);
+  assert.ok(existsSync(join(cwd, '.roo/rules/promptcite-receipt.md')));
+  assert.ok(existsSync(join(home, '.roo/commands/receipt.md')));
+  assert.equal(run(['--only', 'roo', '--with-init', '--uninstall'], cwd).code, 0);
+  assert.ok(!existsSync(join(cwd, '.roo/rules/promptcite-receipt.md')));
+  assert.ok(!existsSync(join(home, '.roo/commands/receipt.md')));
+}));
+
+test('droid per-project AGENTS.md block needs --with-init', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'droid', '--with-init'], cwd).code, 0);
+  assert.match(readFileSync(join(cwd, 'AGENTS.md'), 'utf8'), /BEGIN PromptCite/);
+  assert.match(readFileSync(join(home, '.factory/AGENTS.md'), 'utf8'), /BEGIN PromptCite/);
+}));
+
+test('--dry-run of a global install writes nothing', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'opencode', '--dry-run'], cwd).code, 0);
+  assert.equal(existsSync(join(home, '.config')), false);
+}));
+
+function walk(dir, acc = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) walk(p, acc); else acc.push(p);
+  }
+  return acc;
+}
+
+test('--all install then --uninstall in a sandbox HOME leaves no PromptCite files', () => inSandbox((home, cwd) => {
+  // make every home-detected agent look present
+  for (const d of ['.claude', '.codex', '.cursor', '.roo', '.kiro', '.copilot', '.factory',
+    '.config/goose', '.config/opencode', '.config/amp', '.config/crush', 'Documents/Cline']) {
+    mkdirSync(join(home, d), { recursive: true });
+  }
+  const before = walk(home).length;
+  assert.equal(run(['--all'], cwd).code, 0);
+  assert.ok(walk(home).length > before, 'install wrote files');
+  assert.equal(run(['--all', '--uninstall'], cwd).code, 0);
+  const leftovers = walk(home).filter((f) => /promptcite|receipt/i.test(f) || /PromptCite/.test(readFileSync(f, 'utf8')));
+  assert.deepEqual(leftovers, []);
+  assert.equal(walk(home).length, before, 'only the seeded state remains');
+}));
+
+test('--only uninstall keeps a project AGENTS.md block other agents still read', () => inSandbox((home, cwd) => {
+  writeFileSync(join(cwd, 'AGENTS.md'), '# mine\nKeep me.\n');
+  assert.equal(run(['--only', 'codex', '--with-init'], cwd).code, 0);
+  const kept = run(['--only', 'amp', '--with-init', '--uninstall', '--no-color'], cwd);
+  assert.equal(kept.code, 0);
+  assert.match(kept.out, /kept: .*AGENTS\.md \(the block is shared with .*codex/);
+  assert.match(readFileSync(join(cwd, 'AGENTS.md'), 'utf8'), /BEGIN PromptCite/);
+  assert.equal(run(['--only', 'amp', '--with-init', '--uninstall', '--force'], cwd).code, 0);
+  const left = readFileSync(join(cwd, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(left, /PromptCite/);
+  assert.match(left, /Keep me\./);
+}));
+
+test('uninstall names the folders it left empty and gives an rmdir line', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli'], cwd).code, 0);
+  const { code, out } = run(['--only', 'copilot-cli', '--uninstall', '--no-color'], cwd);
+  assert.equal(code, 0);
+  assert.match(out, /left empty: .*\.copilot/);
+  assert.match(out, /rmdir .*\.copilot/);
+  assert.ok(existsSync(join(home, '.copilot')), 'we never delete the folder ourselves');
+}));
+
+test('install ships the help docs to ~/.promptcite/help, full uninstall removes them', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli'], cwd).code, 0);
+  const help = join(home, '.promptcite', 'help');
+  for (const f of ['README.md', 'using-receipt.md', 'troubleshooting.md', 'VERSION']) {
+    assert.ok(existsSync(join(help, f)), `${f} installed`);
+  }
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(readFileSync(join(help, 'VERSION'), 'utf8').trim(), pkg.version);
+  assert.equal(run(['--only', 'copilot-cli', '--uninstall'], cwd).code, 0);
+  assert.ok(existsSync(help), 'a single-agent uninstall keeps help for the others');
+  assert.equal(run(['--uninstall'], cwd).code, 0);
+  assert.ok(!existsSync(help), 'full uninstall removes help');
+}));
+
+test('--dry-run never writes the help docs', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli', '--dry-run'], cwd).code, 0);
+  assert.ok(!existsSync(join(home, '.promptcite')));
 }));

@@ -37,7 +37,6 @@ In-scope concerns we take seriously:
   prior message that hijacks the receipt-generation flow.
 - **Path traversal** in the installer's file-write logic.
 - **Settings.json corruption** during the JSONC merge.
-- **Supply-chain attacks** via the `npx skills add` fallback path.
 
 Out-of-scope (per design):
 
