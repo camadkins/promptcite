@@ -146,10 +146,14 @@ npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
 ```
 
 The verifier also validates the receipt against the schema and prints a
-plain-English summary — student, assignment, one line per session
-(tool/model/date, category, provenance), hash status, and which schema
-generation it found — so you don't have to read the raw JSON. It accepts
-both 1.x and 2.0 receipts.
+plain-English summary: student, assignment, then for each session the
+tool/model/date, category, provenance, and what the student wrote about it
+(whether AI text was kept verbatim, the revision statement, whether they
+checked sources, and which appendix kinds are attached), followed by the
+disclosure paragraph, the hash status, and which schema generation it found.
+It accepts both 1.x and 2.x receipts. Anything the student left unset prints as
+"not stated"; that is not a flag. The tool reports what was disclosed. It does
+not count, score, or rank it.
 
 Exit codes:
 - `0` hash matches AND the receipt is well-formed (unmodified, valid)
@@ -159,22 +163,32 @@ Exit codes:
 - `3` user error (file missing, bad JSON, etc.)
 - `4` hash matches but the receipt fails schema validation (the summary
   lists the specific problems)
+- `5` the file given with `--submission` does not match the receipt's
+  `submission_hash`
 
-### `submission_hash` — binding the receipt to the work
+### `submission_hash`: binding the receipt to the work
 
 A receipt (schema 1.1 or later) may also carry a `submission_hash`: the SHA-256 of
 the **actual file the student submitted** (their essay, their source
 file), as opposed to `content_hash` which only covers the receipt's own
 fields. When present, you can confirm a receipt belongs to a specific
-document by re-hashing the submitted file:
+document by handing the verifier the submitted file:
+
+```bash
+promptcite-verify receipt.json --submission path/to/their-essay.pdf
+```
+
+It reports `MATCH`, `DIFFERENT` (exit `5`), or that the receipt has no
+`submission_hash` (exit unchanged). `DIFFERENT` means the file is not byte for
+byte the one the receipt was bound to; it cannot say why. If you prefer, hash it
+yourself and compare:
 
 ```bash
 shasum -a 256 path/to/their-essay.pdf
 ```
 
-and comparing it to the receipt's `submission_hash`. Same honest limits
-apply (a student could hash a different file) — it's a binding aid, not
-proof. `null` means the agent couldn't hash the file at generation time.
+Same honest limits apply (a student could hash a different file): it's a binding
+aid, not proof. `null` means the agent couldn't hash the file at generation time.
 
 **Honest limits:** this is tamper-evident, not tamper-proof. A
 determined student can recompute the hash after editing since the

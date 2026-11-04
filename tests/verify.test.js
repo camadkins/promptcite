@@ -3,7 +3,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonicalize, computeHash, runVerify, validateSchema, formatReport } from '../bin/verify.js';
@@ -411,4 +412,112 @@ test('the report prints the disclosure paragraph in both schema generations', ()
 test('the added report lines still carry no score or total', () => {
   const report = formatReport(v2([session(), session(), session()]), 'INTACT', []);
   assert.doesNotMatch(report, /total|score|rank/i);
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for the CLI-level tests: capture what runVerify prints
+// ---------------------------------------------------------------------------
+
+/** Run runVerify with console captured. @returns {Promise<{code: number, stdout: string, stderr: string}>} */
+async function capture(argv) {
+  const origLog = console.log;
+  const origErr = console.error;
+  const out = [];
+  const err = [];
+  console.log = (...a) => out.push(a.join(' '));
+  console.error = (...a) => err.push(a.join(' '));
+  try {
+    const code = await runVerify(argv);
+    return { code, stdout: out.join('\n'), stderr: err.join('\n') };
+  } finally {
+    console.log = origLog;
+    console.error = origErr;
+  }
+}
+
+const sha = (buf) => createHash('sha256').update(buf).digest('hex');
+
+/** A directory holding a submission and a receipt bound to it. */
+async function withBoundReceipt(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-sub-'));
+  try {
+    const essay = join(dir, 'essay.txt');
+    const bytes = Buffer.from('The carbon tax is a policy worth arguing about.\n');
+    wf(essay, bytes);
+    const body = { ...v2(), submission_hash: sha(bytes) };
+    const receiptPath = join(dir, 'receipt.json');
+    wf(receiptPath, JSON.stringify({ ...body, content_hash: computeHash(body) }));
+    return await fn({ dir, essay, bytes, receiptPath });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- --submission ---
+
+test('--submission reports MATCH for the file the receipt is bound to', async () => {
+  await withBoundReceipt(async ({ essay, receiptPath }) => {
+    const r = await capture([receiptPath, '--submission', essay]);
+    assert.equal(r.code, 0);
+    assert.match(r.stdout, /Submission file: MATCH/);
+  });
+});
+
+test('--submission reports DIFFERENT with exit 5 when one byte changed', async () => {
+  await withBoundReceipt(async ({ essay, bytes, receiptPath }) => {
+    const changed = Buffer.from(bytes);
+    changed[0] = changed[0] ^ 1;
+    wf(essay, changed);
+    const r = await capture([receiptPath, '--submission', essay]);
+    assert.equal(r.code, 5);
+    assert.match(r.stderr, /Submission file: DIFFERENT/);
+  });
+});
+
+test('--submission=<file> form works', async () => {
+  await withBoundReceipt(async ({ essay, receiptPath }) => {
+    assert.equal((await capture([receiptPath, `--submission=${essay}`])).code, 0);
+  });
+});
+
+test('--submission says so when the receipt has no submission_hash, and exits 0', async () => {
+  await withBoundReceipt(async ({ dir, essay }) => {
+    const bare = v2();
+    const p = join(dir, 'bare.json');
+    wf(p, JSON.stringify({ ...bare, content_hash: computeHash(bare) }));
+    const r = await capture([p, '--submission', essay]);
+    assert.equal(r.code, 0);
+    assert.match(r.stdout, /receipt has no submission_hash/);
+  });
+});
+
+test('--submission with a tampered receipt still exits 1, the more severe code', async () => {
+  await withBoundReceipt(async ({ dir, essay, bytes }) => {
+    const body = { ...v2(), submission_hash: sha(bytes) };
+    const p = join(dir, 'edited.json');
+    wf(p, JSON.stringify({ ...body, content_hash: 'a'.repeat(64) }));
+    wf(essay, 'something else entirely');
+    assert.equal((await capture([p, '--submission', essay])).code, 1);
+  });
+});
+
+test('--submission with an unreadable file, or no value, is a user error (3)', async () => {
+  await withBoundReceipt(async ({ dir, receiptPath }) => {
+    assert.equal((await capture([receiptPath, '--submission', join(dir, 'nope.pdf')])).code, 3);
+    assert.equal((await capture([receiptPath, '--submission'])).code, 3);
+  });
+});
+
+test('--submission refuses to run against several receipts', async () => {
+  await withBoundReceipt(async ({ dir, essay, receiptPath }) => {
+    const r = await capture([receiptPath, receiptPath, '--submission', essay]);
+    assert.equal(r.code, 3);
+    assert.match(r.stderr, /single receipt/);
+      });
+});
+
+test('--help documents --submission and exit 5', async () => {
+  const r = await capture(['--help']);
+  assert.match(r.stdout, /--submission/);
+  assert.match(r.stdout, /\n\s+5\s+/);
 });
