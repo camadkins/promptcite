@@ -39,7 +39,11 @@ replacing it — an assignment worked across a week ends up as one honest record
 Optionally, an **AI-use ledger** records your insertions locally so `/receipt`
 reminds you what you did instead of asking you to remember. Off by default,
 separately installed, stored outside your repo, and purged once used — it
-exists to make honest disclosure easier, never to report on you. See
+exists to make honest disclosure easier, never to report on you. If you run
+`/receipt` late, after your agent has compacted or cleared its context, the
+hook can also point `/receipt` at the agent's own local transcript so the
+earlier sessions aren't lost. It stores only where that file is, never what is
+in it, and nothing leaves your machine. See
 [INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
 
 Optionally, for courses where the point is that **you own what you verify**,

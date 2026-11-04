@@ -579,3 +579,147 @@ test('switching off records nothing, even for a write the hook would have logged
     cleanup();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Session pointers and course context (ADR 0010)
+// ---------------------------------------------------------------------------
+
+const COURSE = {
+  id: 'csce-423',
+  name: 'CSCE 423',
+  aliases: ['Algorithms'],
+  guidance: [{ rule: 'AI may explain concepts but not write solutions.', quote: 'Students may use AI tools to understand material but not to produce graded work.' }],
+  unclear: [{ topic: 'AI use on study guides' }],
+};
+
+function addCourse(home, course = COURSE, name = course.id) {
+  const dir = join(home, '.promptcite', 'courses');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${name}.json`), JSON.stringify(course));
+}
+
+const TRANSCRIPT = '/tmp/agent-sessions/s1.jsonl';
+const promptPayload = (prompt, extra = {}) => ({
+  hook_event_name: 'UserPromptSubmit', session_id: 's1', transcript_path: TRANSCRIPT, prompt, ...extra,
+});
+
+test('PostToolUse records one session event per session_id, pointer only', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    enableLedger(cwd);
+    const payload = { ...writePayload(join(cwd, 'a.py'), 'x = 1\n'), session_id: 's1', transcript_path: TRANSCRIPT };
+    runHook(payload, { cwd, home });
+    runHook(payload, { cwd, home });
+    runHook({ ...payload, session_id: 's2', transcript_path: '/tmp/agent-sessions/s2.jsonl' }, { cwd, home });
+    const events = ledgerLines(home, cwd);
+    const sessions = events.filter((e) => e.type === 'session');
+    assert.equal(sessions.length, 2, 'one per session_id');
+    assert.equal(events.filter((e) => !e.type).length, 3, 'insertion events unchanged');
+    assert.deepEqual(Object.keys(sessions[0]).sort(), ['event_id', 'schema_version', 'session_id', 'transcript_path', 'ts', 'tool', 'type'].sort());
+    assert.equal(sessions[0].transcript_path, TRANSCRIPT);
+  } finally {
+    cleanup();
+  }
+});
+
+test('no session event when the ledger is off or the pointer is missing', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    runHook({ ...writePayload(join(cwd, 'a.py'), 'x\n'), session_id: 's1', transcript_path: TRANSCRIPT }, { cwd, home });
+    assert.equal(ledgerLines(home, cwd).length, 0, 'ledger off');
+    enableLedger(cwd);
+    runHook({ ...writePayload(join(cwd, 'a.py'), 'x\n'), session_id: 's1' }, { cwd, home });
+    assert.equal(ledgerLines(home, cwd).filter((e) => e.type === 'session').length, 0, 'no transcript_path');
+  } finally {
+    cleanup();
+  }
+});
+
+test('UserPromptSubmit matches a course by id, name and alias in several spellings', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    addCourse(home);
+    for (const prompt of ['help with csce 423 hw', 'CSCE-423 question', 'csce423 again', 'my algorithms assignment']) {
+      const out = runHook(promptPayload(prompt), { cwd, home });
+      const ctx = JSON.parse(out).hookSpecificOutput;
+      assert.equal(ctx.hookEventName, 'UserPromptSubmit', prompt);
+      assert.match(ctx.additionalContext, /CSCE 423/);
+      assert.match(ctx.additionalContext, /Students may use AI tools to understand material/, 'verbatim quote');
+      assert.match(ctx.additionalContext, /AI use on study guides/, 'unclear topic');
+      assert.match(ctx.additionalContext, /Silence in the syllabus is not permission/);
+      assert.ok(ctx.additionalContext.length <= 4096);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test('UserPromptSubmit prints nothing without a match, and for look-alikes', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    addCourse(home);
+    addCourse(home, { id: 'broken', name: 'Broken 101' }, 'broken'); // fine but no rules; also an invalid one below
+    addCourse(home, { id: 'bad', name: 'Bad 999', guidance: [{ rule: 'no quote' }] }, 'bad');
+    for (const prompt of ['write me a sorting function', 'csce 4230 stuff', 'abcsce423', 'Bad 999 help']) {
+      assert.equal(runHook(promptPayload(prompt), { cwd, home }), '', prompt);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test('UserPromptSubmit uses the course bound to the folder without a mention', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    addCourse(home);
+    writeFileSync(join(cwd, 'promptcite.config.json'), JSON.stringify({ course: 'csce-423' }));
+    const out = runHook(promptPayload('please fix my loop'), { cwd, home });
+    assert.match(JSON.parse(out).hookSpecificOutput.additionalContext, /CSCE 423/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('UserPromptSubmit writes nothing to disk without the ledger, and records a pointer with it', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    addCourse(home);
+    runHook(promptPayload('csce 423'), { cwd, home });
+    assert.ok(!existsSync(join(home, '.promptcite', 'ledgers')), 'no ledger when off');
+    enableLedger(cwd);
+    runHook(promptPayload('csce 423'), { cwd, home });
+    runHook(promptPayload('csce 423 again'), { cwd, home });
+    assert.equal(ledgerLines(home, cwd).filter((e) => e.type === 'session').length, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test('SessionStart after compact points at the ledger transcripts; startup and ledger-off say nothing', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    const start = (source) => ({ hook_event_name: 'SessionStart', source, session_id: 's9' });
+    assert.equal(runHook(start('compact'), { cwd, home }), '', 'ledger off');
+    enableLedger(cwd);
+    assert.equal(runHook(start('compact'), { cwd, home }), '', 'no pointers yet');
+    runHook(promptPayload('hi'), { cwd, home });
+    const out = JSON.parse(runHook(start('compact'), { cwd, home })).hookSpecificOutput;
+    assert.equal(out.hookEventName, 'SessionStart');
+    assert.match(out.additionalContext, /agent-sessions\/s1\.jsonl/);
+    assert.match(out.additionalContext, /\/receipt/);
+    assert.ok(runHook(start('resume'), { cwd, home }).length > 0);
+    assert.equal(runHook(start('startup'), { cwd, home }), '');
+  } finally {
+    cleanup();
+  }
+});
+
+test('unknown events and bad payloads stay silent with exit 0', () => {
+  const { cwd, home, cleanup } = sandbox();
+  try {
+    assert.equal(runHook({ hook_event_name: 'Stop' }, { cwd, home }), '');
+    assert.equal(runHook({ hook_event_name: 'UserPromptSubmit', prompt: 42 }, { cwd, home }), '');
+  } finally {
+    cleanup();
+  }
+});

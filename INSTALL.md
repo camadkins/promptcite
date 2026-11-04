@@ -95,8 +95,9 @@ asking you to remember. Install it only if you want that:
 | **Codex CLI** | `npx -y github:camadkins/promptcite --only codex-hook` | `~/.codex/hooks.json` |
 
 Both agents use the same hooks format, so one recorder (`bin/hook.js`) serves
-both — and any other agent that can run a command on a post-tool-use event is a
-one-line `MANIFEST` entry away.
+both. It registers for three events: after a tool runs, when you send a prompt,
+and when a session starts. Any other agent that can run a command on those
+events is a one-line `MANIFEST` entry away.
 
 **Registering the hook turns nothing on.** It stays inert until you opt in:
 
@@ -108,7 +109,13 @@ one-line `MANIFEST` entry away.
 What it does and doesn't do:
 
 - Records **only** timestamp, tool, model, file, and lines added — never your
-  code, never your prompts.
+  code, never your prompts. It also notes where your agent keeps its own
+  session transcript on your machine (the file path only, once per session), so
+  `/receipt` can read it later if your agent has compacted or cleared its
+  context. It never copies the transcript.
+- If you have a course file saved (`promptcite course`), it also reminds your
+  agent of that course's rules when you mention the course in a prompt. That
+  writes nothing to disk and works whether or not the ledger is on.
 - Writes to `~/.promptcite/ledgers/`, deliberately **outside** any repository,
   so it can't be swept into a submission. `/receipt` purges what it uses.
 - Never blocks, alters, or auto-approves a tool call. It observes after the

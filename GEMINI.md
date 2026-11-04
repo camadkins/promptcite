@@ -400,7 +400,8 @@ If the student has installed the PromptCite hook and enabled `ledger`, their
 agent records each AI insertion as it happens — a line per event in
 `~/.promptcite/ledgers/<hash>.jsonl`, **outside any repository**. The shape is
 `src/ledger.schema.yaml`: timestamp, tool, model, file, lines added. No code, no
-prompts, no hashes, no scores.
+prompts, no hashes, no scores. (A `session` event holds a path to the agent's own
+transcript, never its contents; see *Session pointers* below.)
 
 **The ledger exists for exactly one reason: so the student doesn't have to
 reconstruct their AI use from memory.** Its only consumer is this interview.
@@ -449,6 +450,19 @@ quietly destroy their notes about work they still have to disclose somewhere
 else. Say so in one short line — *"Cleared the entries this receipt covers; the
 rest are still in your ledger."* (Or just *"Cleared the ledger entries for this
 receipt."* when they selected everything.)
+
+**Session pointers (the whole assignment, not just what is left in context).**
+Besides insertion events, the ledger may hold `session` events: the path to a
+transcript file the student's own agent keeps on this machine. When the ledger
+has `session` pointers for this folder, read those transcript files to
+reconstruct AI use across the whole assignment, including sessions from before
+a compaction or a cleared context. They are local and the student's own. Use
+them the way you use insertion events: to jog the interview and fill in what the
+student confirms, summarized under the existing rules. **Never paste the
+transcript into the receipt** unless the student chose the `full_transcript`
+appendix. If a transcript file is gone or unreadable, say so in one line and ask
+the student what happened in that session. `session` events have no file, so leave them out of the numbered picker. Pointers follow the same selection,
+purge, and "never challenge the student" rules as everything else here.
 
 **Hard rules for the ledger — these are not stylistic:**
 

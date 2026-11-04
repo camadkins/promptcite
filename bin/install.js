@@ -280,7 +280,8 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  *                    (AGENTS.md, .goosehints, replit.md, …) so existing
  *                    content is preserved
  *   - cli-extension: shell out to the agent's own extension installer
- *   - hook-register: merge a PostToolUse entry into the agent's hooks config
+ *   - hook-register: merge our entries (PostToolUse, UserPromptSubmit,
+ *                    SessionStart) into the agent's hooks config
  *                    (JSON), preserving everything already in the file. Every
  *                    supported agent uses the same hooks shape, so adding one
  *                    is a data entry: give it a path, a base, and a `tool` id.
@@ -309,8 +310,12 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @property {boolean} [optIn]
  * @property {string} [tool]
  * @property {string} [event]
+ * @property {string[]} [events]  Every hook event to register for (default: PostToolUse only).
  * @property {string} [matcher]
  */
+
+/** The three events bin/hook.js handles (ADR 0010). */
+const HOOK_EVENTS = ['PostToolUse', 'UserPromptSubmit', 'SessionStart'];
 
 /** @type {AgentSpec[]} */
 const MANIFEST = [
@@ -385,10 +390,10 @@ const MANIFEST = [
   //     requires it). Both agents take the same hooks shape; a third is a
   //     one-line entry here.
   { id: 'claude-hook', name: 'Claude Code (AI-use hook)', strategy: 'hook-register',
-    base: 'configDir', path: 'settings.json', optIn: true, tool: 'claude-code',
+    base: 'configDir', path: 'settings.json', optIn: true, tool: 'claude-code', events: HOOK_EVENTS,
     display: '~/.claude/settings.json (hooks block)', detect: { homePaths: ['.claude'] } },
   { id: 'codex-hook', name: 'Codex CLI (AI-use hook)', strategy: 'hook-register',
-    base: 'home', path: '.codex/hooks.json', optIn: true, tool: 'codex-cli',
+    base: 'home', path: '.codex/hooks.json', optIn: true, tool: 'codex-cli', events: HOOK_EVENTS,
     display: '~/.codex/hooks.json', detect: { homePaths: ['.codex'] } },
 
   { id: 'jules', name: 'Jules (Google)', strategy: 'block-append', base: 'cwd',
@@ -443,7 +448,25 @@ export function isOurHook(hook) {
 }
 
 /**
- * Merge our PostToolUse entry into an agent's hooks config, preserving
+ * Events an entry registers for. Matchers differ per event: PostToolUse only
+ * cares about file writes, UserPromptSubmit takes no matcher at all, and
+ * SessionStart's matcher is how the session began.
+ * @param {any} entry @returns {string[]}
+ */
+function eventsOf(entry) {
+  if (Array.isArray(entry.events) && entry.events.length) return entry.events;
+  return [entry.event || 'PostToolUse'];
+}
+
+/** @param {string} event @param {any} entry @returns {string | undefined} */
+function matcherFor(event, entry) {
+  if (event === 'UserPromptSubmit') return undefined;
+  if (event === 'SessionStart') return 'startup|resume|clear|compact';
+  return entry.matcher || 'Write|Edit';
+}
+
+/**
+ * Merge our entries into an agent's hooks config, one per event, preserving
  * everything already there. Both supported agents use the same shape — Claude
  * Code nests it among other settings keys, Codex gives it its own file — so a
  * third agent is a manifest entry, not new code.
@@ -452,45 +475,48 @@ export function isOurHook(hook) {
 export function mergeHookConfig(config, entry) {
   const next = config && typeof config === 'object' ? { ...config } : {};
   const hooks = { ...(next.hooks || {}) };
-  const event = entry.event || 'PostToolUse';
-  const groups = Array.isArray(hooks[event]) ? hooks[event].map((/** @type {any} */ g) => ({ ...g })) : [];
 
   const ours = {
     type: 'command',
     command: `${hookCommandPath()} --tool ${entry.tool} ${HOOK_MARKER}`,
   };
-  const matcher = entry.matcher || 'Write|Edit';
 
-  const existing = groups.find((/** @type {any} */ g) => g.matcher === matcher);
-  if (existing) {
-    const kept = (existing.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h));
-    existing.hooks = [...kept, ours];
-  } else {
-    groups.push({ matcher, hooks: [ours] });
+  for (const event of eventsOf(entry)) {
+    const groups = Array.isArray(hooks[event]) ? hooks[event].map((/** @type {any} */ g) => ({ ...g })) : [];
+    const matcher = matcherFor(event, entry);
+    const existing = groups.find((/** @type {any} */ g) => g.matcher === matcher);
+    if (existing) {
+      const kept = (existing.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h));
+      existing.hooks = [...kept, ours];
+    } else {
+      groups.push(matcher === undefined ? { hooks: [ours] } : { matcher, hooks: [ours] });
+    }
+    hooks[event] = groups;
   }
 
-  hooks[event] = groups;
   next.hooks = hooks;
   return next;
 }
 
 /**
- * Remove only our entries, and only empty groups we emptied.
+ * Remove only our entries, and only empty groups we emptied. Sweeps every
+ * event, not just the ones this version registers, so an install from an
+ * older or newer version is cleaned up too.
  * @param {any} config @param {any} entry @returns {any}
  */
 export function unmergeHookConfig(config, entry) {
   if (!config || typeof config !== 'object' || !config.hooks) return config;
   const next = { ...config };
   const hooks = { ...next.hooks };
-  const event = entry.event || 'PostToolUse';
-  if (!Array.isArray(hooks[event])) return config;
 
-  const groups = hooks[event]
-    .map((/** @type {any} */ g) => ({ ...g, hooks: (g.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h)) }))
-    .filter((/** @type {any} */ g) => g.hooks.length > 0);
-
-  if (groups.length) hooks[event] = groups;
-  else delete hooks[event];
+  for (const event of new Set([...eventsOf(entry), ...HOOK_EVENTS])) {
+    if (!Array.isArray(hooks[event])) continue;
+    const groups = hooks[event]
+      .map((/** @type {any} */ g) => ({ ...g, hooks: (g.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h)) }))
+      .filter((/** @type {any} */ g) => g.hooks.length > 0);
+    if (groups.length) hooks[event] = groups;
+    else delete hooks[event];
+  }
 
   if (Object.keys(hooks).length) next.hooks = hooks;
   else delete next.hooks;

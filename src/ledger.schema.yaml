@@ -83,6 +83,36 @@ fields:
       Number of lines in the inserted text. Enough to jog the student's
       memory about scale without characterizing the code.
 
+  type:
+    type: string
+    required: false
+    description: |
+      Event kind. Absent means an insertion event (everything above), which
+      is how every pre-0010 ledger line reads. "session" marks a session
+      pointer (see below). Readers MUST ignore types they don't know.
+    enum: [session]
+
+# ---------------------------------------------------------------------------
+# Session pointer events (additive, ADR 0010)
+# ---------------------------------------------------------------------------
+# A `session` event says "the agent kept a transcript of a session in this
+# folder, and here is where". It is a pointer, never a copy: the hook records
+# the transcript's path and nothing from inside it. At most one per session_id
+# per ledger. Carries schema_version, event_id, ts and tool like any event, plus:
+#
+#   type:            "session"
+#   session_id:      the agent's own session identifier (string).
+#   transcript_path: absolute path to the agent's own transcript file. Unlike
+#                    `file` above this is absolute, because the transcript
+#                    lives in the agent's folder, not the project. The ledger
+#                    is local and outside any repository (ADR 0006).
+#
+# `file` and `lines_added` do not apply to a session event. `/receipt` reads the
+# files these paths name, with the student's say-so, to reconstruct AI use
+# across a whole assignment, including sessions before a compaction. If a file
+# is gone, the student is asked instead. Consumed and expired exactly like
+# insertion events.
+
 # ---------------------------------------------------------------------------
 # Deliberately absent
 # ---------------------------------------------------------------------------
@@ -96,3 +126,4 @@ fields:
 
 example: |
   {"schema_version":"1.0","event_id":"a4f21","ts":"2026-08-01T04:12:33Z","tool":"claude-code","model":"Claude Opus 5","file":"src/sort.py","lines_added":24}
+  {"schema_version":"1.0","event_id":"b7c03","ts":"2026-08-01T04:10:02Z","tool":"claude-code","type":"session","session_id":"abc123","transcript_path":"/Users/sam/.claude/projects/hw3/abc123.jsonl"}

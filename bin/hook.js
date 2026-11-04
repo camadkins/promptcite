@@ -13,10 +13,17 @@
 //   promptcite-hook --tool claude-code
 //
 // Design constraints, all load-bearing (see docs/adr/0006-*.md):
-//   - PostToolUse only. Nothing here can block, alter, or auto-approve a tool
-//     call. Rewriting tool input at PreToolUse would require emitting an
-//     "allow" permission decision, which silently approves file writes the
-//     student would otherwise be asked about. Not worth it for a comment.
+//   - Three events: PostToolUse, UserPromptSubmit, SessionStart (ADR 0010).
+//     Nothing here can block, alter, or auto-approve a tool call or a prompt.
+//     Rewriting tool input at PreToolUse would require emitting an "allow"
+//     permission decision, which silently approves file writes the student
+//     would otherwise be asked about. Not worth it for a comment. The two
+//     added events only ever print context for the agent to read.
+//   - Pointer, not copy. The ledger may hold the path of the agent's own
+//     session transcript, never its content. The transcript already exists in
+//     the agent's folder; we read it only when the student runs /receipt.
+//   - Course context writes nothing. UserPromptSubmit prints the student's own
+//     course file back to the agent and touches no file.
 //   - Off by default. Both the ledger and markers require opt-in.
 //   - Never fails loudly. Any error exits 0 in silence; a disclosure tool must
 //     not be the reason someone's editor stops working.
@@ -28,8 +35,9 @@ import {
   openSync, closeSync, fstatSync, ftruncateSync, writeSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, extname, relative, resolve, basename } from 'node:path';
+import { join, extname, relative, resolve, basename, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listCourses, loadCourse, validateCourse } from './course.js';
 
 /**
  * @typedef {'line'|'block'} MarkerStyle
@@ -43,8 +51,21 @@ import { fileURLToPath } from 'node:url';
  * @property {number} lines_added
  * @property {string} [model]
  *
+ * @typedef {Object} SessionEvent
+ * @property {string} schema_version
+ * @property {string} event_id
+ * @property {string} ts
+ * @property {string} tool
+ * @property {'session'} type
+ * @property {string} session_id
+ * @property {string} transcript_path
+ *
  * @typedef {Object} HookPayload
  * @property {string} [hook_event_name]
+ * @property {string} [session_id]
+ * @property {string} [transcript_path]
+ * @property {string} [prompt]
+ * @property {string} [source]
  * @property {string} [tool_name]
  * @property {Record<string, any>} [tool_input]
  * @property {string} [model]
@@ -241,7 +262,7 @@ export function pruneExpired(lines, ttlDays, now = new Date()) {
  * purges what it consumes), so nothing here needs to rewrite the file.
  *
  * @param {string} ledgerPath
- * @param {LedgerEvent} event
+ * @param {LedgerEvent | SessionEvent} event
  */
 function appendEvent(ledgerPath, event) {
   mkdirSync(join(ledgerPath, '..'), { recursive: true });
@@ -428,6 +449,200 @@ function debug(message) {
   if (process.env.PROMPTCITE_DEBUG === '1') process.stderr.write(`promptcite-hook: ${message}\n`);
 }
 
+/** @param {string} cwd */
+function realCwd(cwd) {
+  let real = resolve(cwd);
+  try {
+    real = realpathSync(real);
+  } catch { /* keep the resolved path */ }
+  return real;
+}
+
+/**
+ * Parsed events of a ledger, skipping anything unparseable.
+ *
+ * @param {string} ledgerPath
+ * @returns {Record<string, any>[]}
+ */
+function readLedger(ledgerPath) {
+  try {
+    if (!existsSync(ledgerPath)) return [];
+    const out = [];
+    for (const line of readFileSync(ledgerPath, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try { out.push(JSON.parse(line)); } catch { /* skip */ }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Add one `session` event per session_id per ledger: a pointer to the agent's
+ * own transcript file. Never the transcript's content (ADR 0010). Does nothing
+ * when the ledger is off or the payload carries no usable pointer.
+ *
+ * @param {HookPayload} payload
+ * @param {string} cwd resolved working directory
+ * @param {string} tool
+ * @param {string} [home]
+ * @returns {boolean} whether a new event was written
+ */
+export function recordSession(payload, cwd, tool, home = homedir()) {
+  const config = loadConfig(cwd);
+  if (!config.ledgerEnabled) return false;
+  const { session_id: sessionId, transcript_path: transcript } = payload;
+  if (typeof sessionId !== 'string' || !sessionId) return false;
+  if (typeof transcript !== 'string' || !transcript || !isAbsolute(transcript)) return false;
+  const ledgerPath = resolveLedgerPath(cwd, home);
+  if (readLedger(ledgerPath).some((e) => e.type === 'session' && e.session_id === sessionId)) return false;
+  appendEvent(ledgerPath, {
+    schema_version: LEDGER_SCHEMA_VERSION,
+    event_id: randomBytes(3).toString('hex').slice(0, 5),
+    ts: new Date().toISOString(),
+    tool,
+    type: 'session',
+    session_id: sessionId,
+    transcript_path: transcript,
+  });
+  debug(`recorded session pointer ${sessionId}`);
+  return true;
+}
+
+/**
+ * Regex for a course name, id, or alias that ignores case, spaces, dashes and
+ * underscores: "csce 423", "CSCE-423" and "csce423" all match "CSCE 423".
+ * Letter and digit runs are the units, and the match must not sit inside a
+ * longer word or number ("csce4230" does not match "csce 423").
+ *
+ * @param {string} candidate
+ * @returns {RegExp | null}
+ */
+export function courseMatcher(candidate) {
+  const parts = String(candidate).toLowerCase().match(/[a-z]+|[0-9]+/g);
+  if (!parts || parts.join('').length < 3) return null; // too short to mean anything
+  return new RegExp(`(?<![a-z0-9])${parts.join('[\\s_-]*')}(?![a-z0-9])`, 'i');
+}
+
+/** @param {any} course @param {string} prompt */
+function mentions(course, prompt) {
+  const names = [course.id, course.name, ...(Array.isArray(course.aliases) ? course.aliases : [])];
+  return names.some((n) => {
+    const re = typeof n === 'string' ? courseMatcher(n) : null;
+    return re ? re.test(prompt) : false;
+  });
+}
+
+const CONTEXT_CAP = 4096;
+const QUOTE_CAP = 400;
+
+/** @param {string} text @param {number} max */
+function clip(text, max) {
+  const flat = String(text).replace(/\s+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/**
+ * The short note the agent sees. Each rule keeps its verbatim syllabus quote,
+ * because a rule without its quote is a paraphrase, and a paraphrase is how
+ * "ask first" turns into "allowed". Trimmed to CONTEXT_CAP by dropping rules
+ * from the end and saying so.
+ *
+ * @param {any} course
+ */
+export function courseContext(course) {
+  const head = `PromptCite course note: this work matches the student's course "${clip(course.name, 80)}". Its AI-use rules come from the course syllabus, saved by the student in a PromptCite course file. They are the instructor's words, not PromptCite's.`;
+  const guidance = Array.isArray(course.guidance) ? course.guidance : [];
+  const rules = guidance.map((/** @type {any} */ g) => `- ${clip(g.rule, 240)} (syllabus: "${clip(g.quote, QUOTE_CAP)}")`);
+  const unclear = Array.isArray(course.unclear) ? course.unclear.map((/** @type {any} */ u) => clip(u.topic, 120)) : [];
+  /** @type {string[]} */
+  const tail = [];
+  if (unclear.length) tail.push(`The syllabus is unclear on: ${unclear.join('; ')}.`);
+  tail.push('Silence in the syllabus is not permission. Where it says nothing, the question is open and worth asking the instructor.');
+
+  const build = (/** @type {number} */ n) => {
+    const shown = rules.slice(0, n);
+    const lines = [head];
+    if (shown.length) lines.push('Rules:', ...shown);
+    if (n < rules.length) lines.push(`(${rules.length - n} more rules are in the course file.)`);
+    lines.push(...tail);
+    return lines.join('\n');
+  };
+  let n = rules.length;
+  let text = build(n);
+  while (text.length > CONTEXT_CAP && n > 0) {
+    n -= 1;
+    text = build(n);
+  }
+  return text.length > CONTEXT_CAP ? text.slice(0, CONTEXT_CAP) : text;
+}
+
+/**
+ * The first course the student has a file for that the prompt mentions, or the
+ * course this folder is bound to. Invalid course files are skipped.
+ *
+ * @param {string} prompt
+ * @param {string} cwd
+ * @param {string} [home]
+ */
+export function findCourse(prompt, cwd, home = homedir()) {
+  const bound = readJsonIfPresent(join(cwd, 'promptcite.config.json'))?.course;
+  if (typeof bound === 'string') {
+    const entry = loadCourse(bound, home);
+    if (entry && entry.errors.length === 0) return entry.course;
+  }
+  for (const entry of listCourses(home)) {
+    if (entry.errors.length) continue;
+    if (!validateCourse(entry.course).errors.length && mentions(entry.course, prompt)) return entry.course;
+  }
+  return null;
+}
+
+/**
+ * UserPromptSubmit: record the session pointer (ledger on) and return the
+ * course note to print, or null. Writes nothing but the pointer.
+ *
+ * @param {HookPayload} payload
+ * @param {{ tool?: string, cwd?: string, home?: string }} [options]
+ * @returns {string | null}
+ */
+export function handleUserPrompt(payload, { tool = 'unknown', cwd: rawCwd = process.cwd(), home = homedir() } = {}) {
+  const cwd = realCwd(rawCwd);
+  recordSession(payload, cwd, tool, home);
+  // Same master switch as recording: a student who turned PromptCite off gets
+  // no output from it either.
+  if (readJsonIfPresent(join(cwd, 'promptcite.config.json'))?.enabled === false) return null;
+  const prompt = typeof payload.prompt === 'string' ? payload.prompt : '';
+  const course = findCourse(prompt, cwd, home);
+  if (!course) return null;
+  return JSON.stringify({
+    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: courseContext(course) },
+  });
+}
+
+/**
+ * SessionStart after a compaction, resume or clear: point the agent at the
+ * earlier transcripts the ledger knows about for this folder.
+ *
+ * @param {HookPayload} payload
+ * @param {{ cwd?: string, home?: string }} [options]
+ * @returns {string | null}
+ */
+export function handleSessionStart(payload, { cwd: rawCwd = process.cwd(), home = homedir() } = {}) {
+  const source = payload.source;
+  if (source !== 'compact' && source !== 'resume' && source !== 'clear') return null;
+  const cwd = realCwd(rawCwd);
+  const config = loadConfig(cwd);
+  if (!config.ledgerEnabled) return null;
+  const lines = readLedger(resolveLedgerPath(cwd, home)).map((e) => JSON.stringify(e));
+  const events = pruneExpired(lines, config.ttlDays).map((l) => JSON.parse(l));
+  const paths = [...new Set(events.filter((e) => e.type === 'session' && typeof e.transcript_path === 'string').map((e) => e.transcript_path))].slice(-10);
+  if (!paths.length) return null;
+  const text = `PromptCite note: the student's PromptCite ledger lists ${paths.length} earlier agent session transcript${paths.length === 1 ? '' : 's'} for this folder (kept on this machine by the agent itself): ${paths.join(', ')}. After a ${source}, the earlier part of the work may no longer be in context, so a PromptCite /receipt run reads those files to reconstruct AI use across the whole assignment.`;
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } });
+}
+
 /**
  * @param {HookPayload} payload
  * @param {{ tool?: string, cwd?: string }} [options]
@@ -439,6 +654,8 @@ export function run(payload, { tool = 'unknown', cwd: rawCwd = process.cwd() } =
   } catch { /* keep the resolved path */ }
   const config = loadConfig(cwd);
   if (!config.ledgerEnabled) return debug('ledger disabled');
+
+  recordSession(payload, cwd, tool);
 
   const toolName = payload.tool_name;
   const toolInput = payload.tool_input || {};
@@ -494,10 +711,19 @@ function main() {
     const raw = readStdin();
     if (!raw.trim()) return;
     const payload = JSON.parse(raw);
-    if (payload.hook_event_name && payload.hook_event_name !== 'PostToolUse') {
-      return debug(`ignoring ${payload.hook_event_name}`);
+    const event = payload.hook_event_name;
+    const options = { tool: tool || 'unknown', cwd: payload.cwd || process.cwd() };
+    if (event === 'UserPromptSubmit') {
+      const out = handleUserPrompt(payload, options);
+      if (out) process.stdout.write(`${out}\n`);
+    } else if (event === 'SessionStart') {
+      const out = handleSessionStart(payload, options);
+      if (out) process.stdout.write(`${out}\n`);
+    } else if (!event || event === 'PostToolUse') {
+      run(payload, options);
+    } else {
+      debug(`ignoring ${event}`);
     }
-    run(payload, { tool: tool || 'unknown', cwd: payload.cwd || process.cwd() });
   } catch (error) {
     debug(String(error));
   }
