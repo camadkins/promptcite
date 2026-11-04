@@ -487,3 +487,22 @@ test('uninstall names the folders it left empty and gives an rmdir line', () => 
   assert.match(out, /rmdir .*\.copilot/);
   assert.ok(existsSync(join(home, '.copilot')), 'we never delete the folder ourselves');
 }));
+
+test('install ships the help docs to ~/.promptcite/help, full uninstall removes them', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli'], cwd).code, 0);
+  const help = join(home, '.promptcite', 'help');
+  for (const f of ['README.md', 'using-receipt.md', 'troubleshooting.md', 'VERSION']) {
+    assert.ok(existsSync(join(help, f)), `${f} installed`);
+  }
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(readFileSync(join(help, 'VERSION'), 'utf8').trim(), pkg.version);
+  assert.equal(run(['--only', 'copilot-cli', '--uninstall'], cwd).code, 0);
+  assert.ok(existsSync(help), 'a single-agent uninstall keeps help for the others');
+  assert.equal(run(['--uninstall'], cwd).code, 0);
+  assert.ok(!existsSync(help), 'full uninstall removes help');
+}));
+
+test('--dry-run never writes the help docs', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli', '--dry-run'], cwd).code, 0);
+  assert.ok(!existsSync(join(home, '.promptcite')));
+}));

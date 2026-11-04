@@ -237,6 +237,10 @@ curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/main/install.s
 
 Or, from a clone: `node bin/install.js --uninstall`.
 
+Install also copies a few help pages to `~/.promptcite/help/`, matching the
+version you installed, so your agent can answer "how do I..." and
+troubleshooting questions offline. A full `--uninstall` removes them.
+
 Removes the slash command from every agent the installer touched, the
 shared rule file, and any `--with-init` artifacts in the current repo.
 

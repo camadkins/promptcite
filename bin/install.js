@@ -505,6 +505,38 @@ async function noteIfEmptied(ctx, dir) {
   } catch { /* already gone */ }
 }
 
+/** Where the bundled help docs go. One copy for every agent, matching this version. */
+function helpDir() {
+  return join(homedir(), '.promptcite', 'help');
+}
+
+/**
+ * Copy src/help/*.md to ~/.promptcite/help so any agent can answer "how do I"
+ * questions offline from docs that match the installed version.
+ * @param {InstallContext} ctx @param {string} version
+ */
+async function installHelp(ctx, version) {
+  const src = join(ctx.repoRoot, 'src', 'help');
+  if (!(await pathExists(src))) return;
+  const dest = helpDir();
+  await ctx.adapter.ensureDirectory(dest);
+  for (const name of (await readdir(src)).filter((n) => n.endsWith('.md'))) {
+    const body = await readFile(join(src, name), 'utf8');
+    if ((await ctx.adapter.readFileIfPresent(join(dest, name))) !== body) {
+      await ctx.adapter.writeFile(join(dest, name), body);
+    }
+  }
+  if ((await ctx.adapter.readFileIfPresent(join(dest, 'VERSION'))) !== `${version}\n`) {
+    await ctx.adapter.writeFile(join(dest, 'VERSION'), `${version}\n`);
+  }
+}
+
+/** @param {InstallContext} ctx */
+async function uninstallHelp(ctx) {
+  if (await ctx.adapter.pathExists(helpDir())) await ctx.adapter.deleteDirectory(helpDir());
+  await noteIfEmptied(ctx, dirname(helpDir()));
+}
+
 /** Absolute path to the recorder we register. No PATH lookup, no network. */
 function hookCommandPath() {
   return fileURLToPath(new URL('./hook.js', import.meta.url));
@@ -1293,6 +1325,9 @@ async function main(argv) {
     }
   }
 
+  if (parsed.uninstall && !parsed.only) await uninstallHelp(ctx);
+  if (!parsed.uninstall && successCount > 0) await installHelp(ctx, await readPackageVersion());
+
   if (parsed.uninstall) {
     const summary = `${c.green('uninstalled.')} ${successCount} agent(s) processed.`;
     ctx.log(skipCount > 0 ? `${summary} ${skipCount} skipped.` : summary);
@@ -1311,6 +1346,7 @@ async function main(argv) {
   if (successCount > 0) {
     ctx.log('');
     ctx.log(`${c.bold('next:')} open a fresh session in your agent and type ${c.cyan('/receipt')} to try it.`);
+    ctx.log(`help: ask your agent "how do I use /receipt?" (it reads ${helpDir()})`);
     ctx.log(`docs: https://github.com/camadkins/promptcite`);
   }
   return 0;
