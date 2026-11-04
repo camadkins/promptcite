@@ -6,9 +6,10 @@
 // validates the receipt against the schema, and prints a plain-English
 // report an instructor can read without knowing the JSON shape.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
@@ -297,26 +298,33 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
 }
 
 function printHelp() {
-  console.log(`promptcite verify <receipt.json> [options]
+  console.log(`promptcite verify <receipt.json> [more receipts or a directory] [options]
 
 Verifies PromptCite receipts: recomputes the content_hash, validates each
 receipt against the schema, and prints a plain-English summary of what the
 student disclosed.
 
+One file prints the full report. Several files, or a directory (its *.json
+files, not recursive), print one status line per file:
+  INTACT | MISMATCH | UNVERIFIABLE | INVALID | ERROR
+The tool reports; it does not count, score, rank, or total anything.
+
 Options:
   --submission <file>  hash <file> (SHA-256) and compare it to the receipt's
                        submission_hash: MATCH, DIFFERENT, or "receipt has no
-                       submission_hash".
+                       submission_hash". One receipt only.
+  --details            in batch mode, follow each status line with the full report
   -h, --help           this text
 
-Exit codes:
+Exit codes (a batch exits with the most severe, in the order listed here):
   0  hash matches AND schema valid (receipt unmodified and well-formed)
   1  hash mismatch (receipt has been edited since emission)
   2  no content_hash field, or null hash (receipt is unverifiable)
   3  file not found, malformed JSON, or other user error
   4  hash matches but the receipt fails schema validation
   5  --submission file does not match the receipt's submission_hash
-  A receipt with no submission_hash does not change the exit code.
+  Severity, most to least: 3, 1, 5, 4, 2, 0. A receipt with no
+  submission_hash does not change the exit code.
 
 Honest framing: this is tamper-evident, not tamper-proof. A determined
 forger can recompute the hash after editing. The check matters because
@@ -478,6 +486,34 @@ function parseArgs(argv) {
 }
 
 /**
+ * Expand the arguments to receipt paths. A directory contributes its *.json
+ * files, sorted, one level deep.
+ * @param {string[]} args
+ * @returns {Promise<{ targets: { path: string, note?: string }[], batch: boolean }>}
+ */
+async function expandTargets(args) {
+  /** @type {{ path: string, note?: string }[]} */
+  const targets = [];
+  let batch = args.length > 1;
+  for (const arg of args) {
+    let isDir = false;
+    try { isDir = (await stat(arg)).isDirectory(); } catch { /* inspectReceipt reports it */ }
+    if (!isDir) { targets.push({ path: arg }); continue; }
+    batch = true;
+    const names = (await readdir(arg)).filter((n) => n.endsWith('.json')).sort();
+    /** @type {string[]} */
+    const found = [];
+    for (const n of names) {
+      const full = join(arg, n);
+      try { if ((await stat(full)).isFile()) found.push(full); } catch { /* skip */ }
+    }
+    if (found.length === 0) targets.push({ path: arg, note: `${arg} has no .json files` });
+    for (const f of found) targets.push({ path: f });
+  }
+  return { targets, batch };
+}
+
+/**
  * @param {string[]} argv
  * @returns {Promise<number>}
  */
@@ -492,13 +528,13 @@ export async function runVerify(argv) {
     return 3;
   }
 
-  const batch = opts.files.length > 1;
+  const { targets, batch } = await expandTargets(opts.files);
 
   /** @type {{ path: string, bytes: Buffer } | null} */
   let submission = null;
   if (opts.submission !== null) {
     if (batch) {
-      console.error('error: --submission checks one file against one receipt; give it a single receipt');
+      console.error('error: --submission checks one file against one receipt; give it a single receipt, not several or a directory');
       return 3;
     }
     try {
@@ -509,11 +545,35 @@ export async function runVerify(argv) {
     }
   }
 
-  const only = opts.files[0];
-  if (!only) return 3;
-  const res = await inspectReceipt(only, submission);
-  emit(res.out, false);
-  return res.code;
+  if (!batch) {
+    const only = targets[0];
+    if (!only) return 3;
+    const res = await inspectReceipt(only.path, submission);
+    emit(res.out, false);
+    return res.code;
+  }
+
+  // Batch: one status line per file, in order. Full reports only on request.
+  // Nothing is totalled across files; the exit code is the single summary.
+  /** @type {number[]} */
+  const codes = [];
+  for (const t of targets) {
+    if (t.note) {
+      console.log(`${'ERROR'.padEnd(12)} ${t.path} (${t.note})`);
+      codes.push(3);
+      continue;
+    }
+    const res = await inspectReceipt(t.path, null);
+    codes.push(res.code);
+    const why = res.status === 'ERROR' ? ` (${res.reason})` : '';
+    console.log(`${res.status.padEnd(12)} ${t.path}${why}`);
+    if (opts.details && res.status !== 'ERROR') {
+      console.log('');
+      emit(res.out, true);
+      console.log('');
+    }
+  }
+  return worstCode(codes);
 }
 
 /**

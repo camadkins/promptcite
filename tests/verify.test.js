@@ -513,11 +513,105 @@ test('--submission refuses to run against several receipts', async () => {
     const r = await capture([receiptPath, receiptPath, '--submission', essay]);
     assert.equal(r.code, 3);
     assert.match(r.stderr, /single receipt/);
-      });
+    assert.equal((await capture([dir, '--submission', essay])).code, 3);
+  });
 });
 
 test('--help documents --submission and exit 5', async () => {
   const r = await capture(['--help']);
   assert.match(r.stdout, /--submission/);
   assert.match(r.stdout, /\n\s+5\s+/);
+});
+
+// --- batch ---
+
+/** A directory of receipts: one INTACT, one MISMATCH, one INVALID, plus noise. */
+async function withMixedDir(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-batch-'));
+  try {
+    const good = v2();
+    wf(join(dir, 'a-intact.json'), JSON.stringify({ ...good, content_hash: computeHash(good) }));
+    wf(join(dir, 'b-mismatch.json'), JSON.stringify({ ...good, student: 'Edited', content_hash: computeHash(good) }));
+    const { student, ...broken } = good;
+    wf(join(dir, 'c-invalid.json'), JSON.stringify({ ...broken, content_hash: computeHash(broken) }));
+    wf(join(dir, 'notes.txt'), 'not a receipt');
+    mkdirSync(join(dir, 'sub'));
+    wf(join(dir, 'sub', 'd-nested.json'), '{}');
+    return await fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('a directory prints one status line per .json file, non-recursively', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([dir]);
+    const lines = r.stdout.split('\n');
+    assert.equal(lines.length, 3);
+    assert.match(lines[0], /^INTACT\s+.*a-intact\.json$/);
+    assert.match(lines[1], /^MISMATCH\s+.*b-mismatch\.json$/);
+    assert.match(lines[2], /^INVALID\s+.*c-invalid\.json$/);
+    assert.doesNotMatch(r.stdout, /d-nested|notes\.txt/);
+  });
+});
+
+test('a batch exits with the most severe code (mismatch beats invalid)', async () => {
+  await withMixedDir(async (dir) => {
+    assert.equal((await capture([dir])).code, 1);
+    // Without the mismatch, invalid (4) is the worst present.
+    rmSync(join(dir, 'b-mismatch.json'));
+    assert.equal((await capture([dir])).code, 4);
+  });
+});
+
+test('a batch of clean receipts exits 0, and the examples all verify', async () => {
+  const ex = new URL('../examples/', import.meta.url).pathname;
+  const r = await capture([ex]);
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /INTACT\s+.*brainstorm-receipt\.json/);
+  assert.match(r.stdout, /INTACT\s+.*multi-session-receipt\.json/);
+});
+
+test('batch prints no report unless --details is given', async () => {
+  await withMixedDir(async (dir) => {
+    assert.doesNotMatch((await capture([dir])).stdout, /Receipt summary/);
+    const d = await capture([dir, '--details']);
+    assert.equal((d.stdout.match(/--- Receipt summary ---/g) || []).length, 3);
+    assert.equal(d.code, 1);
+  });
+});
+
+test('several file arguments are a batch, an unreadable one is ERROR and exits 3', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([join(dir, 'a-intact.json'), join(dir, 'missing.json')]);
+    assert.match(r.stdout, /^INTACT/m);
+    assert.match(r.stdout, /^ERROR\s+.*missing\.json/m);
+    assert.equal(r.code, 3);
+  });
+});
+
+test('an empty directory is an error, not a silent success', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-empty-'));
+  try {
+    const r = await capture([dir]);
+    assert.equal(r.code, 3);
+    assert.match(r.stdout, /no \.json files/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('batch output carries no counts or totals across receipts', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([dir, '--details']);
+    assert.doesNotMatch(r.stdout, /\b\d+ (receipts|files|sessions|students)\b|total|summary of/i);
+  });
+});
+
+test('single-file output is unchanged by the batch work: stored/recomputed lines, report, no status word line', async () => {
+  const ex = new URL('../examples/brainstorm-receipt.json', import.meta.url).pathname;
+  const r = await capture([ex]);
+  assert.match(r.stdout, /^ok: .* content_hash matches recomputation\./);
+  assert.match(r.stdout, /--- Receipt summary ---/);
+  assert.doesNotMatch(r.stdout, /^INTACT\s/m);
 });

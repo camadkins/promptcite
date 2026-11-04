@@ -155,7 +155,28 @@ It accepts both 1.x and 2.x receipts. Anything the student left unset prints as
 "not stated"; that is not a flag. The tool reports what was disclosed. It does
 not count, score, or rank it.
 
-Exit codes:
+### A stack of receipts
+
+Give it several files, or a directory (its `*.json` files, not subfolders), and it
+prints one status line per receipt instead of a full report:
+
+```bash
+promptcite-verify submissions/essay-1/
+```
+
+```
+INTACT       submissions/essay-1/alvarez.json
+MISMATCH     submissions/essay-1/chen.json
+INVALID      submissions/essay-1/okafor.json
+UNVERIFIABLE submissions/essay-1/reyes.json
+```
+
+`INVALID` means the hash is intact but the receipt fails the schema. Add
+`--details` to follow each status line with the full report. Nothing is totalled
+across receipts, and there is no export; the only summary is the exit code.
+
+Exit codes (a batch exits with the most severe one present, in this order of
+severity: 3, 1, 5, 4, 2, 0):
 - `0` hash matches AND the receipt is well-formed (unmodified, valid)
 - `1` hash mismatch (receipt was edited)
 - `2` no `content_hash` field, or null (the agent had no code-execution
@@ -189,6 +210,8 @@ shasum -a 256 path/to/their-essay.pdf
 
 Same honest limits apply (a student could hash a different file): it's a binding
 aid, not proof. `null` means the agent couldn't hash the file at generation time.
+`--submission` checks one file against one receipt, so it does not combine with a
+batch.
 
 **Honest limits:** this is tamper-evident, not tamper-proof. A
 determined student can recompute the hash after editing since the
