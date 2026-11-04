@@ -152,6 +152,42 @@ Or just run `/receipt settings` inside your agent to set them
 conversationally. Settings are local config — never hashed, never part of
 a receipt, never sent anywhere.
 
+## Course files (one per class)
+
+Each class has its own AI rules, usually in the syllabus. Give PromptCite the
+syllabus once, inside your agent:
+
+```text
+/receipt course add ~/Downloads/csce423-syllabus.pdf
+```
+
+It drafts a course file from what the syllabus actually says: each rule with
+the syllabus's own words quoted under it, and a list of what the syllabus
+leaves unclear. Nothing is saved until you say yes. It reads a local file only;
+if your syllabus is a web page, download it first.
+
+Course files live in `~/.promptcite/courses/<id>.json`, outside any repo.
+
+```bash
+promptcite course                      # list your course files
+promptcite course show csce-423        # what the syllabus says, with quotes
+promptcite course use csce-423         # this folder is CSCE 423 work
+promptcite course clear                # unbind this folder
+promptcite course check my-course.json # validate a hand-edited file (exit 1 if not usable)
+```
+
+With a folder bound, `/receipt` uses that class's rules without asking. In an
+unbound folder, mention the course ("working on CSCE 423") and it asks once
+to confirm. `/receipt course` shows the active course's rules and
+`/receipt ask <question>` answers from them. An assignment's
+`promptcite.policy.json` still wins over a course file, and a course file can't
+turn recording on: `require_ledger`, `require_markers`, and
+`require_attestation` stay assignment-only.
+
+A course file is your reading of the syllabus, for your screen. It is never
+written into a receipt, and the syllabus and your instructor stay the
+authority.
+
 ## Manual install (no `curl | bash`)
 
 If you'd rather see exactly what runs:

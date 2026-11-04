@@ -249,6 +249,17 @@ translation. The receipt JSON and citations stay in English. The languages
 available are the files in [`src/locales/`](../src/locales/); an unavailable
 language falls back to English and the student is told.
 
+**Your syllabus already counts.** Students can hand PromptCite your syllabus
+with `/receipt course add`, and it saves your AI-use rules to a course file on
+their machine, each rule quoted word for word from your syllabus. From then on
+their agent advises them by your rules in your class, and a
+`promptcite.policy.json` you publish for one assignment still takes precedence.
+Two things follow for you. Write the AI section of your syllabus plainly,
+since what you leave unsaid comes back to students as "the syllabus doesn't
+say; ask your instructor" rather than as permission. And the course file is the
+student's reading, never sent to you and never part of a receipt; your
+syllabus stays the authority. See [ADR 0009](./adr/0009-course-policies-from-the-syllabus.md).
+
 **Policy that PromptCite explicitly does not support:**
 > ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite
 > does not verify anything. It is a disclosure artifact, not a

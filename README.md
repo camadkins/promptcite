@@ -52,6 +52,15 @@ Recording is per folder and off by default: `promptcite on` when you start an
 assignment, `promptcite off` when it's handed in, `promptcite status` to see
 where you are.
 
+Different classes, different AI rules. Hand PromptCite a syllabus once with
+`/receipt course add syllabus.pdf` and it saves that class's AI-use rules, each
+one quoted word for word from the syllabus, to a course file on your machine.
+Bind a homework folder with `promptcite course use csce-423`, or just say
+"working on CSCE 423," and `/receipt` follows that class's rules while
+`/receipt ask "can I use AI to check my proof?"` answers from the syllabus.
+Where the syllabus says nothing, it tells you to ask your instructor rather
+than guessing. See [INSTALL.md](./INSTALL.md#course-files-one-per-class).
+
 It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
 
 ## See it in action

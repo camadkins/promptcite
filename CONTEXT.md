@@ -51,6 +51,19 @@ is responsible for accuracy; the reader evaluates plausibility.
   requirements (allowed categories, required style/appendices) the rule
   reads to steer the interview. Configuration, never part of a receipt.
   **Policy overrides settings on conflict.**
+- **Course file** — one class's AI-use rules, read from its syllabus by
+  `/receipt course add` and kept at `~/.promptcite/courses/<id>.json`. Holds
+  `guidance` (a plain rule plus the syllabus's verbatim `quote` for each),
+  `unclear` (what the syllabus leaves open), and an optional `policy` with the
+  assignment-policy keys minus `require_ledger` / `require_markers` /
+  `require_attestation`. Student-owned configuration: advises, never enforces,
+  never part of a receipt. Precedence: **assignment policy > course policy >
+  settings**. See ADR 0009.
+- **Course binding** — the `"course": "<id>"` key in a folder's
+  `promptcite.config.json`, written by `promptcite course use <id>` and removed
+  by `promptcite course clear`. It makes that course active in that folder
+  without asking. With no binding, a course the student names is matched by
+  id/name/aliases and confirmed in one line.
 - **Ledger** — the optional append-only record of AI-insertion events written
   by the hook and read by `/receipt` to jog the student's memory. Lives at
   `~/.promptcite/ledgers/<hash>.jsonl`, outside any repository, and is purged
@@ -102,7 +115,9 @@ duplicate either into adapters or edit `GEMINI.md` by hand.
   working-directory rule: it is written *outside* any repository, because a
   record of AI use sitting in a working tree can be swept into a submission or
   demanded from a repo. The exception exists to narrow the tool's reach, not to
-  widen it — see ADR 0006.
+  widen it — see ADR 0006. **Course files** are the second: they sit beside
+  the ledger in `~/.promptcite/courses/`, written only on the student's yes to
+  a draft they have seen. See ADR 0009.
 - **PromptCite cannot testify against its user.** No feature may produce an
   artifact that a third party can use to make a case the student did not
   volunteer. This is the constraint the ledger's location, its purge-on-use, and

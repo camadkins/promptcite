@@ -6,6 +6,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Course files: one class's AI rules, from its syllabus.** `/receipt course
+  add <file>` reads a local syllabus and drafts a course file at
+  `~/.promptcite/courses/<id>.json`, every rule quoted verbatim from the
+  syllabus and anything vague listed as unclear. `/receipt course` shows the
+  active course and `/receipt ask <question>` answers from it. A course is
+  active through a folder binding or by name in what the student types,
+  confirmed in one line. Course policy sits between the assignment's
+  `promptcite.policy.json` and the student's settings. New CLI commands:
+  `promptcite course`, `course show`, `course use`, `course clear`, and
+  `course check`; `promptcite status` shows the bound course. See ADR 0009.
+
 ### Removed
 
 - **npm publishing.** The publish workflow is gone and PromptCite is not on the
