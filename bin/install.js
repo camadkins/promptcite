@@ -259,7 +259,7 @@ class StubSkipError extends Error {
 
 /** @param {string} id */
 const STUB_MESSAGE = (id) =>
-  `[${id}] adapter coming in next release — for now use 'npx skills add camadkins/promptcite -a ${id}' (validates against vercel-labs/skills registry once promptcite is added)`;
+  `installs per project. Run it inside your project: promptcite --only ${id} --with-init`;
 
 const RULE_HEADER = '<!-- PromptCite /receipt rule — see github.com/camadkins/promptcite -->';
 
@@ -1149,8 +1149,8 @@ async function main(argv) {
           ctx.log(`${c.yellow('skipping')} ${provider.id}: ${STUB_MESSAGE(provider.id)}`);
           continue;
         }
-        console.error(`${c.red('error:')} ${STUB_MESSAGE(provider.id)}`);
-        return 2;
+        console.error(`${c.red('error:')} ${provider.id} ${STUB_MESSAGE(provider.id)}`);
+        return 1;
       }
 
       console.error(`${c.red('error:')} ${action} failed for ${provider.id}: ${formatError(error)}`);

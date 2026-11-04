@@ -112,8 +112,19 @@ test('per-project adapter without --with-init is skipped, not errored, in --all'
     // (stub), exit 0. --dry-run keeps any globally-detected agent (e.g. Claude)
     // from writing to the real config dir during the test.
     writeFileSync(join(dir, '.replit'), '');
-    const { code } = run(['--all', '--dry-run'], dir);
+    const { code, out } = run(['--all', '--dry-run', '--no-color'], dir);
     assert.equal(code, 0);
+    // the skip line tells the student how to install it, not "coming soon"
+    assert.match(out, /skipping replit: installs per project\. Run it inside your project: promptcite --only replit --with-init/);
+    assert.doesNotMatch(out, /coming in next release|npx skills add/);
+  });
+});
+
+test('--only a per-project adapter without --with-init is a user error with the fix', () => {
+  inTempDir((dir) => {
+    const { code, out } = run(['--only', 'codex'], dir);
+    assert.equal(code, 1);
+    assert.match(out, /codex installs per project\. Run it inside your project: promptcite --only codex --with-init/);
   });
 });
 
