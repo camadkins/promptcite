@@ -27,7 +27,7 @@ labels: 'good first issue, agent-adapter'
 - [ ] Row added to the matrix in `INSTALL.md`
 - [ ] Verified install → `--doctor` → uninstall round-trip in a temp dir
 - [ ] `npm run typecheck && npm test` pass
-- [ ] `CHANGELOG.md` `[Unreleased]` entry added
+- [ ] Commit subject is conventional (`feat: add <agent> adapter`), no CHANGELOG edit
 
 <!-- New contributors welcome — comment to claim this before starting.
      Heads up: a signed CLA is required before merge (the bot will prompt). -->
