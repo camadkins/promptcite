@@ -246,6 +246,9 @@ jobs:
           echo 'comment<<EOF' >> $GITHUB_OUTPUT
           cat /tmp/pr-checks-comment.md >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
+          # Fork PRs get a read-only token, so the comment step can't post.
+          # The run summary works for everyone.
+          cat /tmp/pr-checks-comment.md >> "$GITHUB_STEP_SUMMARY"
 
           # Exit non-zero if any blockers
           if [ ${#FAIL[@]} -gt 0 ]; then
@@ -255,7 +258,7 @@ jobs:
           fi
 
       - name: Post sticky PR comment
-        if: always()
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v2
         with:
           header: pr-checks
