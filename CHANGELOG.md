@@ -6,6 +6,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Citation templates follow current guidance.** MLA now follows the MLA Style
+  Center's revised generative-AI guidance (Aug 2025: `model GPT-4o`, the share
+  URL or the tool's URL, `Sept.`-style months), APA the September 2025 reference
+  formats (cite the chat with `[Generative AI chat]` when there's a share link,
+  the tool otherwise, no period after the URL), and Chicago the 18th edition
+  §14.112 (publisher before date, note only). IEEE and Harvard are labeled as
+  common conventions. Existing receipts still verify.
+
 ### Removed
 
 - **npm publishing.** The publish workflow is gone and PromptCite is not on the
