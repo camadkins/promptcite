@@ -367,3 +367,48 @@ test('receipts without verification still report cleanly', () => {
   assert.doesNotMatch(report, /verified by the student/);
   assert.deepEqual(validateSchema(bare), []);
 });
+
+// ---------------------------------------------------------------------------
+// The report shows what the student disclosed, as they wrote it
+// ---------------------------------------------------------------------------
+
+test('the report prints each session\'s verbatim use, revision, sources and appendix', () => {
+  const report = formatReport(v2([
+    session({
+      direct_content_used: true,
+      revision_statement: 'Kept the intro, rewrote the rest.',
+      source_verification: true,
+      appendix: { share_link_or_excerpt: 'https://example.test/share/abc' },
+    }),
+    session({ category: 'search', source_verification: false }),
+  ]), 'INTACT', []);
+  assert.match(report, /AI text kept verbatim: yes/);
+  assert.match(report, /revision: Kept the intro, rewrote the rest\./);
+  assert.match(report, /sources checked by the student: yes/);
+  assert.match(report, /appendix: attached \(share_link_or_excerpt\)/);
+  assert.match(report, /AI text kept verbatim: no/);
+  assert.match(report, /sources checked by the student: no/);
+  assert.match(report, /appendix: none attached/);
+});
+
+test('the report never echoes appendix contents', () => {
+  const report = formatReport(v2([session({ appendix: { full_transcript: 'SECRET-TRANSCRIPT-TEXT' } })]), 'INTACT', []);
+  assert.match(report, /attached \(full_transcript\)/);
+  assert.doesNotMatch(report, /SECRET-TRANSCRIPT-TEXT/);
+});
+
+test('unset values print as "not stated", not as a problem', () => {
+  const report = formatReport(v2([session({ source_verification: null, revision_statement: undefined })]), 'INTACT', []);
+  assert.match(report, /sources checked by the student: not stated/);
+  assert.match(report, /revision: not stated/);
+});
+
+test('the report prints the disclosure paragraph in both schema generations', () => {
+  assert.match(formatReport(v2(), 'INTACT', []), /Disclosure paragraph[^\n]*\n\s+I used AI as described above\./);
+  assert.match(formatReport(example, 'INTACT', []), /Disclosure paragraph[^\n]*\n\s+d\n/);
+});
+
+test('the added report lines still carry no score or total', () => {
+  const report = formatReport(v2([session(), session(), session()]), 'INTACT', []);
+  assert.doesNotMatch(report, /total|score|rank/i);
+});

@@ -193,6 +193,35 @@ export function validateSchema(receipt) {
   return errs;
 }
 
+const NOT_STATED = 'not stated';
+
+/**
+ * A student-written string for display: continuation lines are indented to sit
+ * under the first, and an empty or missing value reads "not stated".
+ * @param {unknown} v
+ * @returns {string}
+ */
+function hang(v) {
+  if (typeof v !== 'string' || v.trim().length === 0) return NOT_STATED;
+  return v.trim().replace(/\r?\n/g, '\n            ');
+}
+
+/**
+ * Which appendix kinds the student attached, by name only. The contents (a
+ * share link, a transcript) are the student's to hand over and are never
+ * echoed here.
+ * @param {unknown} appendix
+ * @returns {string}
+ */
+function appendixKinds(appendix) {
+  if (!appendix || typeof appendix !== 'object') return 'none attached';
+  const kinds = Object.keys(appendix).filter((k) => {
+    const v = /** @type {Record<string, unknown>} */ (appendix)[k];
+    return typeof v === 'string' && v.length > 0;
+  });
+  return kinds.length === 0 ? 'none attached' : `attached (${kinds.join(', ')})`;
+}
+
 /**
  * Build a plain-English summary an instructor can read at a glance.
  * @param {Record<string, any>} receipt
@@ -235,6 +264,12 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       lines.push(`${label}  ${u.tool ?? '?'} (${u.model ?? '?'}) on ${u.date ?? '?'}, used to ${u.category ?? '?'}`);
       if (u.prompt_summary) lines.push(`            ${u.prompt_summary}`);
       lines.push(`            provenance: ${provenance(u.metadata_source)}`);
+      // What the student wrote about the work itself, as they wrote it. Unset
+      // reads "not stated", never as a problem: the tool reports, the reader judges.
+      lines.push(`            AI text kept verbatim: ${u.direct_content_used === true ? 'yes' : u.direct_content_used === false ? 'no' : NOT_STATED}`);
+      lines.push(`            revision: ${hang(u.revision_statement)}`);
+      lines.push(`            sources checked by the student: ${u.source_verification === true ? 'yes' : u.source_verification === false ? 'no' : NOT_STATED}`);
+      lines.push(`            appendix: ${appendixKinds(u.appendix)}`);
       // Attestation (schema 2.1) is what the student says they checked before
       // keeping the output. Absent on most receipts, and absence means the
       // student didn't use the feature — never that they skipped the reading.
@@ -246,6 +281,11 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       }
     });
   }
+
+  // Schema 2.x puts the paragraph under outputs too; both generations read the same.
+  const o = (r.outputs && typeof r.outputs === 'object') ? r.outputs : {};
+  lines.push('Disclosure paragraph (the text the student pastes into the paper):');
+  lines.push(`            ${hang(o.disclosure_statement)}`);
 
   lines.push(`Hash:       ${hashStatus}${hashStatus === 'INTACT' ? ' (unchanged since the agent emitted it)' : hashStatus === 'MISMATCH' ? ' (edited since emission, or non-spec serializer)' : ' (no content_hash — unverifiable beyond self-disclosure)'}`);
   if (r.submission_hash) {
