@@ -64,15 +64,23 @@ mapping and the version history.
 ## Reading a receipt with several sessions
 
 Take the sessions in order and read them as a narrative of how the work was done.
-`promptcite-verify` prints one line each:
+`promptcite-verify` prints each one with what the student wrote about it:
 
 ```
 Session 1:  ChatGPT (GPT-4o) on 2026-05-14, used to outline
             Asked for a structure for an essay arguing against a carbon tax
             provenance: agent-reported (the AI filled tool/model/date)
+            AI text kept verbatim: no
+            revision: Followed the shape loosely and rewrote every heading myself.
+            sources checked by the student: not stated
+            appendix: none attached
 Session 2:  Claude (Claude Sonnet 4.6) on 2026-05-16, used to debug
             Asked why my citation-parsing script dropped the last entry
             provenance: student-claimed (the student typed tool/model/date)
+            AI text kept verbatim: no
+            revision: It explained the off-by-one; I fixed the loop myself.
+            sources checked by the student: not stated
+            appendix: attached (diff_or_test_log)
 ```
 
 **The number of sessions is not a measure of anything.** This is the one thing
