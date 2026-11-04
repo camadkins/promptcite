@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -42,19 +44,35 @@ jobs:
         run: bun run typecheck
 
   test:
-    name: Test
+    # package.json says node >=18, so test every major we claim.
+    name: Test (node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22', '24']
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node }}
 
       - name: Run unit tests
         run: node --test tests/*.test.js
+
+      # Coverage floor, a little under where we are now (lines 94, branches
+      # 73, funcs 89). The threshold flags need node 22.8+, so 24 only.
+      - name: Coverage floor
+        if: matrix.node == '24'
+        run: >-
+          node --test --experimental-test-coverage
+          --test-coverage-lines=90 --test-coverage-branches=70
+          --test-coverage-functions=85 tests/*.test.js
 
   install-dry-run:
     name: Install dry-run (${{ matrix.os }})
@@ -62,10 +80,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        # git bash on windows, so the sandbox check below runs the same everywhere
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -111,6 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Validate gemini-extension.json
         run: |
           node -e "
@@ -127,6 +153,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Verify locales and sync
         # GEMINI.md is receipt.md with every src/locales/ file composed in.
         # Fix a failure with: node bin/rule.js --write-gemini

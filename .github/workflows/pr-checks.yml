@@ -24,6 +24,7 @@ jobs:
       - name: Checkout PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # Full history so `git log origin/main..HEAD` and
           # `git diff origin/main..HEAD` work for the commit-message and
           # CHANGELOG/INSTALL.md-sync warning checks. Depth=0 = full clone.
