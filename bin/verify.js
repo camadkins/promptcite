@@ -46,6 +46,33 @@ export function computeHash(receipt) {
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
 
+/**
+ * True for a real calendar date written YYYY-MM-DD ("2026-02-30" is not one).
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function isIsoDate(v) {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+}
+
+/**
+ * True for an ISO 8601 date-time: a real date, `T`, hh:mm with optional
+ * seconds and fraction, and an optional Z or +hh:mm offset.
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function isIsoDateTime(v) {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(v);
+  if (!m || !isIsoDate(m[1])) return false;
+  return Number(m[2]) < 24 && Number(m[3]) < 60 && (m[4] === undefined || Number(m[4]) < 60);
+}
+
 const USE_CATEGORIES = ['brainstorm', 'outline', 'draft', 'edit', 'debug', 'explain', 'search'];
 const HEX64 = /^[a-f0-9]{64}$/;
 
@@ -69,6 +96,9 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
   str(`${path}.tool`, u.tool);
   str(`${path}.model`, u.model);
   str(`${path}.date`, u.date);
+  if (typeof u.date === 'string' && u.date.length > 0 && !isIsoDate(u.date)) {
+    errs.push(`${path}.date must be an ISO 8601 date (YYYY-MM-DD)`);
+  }
   if (!USE_CATEGORIES.includes(u.category)) {
     errs.push(`${path}.category must be one of: ${USE_CATEGORIES.join(', ')}`);
   }
@@ -80,6 +110,20 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
   if (u.source_verification !== undefined && u.source_verification !== null
       && typeof u.source_verification !== 'boolean') {
     errs.push(`${path}.source_verification must be true, false, or null`);
+  }
+
+  // Attestation (schema 2.1): optional, student-authored, never judged. Only its
+  // shape is checked: a boolean `attested`, and `statement` a string when present.
+  if (u.verification !== undefined) {
+    const v = u.verification;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) {
+      errs.push(`${path}.verification, when present, must be an object`);
+    } else {
+      if (typeof v.attested !== 'boolean') errs.push(`${path}.verification.attested must be a boolean`);
+      if (v.statement !== undefined && typeof v.statement !== 'string') {
+        errs.push(`${path}.verification.statement, when present, must be a string`);
+      }
+    }
   }
 
   if (sessionScopedProvenance) {
@@ -133,6 +177,9 @@ export function validateSchema(receipt) {
   const isV2 = typeof r.schema_version === 'string' && /^2\./.test(r.schema_version);
 
   str('generated_at', r.generated_at);
+  if (typeof r.generated_at === 'string' && r.generated_at.length > 0 && !isIsoDateTime(r.generated_at)) {
+    errs.push('generated_at must be an ISO 8601 timestamp (e.g. 2026-05-14T16:32:00Z)');
+  }
   str('student', r.student);
 
   if (r.content_hash !== undefined && r.content_hash !== null && (typeof r.content_hash !== 'string' || !HEX64.test(r.content_hash))) {
@@ -224,6 +271,31 @@ function appendixKinds(appendix) {
 }
 
 /**
+ * Observations that are not problems. A receipt can be valid and still worth a
+ * second glance; these never affect the schema verdict or the exit code.
+ *
+ * Currently one: the schema asks for sessions oldest first, but a student may
+ * disclose out of order (src/schema.yaml, `sessions_chronological`).
+ *
+ * @param {unknown} receipt
+ * @returns {string[]}
+ */
+export function advisoryNotes(receipt) {
+  /** @type {string[]} */
+  const notes = [];
+  const r = /** @type {Record<string, any> | null} */ (receipt);
+  const sessions = r && Array.isArray(r.ai_use) ? r.ai_use : [];
+  for (let i = 1; i < sessions.length; i++) {
+    const prev = sessions[i - 1]?.date;
+    const cur = sessions[i]?.date;
+    if (isIsoDate(prev) && isIsoDate(cur) && cur < prev) {
+      notes.push(`session ${i + 1} (${cur}) is dated before session ${i} (${prev}); the schema asks for oldest first`);
+    }
+  }
+  return notes;
+}
+
+/**
  * Build a plain-English summary an instructor can read at a glance.
  * @param {Record<string, any>} receipt
  * @param {'INTACT' | 'MISMATCH' | 'UNVERIFIABLE'} hashStatus
@@ -282,6 +354,8 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       }
     });
   }
+
+  for (const n of advisoryNotes(r)) lines.push(`Note:       ${n} (advisory, not a problem with the receipt)`);
 
   // Schema 2.x puts the paragraph under outputs too; both generations read the same.
   const o = (r.outputs && typeof r.outputs === 'object') ? r.outputs : {};

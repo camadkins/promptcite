@@ -155,6 +155,12 @@ It accepts both 1.x and 2.x receipts. Anything the student left unset prints as
 "not stated"; that is not a flag. The tool reports what was disclosed. It does
 not count, score, or rank it.
 
+The schema check covers the shape of every field, including that dates are real
+ISO 8601 dates and that an attestation, when present, has the right form. A
+`Note:` line appears if the sessions are not listed oldest first. That is
+advisory only: students may disclose out of order, and it never changes the
+verdict or the exit code.
+
 ### A stack of receipts
 
 Give it several files, or a directory (its `*.json` files, not subfolders), and it

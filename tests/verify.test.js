@@ -7,7 +7,7 @@ import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } fr
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify, validateSchema, formatReport } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -614,4 +614,70 @@ test('single-file output is unchanged by the batch work: stored/recomputed lines
   assert.match(r.stdout, /^ok: .* content_hash matches recomputation\./);
   assert.match(r.stdout, /--- Receipt summary ---/);
   assert.doesNotMatch(r.stdout, /^INTACT\s/m);
+});
+
+// ---------------------------------------------------------------------------
+// The validator enforces the schema rules it used to skip
+// ---------------------------------------------------------------------------
+
+test('a session date must be a real ISO 8601 calendar date', () => {
+  for (const bad of ['05/14/2026', '2026-5-14', '2026-02-30', 'May 14, 2026', '2026-05-14T10:00:00Z']) {
+    const errs = validateSchema(v2([session({ date: bad })])).join('\n');
+    assert.match(errs, /ai_use\[0\]\.date must be an ISO 8601 date/, bad);
+  }
+  assert.deepEqual(validateSchema(v2([session({ date: '2028-02-29' })])), []);
+});
+
+test('the date rule applies to a 1.x receipt too', () => {
+  const r = { ...example, ai_use: { ...example.ai_use, date: 'yesterday' } };
+  assert.match(validateSchema(r).join('\n'), /ai_use\.date must be an ISO 8601 date/);
+});
+
+test('generated_at must be an ISO 8601 timestamp', () => {
+  for (const bad of ['yesterday', '2026-05-14', '2026-05-14 16:32:00', '2026-13-01T00:00:00Z', '2026-05-14T25:00:00Z']) {
+    assert.match(validateSchema({ ...v2(), generated_at: bad }).join('\n'), /generated_at must be an ISO 8601/, bad);
+  }
+  for (const ok of ['2026-05-14T16:32:00Z', '2026-05-14T16:32:00.123Z', '2026-05-14T16:32:00-05:00', '2026-05-14T16:32']) {
+    assert.deepEqual(validateSchema({ ...v2(), generated_at: ok }), [], ok);
+  }
+});
+
+test('verification must be an object with a boolean attested', () => {
+  assert.deepEqual(validateSchema(v2([session({ verification: { attested: false } })])), []);
+  assert.deepEqual(validateSchema(v2([session({ verification: { attested: true, statement: 'Read it.' } })])), []);
+  const bad = (verification) => validateSchema(v2([session({ verification })])).join('\n');
+  assert.match(bad('yes'), /ai_use\[0\]\.verification, when present, must be an object/);
+  assert.match(bad({ statement: 'Read it.' }), /verification\.attested must be a boolean/);
+  assert.match(bad({ attested: 'true' }), /verification\.attested must be a boolean/);
+  assert.match(bad({ attested: true, statement: 7 }), /verification\.statement, when present, must be a string/);
+});
+
+test('an out-of-order session date is a note, never a failure', async () => {
+  const r = v2([session({ date: '2026-05-16' }), session({ date: '2026-05-10', tool: 'Claude' })]);
+  assert.deepEqual(validateSchema(r), []);
+  assert.equal(advisoryNotes(r).length, 1);
+  assert.match(advisoryNotes(r)[0], /session 2 \(2026-05-10\) is dated before session 1 \(2026-05-16\)/);
+  const report = formatReport(r, 'INTACT', []);
+  assert.match(report, /^Note:\s+session 2/m);
+  assert.match(report, /not a problem with the receipt/);
+  assert.match(report, /Schema:\s+2\.0 — VALID/);
+  // And through the CLI: the exit code is untouched.
+  const withHash = { ...r, content_hash: computeHash(r) };
+  assert.equal(await withTempReceipt(withHash, (path) => runVerify([path])), 0);
+});
+
+test('in-order and same-day sessions produce no note', () => {
+  assert.deepEqual(advisoryNotes(v2([session(), session({ date: '2026-05-14' }), session({ date: '2026-05-20' })])), []);
+  assert.deepEqual(advisoryNotes(example), []);
+});
+
+test('a full_transcript appendix is not rejected: the opt-in is not recorded in the receipt', () => {
+  assert.deepEqual(validateSchema(v2([session({ appendix: { full_transcript: 'log' } })])), []);
+});
+
+test('the shipped examples still validate and verify', async () => {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json']) {
+    const path = new URL(`../examples/${f}`, import.meta.url).pathname;
+    assert.equal(await runVerify([path]), 0, f);
+  }
 });
