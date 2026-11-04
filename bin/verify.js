@@ -96,9 +96,6 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
   str(`${path}.tool`, u.tool);
   str(`${path}.model`, u.model);
   str(`${path}.date`, u.date);
-  if (typeof u.date === 'string' && u.date.length > 0 && !isIsoDate(u.date)) {
-    errs.push(`${path}.date must be an ISO 8601 date (YYYY-MM-DD)`);
-  }
   if (!USE_CATEGORIES.includes(u.category)) {
     errs.push(`${path}.category must be one of: ${USE_CATEGORIES.join(', ')}`);
   }
@@ -147,6 +144,36 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
 }
 
 /**
+ * Date formats are enforced from schema 2.1 on. Receipts from released versions
+ * (2.0 and 1.x) only get a note, so a receipt that verified yesterday still
+ * verifies today (ADR 0003, additive changes only).
+ * @param {Record<string, any>} r @returns {boolean}
+ */
+function strictFormats(r) {
+  const m = /^(\d+)\.(\d+)$/.exec(String(r.schema_version ?? ''));
+  return !!m && (Number(m[1]) > 2 || (Number(m[1]) === 2 && Number(m[2]) >= 1));
+}
+
+/**
+ * Date and timestamp format problems, wherever the dates live in either generation.
+ * @param {Record<string, any>} r @returns {string[]}
+ */
+function formatProblems(r) {
+  const out = [];
+  if (typeof r.generated_at === 'string' && r.generated_at.length > 0 && !isIsoDateTime(r.generated_at)) {
+    out.push('generated_at must be an ISO 8601 timestamp (e.g. 2026-05-14T16:32:00Z)');
+  }
+  const sessions = Array.isArray(r.ai_use) ? r.ai_use.map((u, i) => [u, `ai_use[${i}]`])
+    : r.ai_use && typeof r.ai_use === 'object' ? [[r.ai_use, 'ai_use']] : [];
+  for (const [u, path] of sessions) {
+    if (u && typeof u.date === 'string' && u.date.length > 0 && !isIsoDate(u.date)) {
+      out.push(`${path}.date must be an ISO 8601 date (YYYY-MM-DD)`);
+    }
+  }
+  return out;
+}
+
+/**
  * Validate a receipt against the schema contract (src/schema.yaml), using
  * only Node built-ins. Returns a list of human-readable problems; an empty
  * list means the receipt is well-formed.
@@ -177,9 +204,7 @@ export function validateSchema(receipt) {
   const isV2 = typeof r.schema_version === 'string' && /^2\./.test(r.schema_version);
 
   str('generated_at', r.generated_at);
-  if (typeof r.generated_at === 'string' && r.generated_at.length > 0 && !isIsoDateTime(r.generated_at)) {
-    errs.push('generated_at must be an ISO 8601 timestamp (e.g. 2026-05-14T16:32:00Z)');
-  }
+  if (strictFormats(r)) errs.push(...formatProblems(r));
   str('student', r.student);
 
   if (r.content_hash !== undefined && r.content_hash !== null && (typeof r.content_hash !== 'string' || !HEX64.test(r.content_hash))) {
@@ -284,6 +309,9 @@ export function advisoryNotes(receipt) {
   /** @type {string[]} */
   const notes = [];
   const r = /** @type {Record<string, any> | null} */ (receipt);
+  if (r && typeof r === 'object' && !strictFormats(r)) {
+    for (const p of formatProblems(r)) notes.push(`${p} (schema ${r.schema_version ?? '?'} predates this check)`);
+  }
   const sessions = r && Array.isArray(r.ai_use) ? r.ai_use : [];
   for (let i = 1; i < sessions.length; i++) {
     const prev = sessions[i - 1]?.date;

@@ -620,25 +620,31 @@ test('single-file output is unchanged by the batch work: stored/recomputed lines
 // The validator enforces the schema rules it used to skip
 // ---------------------------------------------------------------------------
 
-test('a session date must be a real ISO 8601 calendar date', () => {
+const v21 = (/** @type {any} */ sessions) => ({ ...v2(sessions), schema_version: '2.1' });
+
+test('a session date must be a real ISO 8601 calendar date (schema 2.1+)', () => {
   for (const bad of ['05/14/2026', '2026-5-14', '2026-02-30', 'May 14, 2026', '2026-05-14T10:00:00Z']) {
-    const errs = validateSchema(v2([session({ date: bad })])).join('\n');
+    const errs = validateSchema(v21([session({ date: bad })])).join('\n');
     assert.match(errs, /ai_use\[0\]\.date must be an ISO 8601 date/, bad);
   }
-  assert.deepEqual(validateSchema(v2([session({ date: '2028-02-29' })])), []);
+  assert.deepEqual(validateSchema(v21([session({ date: '2028-02-29' })])), []);
 });
 
-test('the date rule applies to a 1.x receipt too', () => {
-  const r = { ...example, ai_use: { ...example.ai_use, date: 'yesterday' } };
-  assert.match(validateSchema(r).join('\n'), /ai_use\.date must be an ISO 8601 date/);
+test('released schemas (2.0, 1.x) get a note for a sloppy date, never INVALID', () => {
+  const old2 = v2([session({ date: '05/14/2026' })]);
+  assert.deepEqual(validateSchema(old2), []);
+  assert.match(advisoryNotes(old2).join('\n'), /ai_use\[0\]\.date must be an ISO 8601 date .*predates this check/);
+  const old1 = { ...example, ai_use: { ...example.ai_use, date: 'yesterday' } };
+  assert.deepEqual(validateSchema(old1), []);
+  assert.match(advisoryNotes(old1).join('\n'), /ai_use\.date must be an ISO 8601 date/);
 });
 
-test('generated_at must be an ISO 8601 timestamp', () => {
+test('generated_at must be an ISO 8601 timestamp (schema 2.1+)', () => {
   for (const bad of ['yesterday', '2026-05-14', '2026-05-14 16:32:00', '2026-13-01T00:00:00Z', '2026-05-14T25:00:00Z']) {
-    assert.match(validateSchema({ ...v2(), generated_at: bad }).join('\n'), /generated_at must be an ISO 8601/, bad);
+    assert.match(validateSchema({ ...v21(), generated_at: bad }).join('\n'), /generated_at must be an ISO 8601/, bad);
   }
   for (const ok of ['2026-05-14T16:32:00Z', '2026-05-14T16:32:00.123Z', '2026-05-14T16:32:00-05:00', '2026-05-14T16:32']) {
-    assert.deepEqual(validateSchema({ ...v2(), generated_at: ok }), [], ok);
+    assert.deepEqual(validateSchema({ ...v21(), generated_at: ok }), [], ok);
   }
 });
 
