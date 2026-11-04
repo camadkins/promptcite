@@ -27,9 +27,10 @@ What it does:
 
 - Auto-detects every supported agent installed on your machine
   (Claude Code, Cursor, Codex, Gemini CLI, Copilot, etc.).
-- For each one, runs that agent's native install path (plugin /
-  extension / rule file / `npx skills add`).
-- Wires Claude Code hooks where applicable.
+- For each one, writes that agent's rule where it reads it (a global skill,
+  or for per-project agents a rule file in your project when you pass
+  `--with-init`).
+- Leaves the optional AI-use hooks alone. Those install only with `--only`.
 - Skips anything you don't have. Safe to re-run. ~30 seconds end-to-end.
 
 Want to preview before installing? Use `--dry-run`:
