@@ -652,6 +652,7 @@ const STRATEGIES = {
       if (await ctx.adapter.pathExists(skillDir)) {
         await ctx.adapter.deleteDirectory(skillDir);
       }
+      await noteIfEmptied(ctx, dirname(skillDir));
     },
   },
   'skill-drop': {
