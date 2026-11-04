@@ -82,6 +82,8 @@ class UserError extends Error {
  * @property {boolean} dryRun
  * @property {(msg: string) => void} log
  * @property {Adapter} adapter
+ * @property {string | null} only
+ * @property {Set<string>} emptied  folders an uninstall left empty, reported at the end
  */
 
 /** @param {string} target */
@@ -477,6 +479,32 @@ function targetOf(ctx, entry) {
   return join(base, ...String(entry.path).split('/'));
 }
 
+/**
+ * Other agents whose block-append target (project or user-level) is the same file.
+ * @param {InstallContext} ctx @param {any} entry @param {string} targetPath @returns {string[]}
+ */
+function sharersOf(ctx, entry, targetPath) {
+  const names = [];
+  for (const other of MANIFEST) {
+    if (other.id === entry.id) continue;
+    const specs = [other, ...(other.global ?? []).map((/** @type {any} */ g) => ({ ...g, base: 'home' }))];
+    if (specs.some((s) => s.strategy === 'block-append' && targetOf(ctx, s) === targetPath)) names.push(other.id);
+  }
+  return names;
+}
+
+/**
+ * Remember a folder an uninstall emptied. We never delete it ourselves: it may be
+ * the agent's own config folder (~/.codex), so the user gets a one-line rmdir.
+ * @param {InstallContext} ctx @param {string} dir
+ */
+async function noteIfEmptied(ctx, dir) {
+  if (ctx.dryRun || dir === ctx.cwd || dir === homedir() || dir === ctx.configDir) return;
+  try {
+    if ((await readdir(dir)).length === 0) ctx.emptied.add(dir);
+  } catch { /* already gone */ }
+}
+
 /** Absolute path to the recorder we register. No PATH lookup, no network. */
 function hookCommandPath() {
   return fileURLToPath(new URL('./hook.js', import.meta.url));
@@ -622,6 +650,7 @@ const STRATEGIES = {
       if (await ctx.adapter.pathExists(targetPath)) {
         await ctx.adapter.deleteFile(targetPath);
       }
+      await noteIfEmptied(ctx, dirname(targetPath));
     },
   },
   'block-append': {
@@ -632,7 +661,20 @@ const STRATEGIES = {
     },
     async uninstall(ctx, entry) {
       if (!gateInit(ctx, entry, 'uninstall')) return;
-      await removeCopilotBlock({ adapter: ctx.adapter, targetPath: targetOf(ctx, entry) });
+      const targetPath = targetOf(ctx, entry);
+      // One block serves every agent that reads this file (AGENTS.md is read by
+      // codex, copilot, amp, crush, droid...). `--only amp --uninstall` must not
+      // take the rule away from the others; --force or a full uninstall does.
+      if (ctx.only && !ctx.force) {
+        const others = sharersOf(ctx, entry, targetPath);
+        const existing = await ctx.adapter.readFileIfPresent(targetPath);
+        if (others.length && existing?.includes(copilotMarker('begin'))) {
+          ctx.log(`kept: ${targetPath} (the block is shared with ${others.join(', ')}). Remove it anyway with --force.`);
+          return;
+        }
+      }
+      await removeCopilotBlock({ adapter: ctx.adapter, targetPath });
+      await noteIfEmptied(ctx, dirname(targetPath));
     },
   },
   'hook-register': {
@@ -1099,7 +1141,7 @@ function parseCli(argv) {
 }
 
 /**
- * @param {{ withInit: boolean, force: boolean, dryRun: boolean, configDir: string | null }} parsed
+ * @param {{ withInit: boolean, force: boolean, dryRun: boolean, configDir: string | null, only?: string | null }} parsed
  * @returns {InstallContext}
  */
 function buildContext(parsed) {
@@ -1118,6 +1160,8 @@ function buildContext(parsed) {
     dryRun: parsed.dryRun,
     log,
     adapter,
+    only: parsed.only ?? null,
+    emptied: new Set(),
   };
 }
 
@@ -1252,6 +1296,12 @@ async function main(argv) {
   if (parsed.uninstall) {
     const summary = `${c.green('uninstalled.')} ${successCount} agent(s) processed.`;
     ctx.log(skipCount > 0 ? `${summary} ${skipCount} skipped.` : summary);
+    if (ctx.emptied.size) {
+      const dirs = [...ctx.emptied].map((d) => (d.includes(' ') ? `"${d}"` : d));
+      ctx.log('');
+      ctx.log(`${c.dim('left empty:')} ${dirs.join(', ')}. They take no space. Keep them, or remove them with:`);
+      ctx.log(`  rmdir ${dirs.join(' ')}`);
+    }
     return 0;
   }
 

@@ -240,6 +240,11 @@ Or, from a clone: `node bin/install.js --uninstall`.
 Removes the slash command from every agent the installer touched, the
 shared rule file, and any `--with-init` artifacts in the current repo.
 
+Removing one agent with `--only <id> --uninstall` keeps a block another
+agent still reads (one `AGENTS.md` block serves Codex, Copilot, Amp, Crush,
+Droid and the rest). Add `--force` to remove it anyway. Folders left empty
+are listed at the end with an `rmdir` line; they're yours to keep or delete.
+
 ## Privacy
 
 PromptCite makes **no network calls** during receipt generation. The

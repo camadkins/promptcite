@@ -465,3 +465,25 @@ test('--all install then --uninstall in a sandbox HOME leaves no PromptCite file
   assert.deepEqual(leftovers, []);
   assert.equal(walk(home).length, before, 'only the seeded state remains');
 }));
+
+test('--only uninstall keeps a project AGENTS.md block other agents still read', () => inSandbox((home, cwd) => {
+  writeFileSync(join(cwd, 'AGENTS.md'), '# mine\nKeep me.\n');
+  assert.equal(run(['--only', 'codex', '--with-init'], cwd).code, 0);
+  const kept = run(['--only', 'amp', '--with-init', '--uninstall', '--no-color'], cwd);
+  assert.equal(kept.code, 0);
+  assert.match(kept.out, /kept: .*AGENTS\.md \(the block is shared with .*codex/);
+  assert.match(readFileSync(join(cwd, 'AGENTS.md'), 'utf8'), /BEGIN PromptCite/);
+  assert.equal(run(['--only', 'amp', '--with-init', '--uninstall', '--force'], cwd).code, 0);
+  const left = readFileSync(join(cwd, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(left, /PromptCite/);
+  assert.match(left, /Keep me\./);
+}));
+
+test('uninstall names the folders it left empty and gives an rmdir line', () => inSandbox((home, cwd) => {
+  assert.equal(run(['--only', 'copilot-cli'], cwd).code, 0);
+  const { code, out } = run(['--only', 'copilot-cli', '--uninstall', '--no-color'], cwd);
+  assert.equal(code, 0);
+  assert.match(out, /left empty: .*\.copilot/);
+  assert.match(out, /rmdir .*\.copilot/);
+  assert.ok(existsSync(join(home, '.copilot')), 'we never delete the folder ourselves');
+}));
