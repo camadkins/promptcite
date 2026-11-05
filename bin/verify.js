@@ -6,9 +6,10 @@
 // validates the receipt against the schema, and prints a plain-English
 // report an instructor can read without knowing the JSON shape.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
@@ -43,6 +44,33 @@ export function computeHash(receipt) {
   const { content_hash: _h, submission_hash: _s, ...rest } = receipt;
   const canonical = canonicalize(rest);
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
+}
+
+/**
+ * True for a real calendar date written YYYY-MM-DD ("2026-02-30" is not one).
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function isIsoDate(v) {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+}
+
+/**
+ * True for an ISO 8601 date-time: a real date, `T`, hh:mm with optional
+ * seconds and fraction, and an optional Z or +hh:mm offset.
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function isIsoDateTime(v) {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.exec(v);
+  if (!m || !isIsoDate(m[1])) return false;
+  return Number(m[2]) < 24 && Number(m[3]) < 60 && (m[4] === undefined || Number(m[4]) < 60);
 }
 
 const USE_CATEGORIES = ['brainstorm', 'outline', 'draft', 'edit', 'debug', 'explain', 'search'];
@@ -81,6 +109,20 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
     errs.push(`${path}.source_verification must be true, false, or null`);
   }
 
+  // Attestation (schema 2.1): optional, student-authored, never judged. Only its
+  // shape is checked: a boolean `attested`, and `statement` a string when present.
+  if (u.verification !== undefined) {
+    const v = u.verification;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) {
+      errs.push(`${path}.verification, when present, must be an object`);
+    } else {
+      if (typeof v.attested !== 'boolean') errs.push(`${path}.verification.attested must be a boolean`);
+      if (v.statement !== undefined && typeof v.statement !== 'string') {
+        errs.push(`${path}.verification.statement, when present, must be a string`);
+      }
+    }
+  }
+
   if (sessionScopedProvenance) {
     if (u.metadata_source !== 'agent_reported' && u.metadata_source !== 'student_claimed') {
       errs.push(`${path}.metadata_source must be "agent_reported" or "student_claimed"`);
@@ -99,6 +141,36 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
       }
     }
   }
+}
+
+/**
+ * Date formats are enforced from schema 2.1 on. Receipts from released versions
+ * (2.0 and 1.x) only get a note, so a receipt that verified yesterday still
+ * verifies today (ADR 0003, additive changes only).
+ * @param {Record<string, any>} r @returns {boolean}
+ */
+function strictFormats(r) {
+  const m = /^(\d+)\.(\d+)$/.exec(String(r.schema_version ?? ''));
+  return !!m && (Number(m[1]) > 2 || (Number(m[1]) === 2 && Number(m[2]) >= 1));
+}
+
+/**
+ * Date and timestamp format problems, wherever the dates live in either generation.
+ * @param {Record<string, any>} r @returns {string[]}
+ */
+function formatProblems(r) {
+  const out = [];
+  if (typeof r.generated_at === 'string' && r.generated_at.length > 0 && !isIsoDateTime(r.generated_at)) {
+    out.push('generated_at must be an ISO 8601 timestamp (e.g. 2026-05-14T16:32:00Z)');
+  }
+  const sessions = Array.isArray(r.ai_use) ? r.ai_use.map((u, i) => [u, `ai_use[${i}]`])
+    : r.ai_use && typeof r.ai_use === 'object' ? [[r.ai_use, 'ai_use']] : [];
+  for (const [u, path] of sessions) {
+    if (u && typeof u.date === 'string' && u.date.length > 0 && !isIsoDate(u.date)) {
+      out.push(`${path}.date must be an ISO 8601 date (YYYY-MM-DD)`);
+    }
+  }
+  return out;
 }
 
 /**
@@ -132,6 +204,7 @@ export function validateSchema(receipt) {
   const isV2 = typeof r.schema_version === 'string' && /^2\./.test(r.schema_version);
 
   str('generated_at', r.generated_at);
+  if (strictFormats(r)) errs.push(...formatProblems(r));
   str('student', r.student);
 
   if (r.content_hash !== undefined && r.content_hash !== null && (typeof r.content_hash !== 'string' || !HEX64.test(r.content_hash))) {
@@ -193,6 +266,63 @@ export function validateSchema(receipt) {
   return errs;
 }
 
+const NOT_STATED = 'not stated';
+
+/**
+ * A student-written string for display: continuation lines are indented to sit
+ * under the first, and an empty or missing value reads "not stated".
+ * @param {unknown} v
+ * @returns {string}
+ */
+function hang(v) {
+  if (typeof v !== 'string' || v.trim().length === 0) return NOT_STATED;
+  return v.trim().replace(/\r?\n/g, '\n            ');
+}
+
+/**
+ * Which appendix kinds the student attached, by name only. The contents (a
+ * share link, a transcript) are the student's to hand over and are never
+ * echoed here.
+ * @param {unknown} appendix
+ * @returns {string}
+ */
+function appendixKinds(appendix) {
+  if (!appendix || typeof appendix !== 'object') return 'none attached';
+  const kinds = Object.keys(appendix).filter((k) => {
+    const v = /** @type {Record<string, unknown>} */ (appendix)[k];
+    return typeof v === 'string' && v.length > 0;
+  });
+  return kinds.length === 0 ? 'none attached' : `attached (${kinds.join(', ')})`;
+}
+
+/**
+ * Observations that are not problems. A receipt can be valid and still worth a
+ * second glance; these never affect the schema verdict or the exit code.
+ *
+ * Currently one: the schema asks for sessions oldest first, but a student may
+ * disclose out of order (src/schema.yaml, `sessions_chronological`).
+ *
+ * @param {unknown} receipt
+ * @returns {string[]}
+ */
+export function advisoryNotes(receipt) {
+  /** @type {string[]} */
+  const notes = [];
+  const r = /** @type {Record<string, any> | null} */ (receipt);
+  if (r && typeof r === 'object' && !strictFormats(r)) {
+    for (const p of formatProblems(r)) notes.push(`${p} (schema ${r.schema_version ?? '?'} predates this check)`);
+  }
+  const sessions = r && Array.isArray(r.ai_use) ? r.ai_use : [];
+  for (let i = 1; i < sessions.length; i++) {
+    const prev = sessions[i - 1]?.date;
+    const cur = sessions[i]?.date;
+    if (isIsoDate(prev) && isIsoDate(cur) && cur < prev) {
+      notes.push(`session ${i + 1} (${cur}) is dated before session ${i} (${prev}); the schema asks for oldest first`);
+    }
+  }
+  return notes;
+}
+
 /**
  * Build a plain-English summary an instructor can read at a glance.
  * @param {Record<string, any>} receipt
@@ -235,6 +365,12 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       lines.push(`${label}  ${u.tool ?? '?'} (${u.model ?? '?'}) on ${u.date ?? '?'}, used to ${u.category ?? '?'}`);
       if (u.prompt_summary) lines.push(`            ${u.prompt_summary}`);
       lines.push(`            provenance: ${provenance(u.metadata_source)}`);
+      // What the student wrote about the work itself, as they wrote it. Unset
+      // reads "not stated", never as a problem: the tool reports, the reader judges.
+      lines.push(`            AI text kept verbatim: ${u.direct_content_used === true ? 'yes' : u.direct_content_used === false ? 'no' : NOT_STATED}`);
+      lines.push(`            revision: ${hang(u.revision_statement)}`);
+      lines.push(`            sources checked by the student: ${u.source_verification === true ? 'yes' : u.source_verification === false ? 'no' : NOT_STATED}`);
+      lines.push(`            appendix: ${appendixKinds(u.appendix)}`);
       // Attestation (schema 2.1) is what the student says they checked before
       // keeping the output. Absent on most receipts, and absence means the
       // student didn't use the feature — never that they skipped the reading.
@@ -247,6 +383,13 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
     });
   }
 
+  for (const n of advisoryNotes(r)) lines.push(`Note:       ${n} (advisory, not a problem with the receipt)`);
+
+  // Schema 2.x puts the paragraph under outputs too; both generations read the same.
+  const o = (r.outputs && typeof r.outputs === 'object') ? r.outputs : {};
+  lines.push('Disclosure paragraph (the text the student pastes into the paper):');
+  lines.push(`            ${hang(o.disclosure_statement)}`);
+
   lines.push(`Hash:       ${hashStatus}${hashStatus === 'INTACT' ? ' (unchanged since the agent emitted it)' : hashStatus === 'MISMATCH' ? ' (edited since emission, or non-spec serializer)' : ' (no content_hash — unverifiable beyond self-disclosure)'}`);
   if (r.submission_hash) {
     lines.push(`Submission: bound to a file hash (${String(r.submission_hash).slice(0, 12)}…) — re-hash the submitted file to confirm it matches`);
@@ -257,21 +400,219 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
 }
 
 function printHelp() {
-  console.log(`promptcite verify <receipt.json>
+  console.log(`promptcite verify <receipt.json> [more receipts or a directory] [options]
 
-Verifies a PromptCite receipt: recomputes the content_hash, validates the
-receipt against the schema, and prints a plain-English summary.
+Verifies PromptCite receipts: recomputes the content_hash, validates each
+receipt against the schema, and prints a plain-English summary of what the
+student disclosed.
 
-Exit codes:
+One file prints the full report. Several files, or a directory (its *.json
+files, not recursive), print one status line per file:
+  INTACT | MISMATCH | UNVERIFIABLE | INVALID | ERROR
+The tool reports; it does not count, score, rank, or total anything.
+
+Options:
+  --submission <file>  hash <file> (SHA-256) and compare it to the receipt's
+                       submission_hash: MATCH, DIFFERENT, or "receipt has no
+                       submission_hash". One receipt only.
+  --details            in batch mode, follow each status line with the full report
+  -h, --help           this text
+
+Exit codes (a batch exits with the most severe, in the order listed here):
   0  hash matches AND schema valid (receipt unmodified and well-formed)
   1  hash mismatch (receipt has been edited since emission)
   2  no content_hash field, or null hash (receipt is unverifiable)
   3  file not found, malformed JSON, or other user error
   4  hash matches but the receipt fails schema validation
+  5  --submission file does not match the receipt's submission_hash
+  Severity, most to least: 3, 1, 5, 4, 2, 0. A receipt with no
+  submission_hash does not change the exit code.
 
 Honest framing: this is tamper-evident, not tamper-proof. A determined
 forger can recompute the hash after editing. The check matters because
 casual editing won't bother.`);
+}
+
+/** Exit codes, most severe first. A batch exits with the first one present. */
+const SEVERITY = [3, 1, 5, 4, 2, 0];
+
+/**
+ * @param {number[]} codes
+ * @returns {number} the most severe of the codes (0 for none)
+ */
+export function worstCode(codes) {
+  for (const c of SEVERITY) if (codes.includes(c)) return c;
+  return 0;
+}
+
+/**
+ * @typedef {{ err: boolean, text: string }} OutLine
+ * @typedef {{ status: 'INTACT' | 'MISMATCH' | 'UNVERIFIABLE' | 'INVALID' | 'ERROR', code: number, out: OutLine[], reason?: string }} Inspection
+ */
+
+/**
+ * Compare a submission file's bytes to the receipt's submission_hash.
+ * @param {Record<string, any>} receipt
+ * @param {string} path the submission file, for messages
+ * @param {Buffer} bytes
+ * @returns {{ code: number, out: OutLine[] }}
+ */
+function checkSubmission(receipt, path, bytes) {
+  const stored = receipt.submission_hash;
+  if (stored === undefined || stored === null) {
+    return { code: 0, out: [{ err: false, text: 'Submission file: receipt has no submission_hash (nothing to compare against)' }] };
+  }
+  if (typeof stored !== 'string' || !HEX64.test(stored)) {
+    return { code: 0, out: [{ err: false, text: 'Submission file: not compared, the receipt\'s submission_hash is malformed' }] };
+  }
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  if (actual === stored) {
+    return { code: 0, out: [{ err: false, text: `Submission file: MATCH, ${path} hashes to the receipt's submission_hash` }] };
+  }
+  return {
+    code: 5,
+    out: [
+      { err: true, text: `Submission file: DIFFERENT, ${path} does not hash to the receipt's submission_hash` },
+      { err: true, text: `     receipt: ${stored}` },
+      { err: true, text: `     file:    ${actual}` },
+      { err: true, text: '     Either this is not the file the receipt was bound to, or it changed after the receipt was written. The tool cannot say which.' },
+    ],
+  };
+}
+
+/**
+ * Verify one receipt file. Pure with respect to the console: everything it
+ * would print comes back in `out`, so single-file and batch modes share it.
+ * @param {string} target
+ * @param {{ path: string, bytes: Buffer } | null} submission
+ * @returns {Promise<Inspection>}
+ */
+async function inspectReceipt(target, submission) {
+  /** @param {string} reason @returns {Inspection} */
+  const fail = (reason) => ({ status: 'ERROR', code: 3, reason, out: [{ err: true, text: `error: ${reason}` }] });
+
+  let raw;
+  try {
+    raw = await readFile(target, 'utf8');
+  } catch (e) {
+    return fail(`cannot read ${target}`);
+  }
+  let receipt;
+  try {
+    receipt = JSON.parse(raw);
+  } catch (e) {
+    return fail(`${target} is not valid JSON`);
+  }
+  if (!receipt || typeof receipt !== 'object') {
+    return fail(`${target} does not contain a JSON object`);
+  }
+
+  const schemaErrors = validateSchema(receipt);
+  const stored = receipt.content_hash;
+  /** @type {OutLine[]} */
+  const out = [];
+  const say = (/** @type {string} */ text) => out.push({ err: false, text });
+  const warn = (/** @type {string} */ text) => out.push({ err: true, text });
+  const sub = submission ? checkSubmission(receipt, submission.path, submission.bytes) : null;
+
+  if (stored === undefined || stored === null) {
+    say(`unverifiable: ${target} has no content_hash (agent had no code-execution tool at emission, or this is an older receipt).`);
+    say('');
+    say(formatReport(receipt, 'UNVERIFIABLE', schemaErrors));
+    if (sub) out.push(...sub.out);
+    return { status: 'UNVERIFIABLE', code: worstCode([2, sub ? sub.code : 0]), out };
+  }
+  if (typeof stored !== 'string' || !HEX64.test(stored)) {
+    return fail(`content_hash in ${target} is malformed (expected 64-char lowercase hex sha256)`);
+  }
+  const recomputed = computeHash(receipt);
+  if (recomputed === stored) {
+    say(`ok: ${target} content_hash matches recomputation.`);
+    say(`     stored:     ${stored}`);
+    say(`     recomputed: ${recomputed}`);
+    say('');
+    say(formatReport(receipt, 'INTACT', schemaErrors));
+    if (sub) out.push(...sub.out);
+    if (schemaErrors.length > 0) {
+      warn(`\nnote: hash is intact but the receipt does not conform to the schema (${schemaErrors.length} problem(s)).`);
+    }
+    return {
+      status: schemaErrors.length > 0 ? 'INVALID' : 'INTACT',
+      code: worstCode([schemaErrors.length > 0 ? 4 : 0, sub ? sub.code : 0]),
+      out,
+    };
+  }
+  warn(`mismatch: ${target} content_hash does NOT match recomputation.`);
+  warn(`     stored:     ${stored}`);
+  warn(`     recomputed: ${recomputed}`);
+  warn('receipt has been edited since the agent emitted it, OR the canonical-serialization implementation differs from the spec.');
+  warn('');
+  warn(formatReport(receipt, 'MISMATCH', schemaErrors));
+  if (sub) out.push(...sub.out);
+  return { status: 'MISMATCH', code: worstCode([1, sub ? sub.code : 0]), out };
+}
+
+/** @param {OutLine[]} lines @param {boolean} allToStdout */
+function emit(lines, allToStdout) {
+  for (const l of lines) (l.err && !allToStdout ? console.error : console.log)(l.text);
+}
+
+/**
+ * @param {string[]} argv
+ * @returns {{ files: string[], details: boolean, help: boolean, submission: string | null, problem: string | null }}
+ */
+function parseArgs(argv) {
+  /** @type {string[]} */
+  const files = [];
+  let details = false;
+  let help = false;
+  /** @type {string | null} */
+  let submission = null;
+  /** @type {string | null} */
+  let problem = null;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i] ?? '';
+    if (a === '-h' || a === '--help') help = true;
+    else if (a === '--details') details = true;
+    else if (a === '--submission') {
+      const v = argv[i + 1];
+      if (v === undefined || v.startsWith('-')) problem = '--submission needs a file to hash';
+      else { submission = v; i++; }
+    } else if (a.startsWith('--submission=')) {
+      submission = a.slice('--submission='.length);
+      if (!submission) problem = '--submission needs a file to hash';
+    } else if (!a.startsWith('-')) files.push(a);
+    // Other flags are ignored, as they always have been.
+  }
+  return { files, details, help, submission, problem };
+}
+
+/**
+ * Expand the arguments to receipt paths. A directory contributes its *.json
+ * files, sorted, one level deep.
+ * @param {string[]} args
+ * @returns {Promise<{ targets: { path: string, note?: string }[], batch: boolean }>}
+ */
+async function expandTargets(args) {
+  /** @type {{ path: string, note?: string }[]} */
+  const targets = [];
+  let batch = args.length > 1;
+  for (const arg of args) {
+    let isDir = false;
+    try { isDir = (await stat(arg)).isDirectory(); } catch { /* inspectReceipt reports it */ }
+    if (!isDir) { targets.push({ path: arg }); continue; }
+    batch = true;
+    const names = (await readdir(arg)).filter((n) => n.endsWith('.json')).sort();
+    /** @type {string[]} */
+    const found = [];
+    for (const n of names) {
+      const full = join(arg, n);
+      try { if ((await stat(full)).isFile()) found.push(full); } catch { /* skip */ }
+    }
+    if (found.length === 0) targets.push({ path: arg, note: `${arg} has no .json files` });
+    for (const f of found) targets.push({ path: f });
+  }
+  return { targets, batch };
 }
 
 /**
@@ -279,68 +620,62 @@ casual editing won't bother.`);
  * @returns {Promise<number>}
  */
 export async function runVerify(argv) {
-  const args = argv.filter((/** @type {string} */ a) => !a.startsWith('-'));
-  if (argv.includes('-h') || argv.includes('--help') || args.length === 0) {
+  const opts = parseArgs(argv);
+  if (opts.help || opts.files.length === 0) {
     printHelp();
     return 0;
   }
-  const target = args[0];
-  if (!target) {
-    printHelp();
-    return 0;
-  }
-  let raw;
-  try {
-    raw = await readFile(target, 'utf8');
-  } catch (e) {
-    console.error(`error: cannot read ${target}`);
-    return 3;
-  }
-  let receipt;
-  try {
-    receipt = JSON.parse(raw);
-  } catch (e) {
-    console.error(`error: ${target} is not valid JSON`);
-    return 3;
-  }
-  if (!receipt || typeof receipt !== 'object') {
-    console.error(`error: ${target} does not contain a JSON object`);
+  if (opts.problem) {
+    console.error(`error: ${opts.problem}`);
     return 3;
   }
 
-  const schemaErrors = validateSchema(receipt);
-  const stored = receipt.content_hash;
+  const { targets, batch } = await expandTargets(opts.files);
 
-  if (stored === undefined || stored === null) {
-    console.log(`unverifiable: ${target} has no content_hash (agent had no code-execution tool at emission, or this is an older receipt).`);
-    console.log('');
-    console.log(formatReport(receipt, 'UNVERIFIABLE', schemaErrors));
-    return 2;
-  }
-  if (typeof stored !== 'string' || !HEX64.test(stored)) {
-    console.error(`error: content_hash in ${target} is malformed (expected 64-char lowercase hex sha256)`);
-    return 3;
-  }
-  const recomputed = computeHash(receipt);
-  if (recomputed === stored) {
-    console.log(`ok: ${target} content_hash matches recomputation.`);
-    console.log(`     stored:     ${stored}`);
-    console.log(`     recomputed: ${recomputed}`);
-    console.log('');
-    console.log(formatReport(receipt, 'INTACT', schemaErrors));
-    if (schemaErrors.length > 0) {
-      console.error(`\nnote: hash is intact but the receipt does not conform to the schema (${schemaErrors.length} problem(s)).`);
-      return 4;
+  /** @type {{ path: string, bytes: Buffer } | null} */
+  let submission = null;
+  if (opts.submission !== null) {
+    if (batch) {
+      console.error('error: --submission checks one file against one receipt; give it a single receipt, not several or a directory');
+      return 3;
     }
-    return 0;
+    try {
+      submission = { path: opts.submission, bytes: await readFile(opts.submission) };
+    } catch {
+      console.error(`error: cannot read ${opts.submission}`);
+      return 3;
+    }
   }
-  console.error(`mismatch: ${target} content_hash does NOT match recomputation.`);
-  console.error(`     stored:     ${stored}`);
-  console.error(`     recomputed: ${recomputed}`);
-  console.error(`receipt has been edited since the agent emitted it, OR the canonical-serialization implementation differs from the spec.`);
-  console.error('');
-  console.error(formatReport(receipt, 'MISMATCH', schemaErrors));
-  return 1;
+
+  if (!batch) {
+    const only = targets[0];
+    if (!only) return 3;
+    const res = await inspectReceipt(only.path, submission);
+    emit(res.out, false);
+    return res.code;
+  }
+
+  // Batch: one status line per file, in order. Full reports only on request.
+  // Nothing is totalled across files; the exit code is the single summary.
+  /** @type {number[]} */
+  const codes = [];
+  for (const t of targets) {
+    if (t.note) {
+      console.log(`${'ERROR'.padEnd(12)} ${t.path} (${t.note})`);
+      codes.push(3);
+      continue;
+    }
+    const res = await inspectReceipt(t.path, null);
+    codes.push(res.code);
+    const why = res.status === 'ERROR' ? ` (${res.reason})` : '';
+    console.log(`${res.status.padEnd(12)} ${t.path}${why}`);
+    if (opts.details && res.status !== 'ERROR') {
+      console.log('');
+      emit(res.out, true);
+      console.log('');
+    }
+  }
+  return worstCode(codes);
 }
 
 /**

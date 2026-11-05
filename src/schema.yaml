@@ -402,10 +402,12 @@ validation:
       not a hard failure — a student may disclose out of order.
   - rule: no_transcript_default
     message: |
-      ai_use[].appendix.full_transcript MUST NOT be present unless the
-      student explicitly opted in during the interview. The interview rule
-      file enforces this; downstream validators should reject receipts with
-      full_transcript present and no corresponding opt-in marker.
+      ai_use[].appendix.full_transcript is opt-in: the interview rule file
+      asks before attaching one and never captures it by default. The opt-in
+      is a moment in the interview, not a field in the receipt, so a
+      validator cannot tell an opted-in transcript from any other and MUST
+      NOT reject a receipt for carrying one. Rejecting receipts that
+      disclose more would punish disclosure.
 
 # ---------------------------------------------------------------------------
 # Migration policy
