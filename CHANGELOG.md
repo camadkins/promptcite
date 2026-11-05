@@ -4,6 +4,22 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/camadkins/promptcite/compare/v2.0.0...v2.1.0) (2026-11-05)
+
+
+### Added
+
+* attest mode, check gate, ledger picker, discipline profiles ([#96](https://github.com/camadkins/promptcite/issues/96)) ([3b2fb79](https://github.com/camadkins/promptcite/commit/3b2fb79c0cceabfd79ba1b49c5995ffc5cad67c2))
+* course policies, session hook ([#35](https://github.com/camadkins/promptcite/issues/35)) ([cbaebcf](https://github.com/camadkins/promptcite/commit/cbaebcfb7d92d2f661c5bce31a6a72e98c61cf12))
+* disclosure strings in per-language locale files ([#4](https://github.com/camadkins/promptcite/issues/4)) ([f15f116](https://github.com/camadkins/promptcite/commit/f15f116bbc634905cda83bc42a7f6de89c6d8f94))
+* more agents, offline help ([#32](https://github.com/camadkins/promptcite/issues/32)) ([d29e3fc](https://github.com/camadkins/promptcite/commit/d29e3fceb3682dc749fc8d5a344d83d3f9ba5412))
+* verify for instructors ([#34](https://github.com/camadkins/promptcite/issues/34)) ([1c3d703](https://github.com/camadkins/promptcite/commit/1c3d703be4e6e0ae14d1e5c711b8ff79bdb394f6))
+
+
+### Fixed
+
+* citation styles ([#33](https://github.com/camadkins/promptcite/issues/33)) ([f2df884](https://github.com/camadkins/promptcite/commit/f2df8840d9e20be092b7755ef0e17c075f245a82))
+
 ## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
 
 ### BREAKING
