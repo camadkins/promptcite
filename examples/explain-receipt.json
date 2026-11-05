@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.1",
+  "generated_at": "2026-05-12T15:10:00Z",
+  "metadata_source": "agent_reported",
+  "content_hash": "6cad35d465ee94f7264602b9b70693a789461c07b27ebf214de1288d10d62c80",
+  "submission_hash": null,
+  "student": "C. Hawkins",
+  "assignment": {
+    "course": "ENGL 251",
+    "instructor": "Dr. Martinez",
+    "title": "Policy Analysis Essay"
+  },
+  "ai_use": {
+    "tool": "ChatGPT",
+    "model": "GPT-4o",
+    "date": "2026-05-12",
+    "category": "explain",
+    "prompt_summary": "Asked for an explanation of how a carbon tax works and why it is argued to reduce emissions",
+    "direct_content_used": false,
+    "revision_statement": "Used the explanation to understand the concept, then wrote the section in my own words.",
+    "source_verification": null
+  },
+  "outputs": {
+    "citation_mla": "\"How a carbon tax works.\" prompt. *ChatGPT*, GPT-4o version, OpenAI, 12 May 2026.",
+    "citation_apa": "OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].",
+    "citation_chicago": "ChatGPT, GPT-4o, response to \"How a carbon tax works,\" May 12, 2026, OpenAI.",
+    "citation_ieee": "[1] ChatGPT, \"How a carbon tax works,\" GPT-4o, OpenAI, May 12, 2026.",
+    "citation_harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model].",
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on May 12, 2026 to explain how a carbon tax works and why it is argued to reduce emissions. No AI-generated text appears in the final submission. I used the explanation to understand the concept, then wrote the section in my own words. This receipt was generated inside ChatGPT itself, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}

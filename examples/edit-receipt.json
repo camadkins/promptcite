@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.1",
+  "generated_at": "2026-05-16T17:45:00Z",
+  "metadata_source": "agent_reported",
+  "content_hash": "e9c9ae0642821a453843739266b6acb69bea83e563aec9de9b16a969d546e9a5",
+  "submission_hash": null,
+  "student": "C. Hawkins",
+  "assignment": {
+    "course": "ENGL 251",
+    "instructor": "Dr. Martinez",
+    "title": "Policy Analysis Essay"
+  },
+  "ai_use": {
+    "tool": "ChatGPT",
+    "model": "GPT-4o",
+    "date": "2026-05-16",
+    "category": "edit",
+    "prompt_summary": "Asked for grammar, punctuation, and phrasing fixes on my draft of the policy analysis essay",
+    "direct_content_used": false,
+    "revision_statement": "Reviewed each suggested fix, applied only the small grammar, punctuation, and word-choice corrections I agreed with, and kept my own structure and voice throughout.",
+    "source_verification": null
+  },
+  "outputs": {
+    "citation_mla": "\"Grammar, punctuation, and phrasing fixes for my policy analysis essay draft.\" prompt. *ChatGPT*, GPT-4o version, OpenAI, 16 May 2026.",
+    "citation_apa": "OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].",
+    "citation_chicago": "ChatGPT, GPT-4o, response to \"Grammar, punctuation, and phrasing fixes for my policy analysis essay draft,\" May 16, 2026, OpenAI.",
+    "citation_ieee": "[1] ChatGPT, \"Grammar, punctuation, and phrasing fixes for my policy analysis essay draft,\" GPT-4o, OpenAI, May 16, 2026.",
+    "citation_harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model].",
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on May 16, 2026 to edit my draft of the policy analysis essay. I applied only small fixes — grammar, punctuation, and word choice — and did not restructure the essay or change its voice. No AI-rewritten sentences appear in the final submission. I reviewed each suggested fix and kept only the ones I agreed with. This receipt was generated inside ChatGPT itself, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}
