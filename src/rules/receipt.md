@@ -1020,11 +1020,15 @@ Generate all three artifacts in this exact order:
 
 #### 5a — Citation string
 
-Render the citation in the chosen style. Templates audited against
-**MLA 9th edition (MLA Style Center 2023 guidance)**, **APA 7th
-edition (APA 2023 guidance)**, **Chicago Manual of Style 17th
-edition**, **IEEE (2023 reference guidance)**, and **Harvard
-author-date** conventions for AI-generated content.
+Render the citation in the chosen style. MLA, APA, and Chicago follow the
+current guidance from each style's publisher, checked November 2026:
+**MLA 9th edition, per the MLA Style Center's revised generative-AI
+guidance (13 August 2025)**; **APA 7th edition, per the APA Style blog's
+generative-AI reference formats (September 2025)**; and **Chicago Manual of
+Style 18th edition (2024), §14.112**. IEEE and Harvard have no single
+official authority for AI content; their templates below are **common
+conventions, not audited** against a publisher's guidance, and an
+instructor's own house rules win.
 
 Always generate the three core styles (MLA, APA, Chicago) plus IEEE and
 Harvard, and store all five under that session's `citations` object — the
@@ -1041,65 +1045,123 @@ session only and leave the existing entries exactly as they are.
 numbered when there is more than one. The student pastes the whole list into
 their bibliography.
 
-The `<Publisher>` field maps from `<Tool>` using this table — the
-agent fills it automatically without asking:
+The `<Publisher>` and `<Tool URL>` fields map from `<Tool>` using this
+table — the agent fills them automatically without asking:
 
-| Tool | Publisher |
-|---|---|
-| ChatGPT | OpenAI |
-| Claude | Anthropic |
-| Gemini | Google |
-| Copilot | GitHub |
-| Cursor | Anysphere |
-| Codex | OpenAI |
-| Other | the tool's published vendor; ask the student if not obvious |
+| Tool | Publisher | Tool URL |
+|---|---|---|
+| ChatGPT | OpenAI | `https://chatgpt.com/` |
+| Claude | Anthropic | `https://claude.ai/` |
+| Gemini | Google | `https://gemini.google.com/` |
+| Copilot | GitHub | `https://github.com/features/copilot` |
+| Cursor | Anysphere | `https://cursor.com/` |
+| Codex | OpenAI | `https://chatgpt.com/codex` |
+| Other | the tool's published vendor | the tool's home page; ask the student if not obvious |
 
-**MLA 9** — author of prompt is the human (not listed), title of source is
-the prompt in quotes, container is the AI tool (italicized in formatted
-output; in plain markdown use `*...*`):
+**`<share_link>`** is the session's share URL: the
+`appendix.share_link_or_excerpt` value when the student attached one *and it
+is a URL*. An excerpt is not a share link. Never invent one, and never fetch
+anything to find one. Every template below branches on whether it exists.
+
+**MLA 9** — the AI tool is not the author, so there is no author element. The
+title of source is a description of what was generated (use the prompt
+summary) in quotes, followed by the word `prompt`. The container is the tool
+(italicized; in plain markdown use `*...*`), then the word `model` and the
+model name, the publisher, the date the content was generated, and the
+location. Location is `<share_link>` when present, otherwise the general
+`<Tool URL>` — both written without `https://` and without a trailing slash,
+as MLA 9 drops the protocol from URLs. The prompt summary takes no period of
+its own inside the quotes.
+
+Date is day, abbreviated month, year. MLA abbreviates every month longer than
+four letters: Jan., Feb., Mar., Apr., May, June, July, Aug., Sept., Oct.,
+Nov., Dec.
 
 ```
-"<prompt summary>" prompt. *<Tool>*, <Model> version, <Publisher>, <DD Mon YYYY>, <share_link if present>.
+"<prompt summary>" prompt. *<Tool>*, model <Model>, <Publisher>, <D Mon. YYYY>, <share_link or Tool URL, no https://>.
+```
+
+Example, no share link:
+```
+"Counterarguments to carbon tax" prompt. *ChatGPT*, model GPT-4o, OpenAI, 14 May 2026, chatgpt.com.
+```
+
+Example, with a share link:
+```
+"Counterarguments to carbon tax" prompt. *ChatGPT*, model GPT-4o, OpenAI, 23 Sept. 2026, chatgpt.com/share/<id>.
+```
+
+**APA 7** — the author is the *publisher* (the company), not the tool. APA
+cites the specific chat when readers can reach it, and the tool generally when
+they can't, so this template branches:
+
+*With a `<share_link>`* — cite the chat. Full date; the prompt summary, in
+sentence case, stands in as the chat's title (italicized); the bracketed
+description `[Generative AI chat]`; the tool; then the share URL. **No period
+after the URL.**
+
+```
+<Publisher>. (<YYYY>, <Month D>). *<prompt summary>* [Generative AI chat]. <Tool>. <share_link>
 ```
 
 Example:
 ```
-"Counterarguments to carbon tax." prompt. *ChatGPT*, GPT-4o version, OpenAI, 14 May 2026.
+OpenAI. (2026, May 14). *Counterarguments to carbon tax* [Generative AI chat]. ChatGPT. https://chatgpt.com/share/<id>
 ```
 
-**APA 7** — author is the *publisher* (the company), not the tool name;
-year only; title includes `[Large language model]` qualifier:
+*Without a `<share_link>`* — readers can't retrieve the chat, so cite the tool
+generally: year only, the tool italicized, `[Large language model]`, then the
+general `<Tool URL>`. **No period after the URL.** The model and date are still
+in the receipt and in the disclosure paragraph.
 
 ```
-<Publisher>. (<YYYY>). <Tool> (<Model> version) [Large language model]. <share_link if present>.
-```
-
-Example:
-```
-OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].
-```
-
-**Chicago 17** (notes-bibliography form) — note-style with the response
-framed against the prompt:
-
-```
-<Tool>, <Model>, response to "<prompt summary>," <Month DD, YYYY>, <Publisher>, <share_link if present>.
+<Publisher>. (<YYYY>). *<Tool>* [Large language model]. <Tool URL>
 ```
 
 Example:
 ```
-ChatGPT, GPT-4o, response to "Counterarguments to carbon tax," May 14, 2026, OpenAI.
+OpenAI. (2026). *ChatGPT* [Large language model]. https://chatgpt.com/
 ```
 
-If the student's institution uses Chicago author-date form instead of
-notes-bibliography, use:
+In-text, both forms are cited as `(OpenAI, 2026)`.
+
+**Chicago 18** (notes-bibliography, §14.112) — cite AI output in a note, not
+the bibliography. The citation stands apart from the prompt, so use the
+"prompt not in the text" note form: the response framed against the prompt,
+then the tool and model, the publisher, the date, and `<share_link>` only when
+present. Publisher comes **before** the date. Write `<Tool> <Model>` with the
+tool's name once: when the model name already begins with it, use the model
+name alone (`Claude Sonnet 4.6`, not `Claude Claude Sonnet 4.6`). Never put the general Tool URL
+here: Chicago asks for a URL only when it leads to the content.
 
 ```
-<Publisher>. <YYYY>. "<prompt summary>." <Tool> <Model>, <Month DD>. <share_link if present>.
+Response to "<prompt summary>," <Tool> <Model>, <Publisher>, <Month D, YYYY><, share_link if present>.
 ```
 
-**IEEE** — numbered reference; author is the tool, the prompt is the
-title in quotes, model and publisher follow, then the date:
+Example:
+```
+Response to "Counterarguments to carbon tax," ChatGPT GPT-4o, OpenAI, May 14, 2026.
+```
+
+Store that note form as the `chicago` citation. Chicago usually leaves AI
+output out of the bibliography. If the instructor requires a bibliography
+entry anyway, list it under the publisher, not the tool:
+
+```
+<Publisher>. Response to "<prompt summary>." <Tool> <Model>, <Month D, YYYY><, share_link if present>.
+```
+
+If the student's institution uses Chicago author-date instead of
+notes-bibliography, there is no reference-list entry; the AI use is cited in
+the text only, as a parenthetical:
+
+```
+(<Tool>, <Month D, YYYY>)
+```
+
+**IEEE** (common convention, not audited) — numbered reference; author is
+the tool, the prompt is the title in quotes, model and publisher follow, then
+the date:
 
 ```
 [1] <Tool>, "<prompt summary>," <Model>, <Publisher>, <Mon. DD, YYYY>. <share_link if present>.
@@ -1110,9 +1172,9 @@ Example:
 [1] ChatGPT, "Counterarguments to carbon tax," GPT-4o, OpenAI, May 14, 2026.
 ```
 
-**Harvard** (author-date) — author is the *publisher*, year in
-parentheses, the tool/model and a Large-language-model qualifier, then an
-availability/access note when a share link exists:
+**Harvard** (author-date; common convention, not audited) — author is the
+*publisher*, year in parentheses, the tool/model and a Large-language-model
+qualifier, then an availability/access note when a share link exists:
 
 ```
 <Publisher> (<YYYY>) <Tool> (<Model>) [Large language model]. <If share_link: "Available at: <share_link> (Accessed: DD Month YYYY)." >

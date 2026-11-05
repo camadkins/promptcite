@@ -3,10 +3,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify, validateSchema, formatReport } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -366,4 +367,323 @@ test('receipts without verification still report cleanly', () => {
   const report = formatReport(bare, 'UNVERIFIABLE', []);
   assert.doesNotMatch(report, /verified by the student/);
   assert.deepEqual(validateSchema(bare), []);
+});
+
+// ---------------------------------------------------------------------------
+// The report shows what the student disclosed, as they wrote it
+// ---------------------------------------------------------------------------
+
+test('the report prints each session\'s verbatim use, revision, sources and appendix', () => {
+  const report = formatReport(v2([
+    session({
+      direct_content_used: true,
+      revision_statement: 'Kept the intro, rewrote the rest.',
+      source_verification: true,
+      appendix: { share_link_or_excerpt: 'https://example.test/share/abc' },
+    }),
+    session({ category: 'search', source_verification: false }),
+  ]), 'INTACT', []);
+  assert.match(report, /AI text kept verbatim: yes/);
+  assert.match(report, /revision: Kept the intro, rewrote the rest\./);
+  assert.match(report, /sources checked by the student: yes/);
+  assert.match(report, /appendix: attached \(share_link_or_excerpt\)/);
+  assert.match(report, /AI text kept verbatim: no/);
+  assert.match(report, /sources checked by the student: no/);
+  assert.match(report, /appendix: none attached/);
+});
+
+test('the report never echoes appendix contents', () => {
+  const report = formatReport(v2([session({ appendix: { full_transcript: 'SECRET-TRANSCRIPT-TEXT' } })]), 'INTACT', []);
+  assert.match(report, /attached \(full_transcript\)/);
+  assert.doesNotMatch(report, /SECRET-TRANSCRIPT-TEXT/);
+});
+
+test('unset values print as "not stated", not as a problem', () => {
+  const report = formatReport(v2([session({ source_verification: null, revision_statement: undefined })]), 'INTACT', []);
+  assert.match(report, /sources checked by the student: not stated/);
+  assert.match(report, /revision: not stated/);
+});
+
+test('the report prints the disclosure paragraph in both schema generations', () => {
+  assert.match(formatReport(v2(), 'INTACT', []), /Disclosure paragraph[^\n]*\n\s+I used AI as described above\./);
+  assert.match(formatReport(example, 'INTACT', []), /Disclosure paragraph[^\n]*\n\s+d\n/);
+});
+
+test('the added report lines still carry no score or total', () => {
+  const report = formatReport(v2([session(), session(), session()]), 'INTACT', []);
+  assert.doesNotMatch(report, /total|score|rank/i);
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for the CLI-level tests: capture what runVerify prints
+// ---------------------------------------------------------------------------
+
+/** Run runVerify with console captured. @returns {Promise<{code: number, stdout: string, stderr: string}>} */
+async function capture(argv) {
+  const origLog = console.log;
+  const origErr = console.error;
+  const out = [];
+  const err = [];
+  console.log = (...a) => out.push(a.join(' '));
+  console.error = (...a) => err.push(a.join(' '));
+  try {
+    const code = await runVerify(argv);
+    return { code, stdout: out.join('\n'), stderr: err.join('\n') };
+  } finally {
+    console.log = origLog;
+    console.error = origErr;
+  }
+}
+
+const sha = (buf) => createHash('sha256').update(buf).digest('hex');
+
+/** A directory holding a submission and a receipt bound to it. */
+async function withBoundReceipt(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-sub-'));
+  try {
+    const essay = join(dir, 'essay.txt');
+    const bytes = Buffer.from('The carbon tax is a policy worth arguing about.\n');
+    wf(essay, bytes);
+    const body = { ...v2(), submission_hash: sha(bytes) };
+    const receiptPath = join(dir, 'receipt.json');
+    wf(receiptPath, JSON.stringify({ ...body, content_hash: computeHash(body) }));
+    return await fn({ dir, essay, bytes, receiptPath });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- --submission ---
+
+test('--submission reports MATCH for the file the receipt is bound to', async () => {
+  await withBoundReceipt(async ({ essay, receiptPath }) => {
+    const r = await capture([receiptPath, '--submission', essay]);
+    assert.equal(r.code, 0);
+    assert.match(r.stdout, /Submission file: MATCH/);
+  });
+});
+
+test('--submission reports DIFFERENT with exit 5 when one byte changed', async () => {
+  await withBoundReceipt(async ({ essay, bytes, receiptPath }) => {
+    const changed = Buffer.from(bytes);
+    changed[0] = changed[0] ^ 1;
+    wf(essay, changed);
+    const r = await capture([receiptPath, '--submission', essay]);
+    assert.equal(r.code, 5);
+    assert.match(r.stderr, /Submission file: DIFFERENT/);
+  });
+});
+
+test('--submission=<file> form works', async () => {
+  await withBoundReceipt(async ({ essay, receiptPath }) => {
+    assert.equal((await capture([receiptPath, `--submission=${essay}`])).code, 0);
+  });
+});
+
+test('--submission says so when the receipt has no submission_hash, and exits 0', async () => {
+  await withBoundReceipt(async ({ dir, essay }) => {
+    const bare = v2();
+    const p = join(dir, 'bare.json');
+    wf(p, JSON.stringify({ ...bare, content_hash: computeHash(bare) }));
+    const r = await capture([p, '--submission', essay]);
+    assert.equal(r.code, 0);
+    assert.match(r.stdout, /receipt has no submission_hash/);
+  });
+});
+
+test('--submission with a tampered receipt still exits 1, the more severe code', async () => {
+  await withBoundReceipt(async ({ dir, essay, bytes }) => {
+    const body = { ...v2(), submission_hash: sha(bytes) };
+    const p = join(dir, 'edited.json');
+    wf(p, JSON.stringify({ ...body, content_hash: 'a'.repeat(64) }));
+    wf(essay, 'something else entirely');
+    assert.equal((await capture([p, '--submission', essay])).code, 1);
+  });
+});
+
+test('--submission with an unreadable file, or no value, is a user error (3)', async () => {
+  await withBoundReceipt(async ({ dir, receiptPath }) => {
+    assert.equal((await capture([receiptPath, '--submission', join(dir, 'nope.pdf')])).code, 3);
+    assert.equal((await capture([receiptPath, '--submission'])).code, 3);
+  });
+});
+
+test('--submission refuses to run against several receipts', async () => {
+  await withBoundReceipt(async ({ dir, essay, receiptPath }) => {
+    const r = await capture([receiptPath, receiptPath, '--submission', essay]);
+    assert.equal(r.code, 3);
+    assert.match(r.stderr, /single receipt/);
+    assert.equal((await capture([dir, '--submission', essay])).code, 3);
+  });
+});
+
+test('--help documents --submission and exit 5', async () => {
+  const r = await capture(['--help']);
+  assert.match(r.stdout, /--submission/);
+  assert.match(r.stdout, /\n\s+5\s+/);
+});
+
+// --- batch ---
+
+/** A directory of receipts: one INTACT, one MISMATCH, one INVALID, plus noise. */
+async function withMixedDir(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-batch-'));
+  try {
+    const good = v2();
+    wf(join(dir, 'a-intact.json'), JSON.stringify({ ...good, content_hash: computeHash(good) }));
+    wf(join(dir, 'b-mismatch.json'), JSON.stringify({ ...good, student: 'Edited', content_hash: computeHash(good) }));
+    const { student, ...broken } = good;
+    wf(join(dir, 'c-invalid.json'), JSON.stringify({ ...broken, content_hash: computeHash(broken) }));
+    wf(join(dir, 'notes.txt'), 'not a receipt');
+    mkdirSync(join(dir, 'sub'));
+    wf(join(dir, 'sub', 'd-nested.json'), '{}');
+    return await fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('a directory prints one status line per .json file, non-recursively', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([dir]);
+    const lines = r.stdout.split('\n');
+    assert.equal(lines.length, 3);
+    assert.match(lines[0], /^INTACT\s+.*a-intact\.json$/);
+    assert.match(lines[1], /^MISMATCH\s+.*b-mismatch\.json$/);
+    assert.match(lines[2], /^INVALID\s+.*c-invalid\.json$/);
+    assert.doesNotMatch(r.stdout, /d-nested|notes\.txt/);
+  });
+});
+
+test('a batch exits with the most severe code (mismatch beats invalid)', async () => {
+  await withMixedDir(async (dir) => {
+    assert.equal((await capture([dir])).code, 1);
+    // Without the mismatch, invalid (4) is the worst present.
+    rmSync(join(dir, 'b-mismatch.json'));
+    assert.equal((await capture([dir])).code, 4);
+  });
+});
+
+test('a batch of clean receipts exits 0, and the examples all verify', async () => {
+  const ex = new URL('../examples/', import.meta.url).pathname;
+  const r = await capture([ex]);
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /INTACT\s+.*brainstorm-receipt\.json/);
+  assert.match(r.stdout, /INTACT\s+.*multi-session-receipt\.json/);
+});
+
+test('batch prints no report unless --details is given', async () => {
+  await withMixedDir(async (dir) => {
+    assert.doesNotMatch((await capture([dir])).stdout, /Receipt summary/);
+    const d = await capture([dir, '--details']);
+    assert.equal((d.stdout.match(/--- Receipt summary ---/g) || []).length, 3);
+    assert.equal(d.code, 1);
+  });
+});
+
+test('several file arguments are a batch, an unreadable one is ERROR and exits 3', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([join(dir, 'a-intact.json'), join(dir, 'missing.json')]);
+    assert.match(r.stdout, /^INTACT/m);
+    assert.match(r.stdout, /^ERROR\s+.*missing\.json/m);
+    assert.equal(r.code, 3);
+  });
+});
+
+test('an empty directory is an error, not a silent success', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-empty-'));
+  try {
+    const r = await capture([dir]);
+    assert.equal(r.code, 3);
+    assert.match(r.stdout, /no \.json files/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('batch output carries no counts or totals across receipts', async () => {
+  await withMixedDir(async (dir) => {
+    const r = await capture([dir, '--details']);
+    assert.doesNotMatch(r.stdout, /\b\d+ (receipts|files|sessions|students)\b|total|summary of/i);
+  });
+});
+
+test('single-file output is unchanged by the batch work: stored/recomputed lines, report, no status word line', async () => {
+  const ex = new URL('../examples/brainstorm-receipt.json', import.meta.url).pathname;
+  const r = await capture([ex]);
+  assert.match(r.stdout, /^ok: .* content_hash matches recomputation\./);
+  assert.match(r.stdout, /--- Receipt summary ---/);
+  assert.doesNotMatch(r.stdout, /^INTACT\s/m);
+});
+
+// ---------------------------------------------------------------------------
+// The validator enforces the schema rules it used to skip
+// ---------------------------------------------------------------------------
+
+const v21 = (/** @type {any} */ sessions) => ({ ...v2(sessions), schema_version: '2.1' });
+
+test('a session date must be a real ISO 8601 calendar date (schema 2.1+)', () => {
+  for (const bad of ['05/14/2026', '2026-5-14', '2026-02-30', 'May 14, 2026', '2026-05-14T10:00:00Z']) {
+    const errs = validateSchema(v21([session({ date: bad })])).join('\n');
+    assert.match(errs, /ai_use\[0\]\.date must be an ISO 8601 date/, bad);
+  }
+  assert.deepEqual(validateSchema(v21([session({ date: '2028-02-29' })])), []);
+});
+
+test('released schemas (2.0, 1.x) get a note for a sloppy date, never INVALID', () => {
+  const old2 = v2([session({ date: '05/14/2026' })]);
+  assert.deepEqual(validateSchema(old2), []);
+  assert.match(advisoryNotes(old2).join('\n'), /ai_use\[0\]\.date must be an ISO 8601 date .*predates this check/);
+  const old1 = { ...example, ai_use: { ...example.ai_use, date: 'yesterday' } };
+  assert.deepEqual(validateSchema(old1), []);
+  assert.match(advisoryNotes(old1).join('\n'), /ai_use\.date must be an ISO 8601 date/);
+});
+
+test('generated_at must be an ISO 8601 timestamp (schema 2.1+)', () => {
+  for (const bad of ['yesterday', '2026-05-14', '2026-05-14 16:32:00', '2026-13-01T00:00:00Z', '2026-05-14T25:00:00Z']) {
+    assert.match(validateSchema({ ...v21(), generated_at: bad }).join('\n'), /generated_at must be an ISO 8601/, bad);
+  }
+  for (const ok of ['2026-05-14T16:32:00Z', '2026-05-14T16:32:00.123Z', '2026-05-14T16:32:00-05:00', '2026-05-14T16:32']) {
+    assert.deepEqual(validateSchema({ ...v21(), generated_at: ok }), [], ok);
+  }
+});
+
+test('verification must be an object with a boolean attested', () => {
+  assert.deepEqual(validateSchema(v2([session({ verification: { attested: false } })])), []);
+  assert.deepEqual(validateSchema(v2([session({ verification: { attested: true, statement: 'Read it.' } })])), []);
+  const bad = (verification) => validateSchema(v2([session({ verification })])).join('\n');
+  assert.match(bad('yes'), /ai_use\[0\]\.verification, when present, must be an object/);
+  assert.match(bad({ statement: 'Read it.' }), /verification\.attested must be a boolean/);
+  assert.match(bad({ attested: 'true' }), /verification\.attested must be a boolean/);
+  assert.match(bad({ attested: true, statement: 7 }), /verification\.statement, when present, must be a string/);
+});
+
+test('an out-of-order session date is a note, never a failure', async () => {
+  const r = v2([session({ date: '2026-05-16' }), session({ date: '2026-05-10', tool: 'Claude' })]);
+  assert.deepEqual(validateSchema(r), []);
+  assert.equal(advisoryNotes(r).length, 1);
+  assert.match(advisoryNotes(r)[0], /session 2 \(2026-05-10\) is dated before session 1 \(2026-05-16\)/);
+  const report = formatReport(r, 'INTACT', []);
+  assert.match(report, /^Note:\s+session 2/m);
+  assert.match(report, /not a problem with the receipt/);
+  assert.match(report, /Schema:\s+2\.0 — VALID/);
+  // And through the CLI: the exit code is untouched.
+  const withHash = { ...r, content_hash: computeHash(r) };
+  assert.equal(await withTempReceipt(withHash, (path) => runVerify([path])), 0);
+});
+
+test('in-order and same-day sessions produce no note', () => {
+  assert.deepEqual(advisoryNotes(v2([session(), session({ date: '2026-05-14' }), session({ date: '2026-05-20' })])), []);
+  assert.deepEqual(advisoryNotes(example), []);
+});
+
+test('a full_transcript appendix is not rejected: the opt-in is not recorded in the receipt', () => {
+  assert.deepEqual(validateSchema(v2([session({ appendix: { full_transcript: 'log' } })])), []);
+});
+
+test('the shipped examples still validate and verify', async () => {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json']) {
+    const path = new URL(`../examples/${f}`, import.meta.url).pathname;
+    assert.equal(await runVerify([path]), 0, f);
+  }
 });

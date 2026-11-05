@@ -94,3 +94,12 @@ its absence means the student made no verification claim. It does not mean they
 skipped the reading, and a receipt without it is not a lesser receipt.
 
 **Field mapping from 2.0:** none. No field was renamed, removed, or re-typed.
+
+**Citation descriptions updated (no version bump).** The `ai_use[].citations`
+descriptions now name the current guidance each style follows: MLA's revised
+generative-AI guidance (August 2025), APA's generative-AI reference formats
+(September 2025), and Chicago 18th edition §14.112, with IEEE and Harvard
+marked as common conventions. Only the descriptions changed. The fields, their
+types, their validation, and the `content_hash` input are untouched, so every
+existing receipt, including ones holding the older MLA 2023 / APA 2023 /
+Chicago 17 strings, still validates and verifies.

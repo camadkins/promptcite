@@ -5,6 +5,9 @@
       "release-type": "node",
       "package-name": "promptcite",
       "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "json", "path": "gemini-extension.json", "jsonpath": "$.version" }
+      ],
       "draft": false,
       "prerelease": false,
       "include-component-in-tag": false,

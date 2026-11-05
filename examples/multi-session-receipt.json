@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "generated_at": "2026-05-16T18:04:00Z",
-  "content_hash": "f65a7c543ef98e2f8b5a19a01ff01d7dcbe79d49a7b5acd8bb54186723945ee2",
+  "content_hash": "69b28e417c3735c5e34feb096b21bdcef80b6340081c27821d7f4bfe8e309115",
   "submission_hash": null,
   "student": "C. Hawkins",
   "assignment": {
@@ -21,9 +21,9 @@
       "revision_statement": "Followed the shape loosely and rewrote every heading in my own words.",
       "source_verification": null,
       "citations": {
-        "mla": "\"Structure for an essay arguing against a carbon tax.\" prompt. *ChatGPT*, GPT-4o version, OpenAI, 14 May 2026.",
-        "apa": "OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].",
-        "chicago": "ChatGPT, GPT-4o, response to \"Structure for an essay arguing against a carbon tax,\" May 14, 2026, OpenAI.",
+        "mla": "\"Structure for an essay arguing against a carbon tax\" prompt. *ChatGPT*, model GPT-4o, OpenAI, 14 May 2026, chatgpt.com.",
+        "apa": "OpenAI. (2026). *ChatGPT* [Large language model]. https://chatgpt.com/",
+        "chicago": "Response to \"Structure for an essay arguing against a carbon tax,\" ChatGPT GPT-4o, OpenAI, May 14, 2026.",
         "ieee": "[1] ChatGPT, \"Structure for an essay arguing against a carbon tax,\" GPT-4o, OpenAI, May 14, 2026.",
         "harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model]."
       }
@@ -39,9 +39,9 @@
       "revision_statement": "It explained the off-by-one; I fixed the loop myself.",
       "source_verification": null,
       "citations": {
-        "mla": "\"Why my citation-parsing script drops the last entry.\" prompt. *Claude*, Claude Sonnet 4.6 version, Anthropic, 16 May 2026.",
-        "apa": "Anthropic. (2026). Claude (Claude Sonnet 4.6 version) [Large language model].",
-        "chicago": "Claude, Claude Sonnet 4.6, response to \"Why my citation-parsing script drops the last entry,\" May 16, 2026, Anthropic.",
+        "mla": "\"Why my citation-parsing script drops the last entry\" prompt. *Claude*, model Claude Sonnet 4.6, Anthropic, 16 May 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"Why my citation-parsing script drops the last entry,\" Claude Sonnet 4.6, Anthropic, May 16, 2026.",
         "ieee": "[2] Claude, \"Why my citation-parsing script drops the last entry,\" Claude Sonnet 4.6, Anthropic, May 16, 2026.",
         "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
       },

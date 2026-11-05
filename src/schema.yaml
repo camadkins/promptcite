@@ -250,23 +250,23 @@ fields:
           mla:
             type: string
             required: true
-            description: MLA 9 citation string.
+            description: MLA 9 citation string (MLA Style Center generative-AI guidance, revised August 2025).
           apa:
             type: string
             required: true
-            description: APA 7 citation string.
+            description: APA 7 citation string (APA Style generative-AI reference formats, September 2025).
           chicago:
             type: string
             required: true
-            description: Chicago 17 citation string.
+            description: Chicago 18 note citation string (CMOS 18th ed., §14.112). Receipts from older emitters may hold a Chicago 17 form; it stays valid.
           ieee:
             type: string
             required: false
-            description: IEEE citation string. Optional — older emitters may omit it.
+            description: IEEE citation string, common convention (no official AI guidance). Optional — older emitters may omit it.
           harvard:
             type: string
             required: false
-            description: Harvard author-date citation string. Optional.
+            description: Harvard author-date citation string, common convention (no single authority). Optional.
       appendix:
         type: object
         required: false
@@ -402,10 +402,12 @@ validation:
       not a hard failure — a student may disclose out of order.
   - rule: no_transcript_default
     message: |
-      ai_use[].appendix.full_transcript MUST NOT be present unless the
-      student explicitly opted in during the interview. The interview rule
-      file enforces this; downstream validators should reject receipts with
-      full_transcript present and no corresponding opt-in marker.
+      ai_use[].appendix.full_transcript is opt-in: the interview rule file
+      asks before attaching one and never captures it by default. The opt-in
+      is a moment in the interview, not a field in the receipt, so a
+      validator cannot tell an opted-in transcript from any other and MUST
+      NOT reject a receipt for carrying one. Rejecting receipts that
+      disclose more would punish disclosure.
 
 # ---------------------------------------------------------------------------
 # Migration policy

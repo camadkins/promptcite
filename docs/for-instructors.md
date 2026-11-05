@@ -64,15 +64,23 @@ mapping and the version history.
 ## Reading a receipt with several sessions
 
 Take the sessions in order and read them as a narrative of how the work was done.
-`promptcite-verify` prints one line each:
+`promptcite-verify` prints each one with what the student wrote about it:
 
 ```
 Session 1:  ChatGPT (GPT-4o) on 2026-05-14, used to outline
             Asked for a structure for an essay arguing against a carbon tax
             provenance: agent-reported (the AI filled tool/model/date)
+            AI text kept verbatim: no
+            revision: Followed the shape loosely and rewrote every heading myself.
+            sources checked by the student: not stated
+            appendix: none attached
 Session 2:  Claude (Claude Sonnet 4.6) on 2026-05-16, used to debug
             Asked why my citation-parsing script dropped the last entry
             provenance: student-claimed (the student typed tool/model/date)
+            AI text kept verbatim: no
+            revision: It explained the off-by-one; I fixed the loop myself.
+            sources checked by the student: not stated
+            appendix: attached (diff_or_test_log)
 ```
 
 **The number of sessions is not a measure of anything.** This is the one thing
@@ -146,12 +154,43 @@ npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
 ```
 
 The verifier also validates the receipt against the schema and prints a
-plain-English summary — student, assignment, one line per session
-(tool/model/date, category, provenance), hash status, and which schema
-generation it found — so you don't have to read the raw JSON. It accepts
-both 1.x and 2.0 receipts.
+plain-English summary: student, assignment, then for each session the
+tool/model/date, category, provenance, and what the student wrote about it
+(whether AI text was kept verbatim, the revision statement, whether they
+checked sources, and which appendix kinds are attached), followed by the
+disclosure paragraph, the hash status, and which schema generation it found.
+It accepts both 1.x and 2.x receipts. Anything the student left unset prints as
+"not stated"; that is not a flag. The tool reports what was disclosed. It does
+not count, score, or rank it.
 
-Exit codes:
+The schema check covers the shape of every field, including that dates are real
+ISO 8601 dates and that an attestation, when present, has the right form. A
+`Note:` line appears if the sessions are not listed oldest first. That is
+advisory only: students may disclose out of order, and it never changes the
+verdict or the exit code.
+
+### A stack of receipts
+
+Give it several files, or a directory (its `*.json` files, not subfolders), and it
+prints one status line per receipt instead of a full report:
+
+```bash
+promptcite-verify submissions/essay-1/
+```
+
+```
+INTACT       submissions/essay-1/alvarez.json
+MISMATCH     submissions/essay-1/chen.json
+INVALID      submissions/essay-1/okafor.json
+UNVERIFIABLE submissions/essay-1/reyes.json
+```
+
+`INVALID` means the hash is intact but the receipt fails the schema. Add
+`--details` to follow each status line with the full report. Nothing is totalled
+across receipts, and there is no export; the only summary is the exit code.
+
+Exit codes (a batch exits with the most severe one present, in this order of
+severity: 3, 1, 5, 4, 2, 0):
 - `0` hash matches AND the receipt is well-formed (unmodified, valid)
 - `1` hash mismatch (receipt was edited)
 - `2` no `content_hash` field, or null (the agent had no code-execution
@@ -159,22 +198,34 @@ Exit codes:
 - `3` user error (file missing, bad JSON, etc.)
 - `4` hash matches but the receipt fails schema validation (the summary
   lists the specific problems)
+- `5` the file given with `--submission` does not match the receipt's
+  `submission_hash`
 
-### `submission_hash` — binding the receipt to the work
+### `submission_hash`: binding the receipt to the work
 
 A receipt (schema 1.1 or later) may also carry a `submission_hash`: the SHA-256 of
 the **actual file the student submitted** (their essay, their source
 file), as opposed to `content_hash` which only covers the receipt's own
 fields. When present, you can confirm a receipt belongs to a specific
-document by re-hashing the submitted file:
+document by handing the verifier the submitted file:
+
+```bash
+promptcite-verify receipt.json --submission path/to/their-essay.pdf
+```
+
+It reports `MATCH`, `DIFFERENT` (exit `5`), or that the receipt has no
+`submission_hash` (exit unchanged). `DIFFERENT` means the file is not byte for
+byte the one the receipt was bound to; it cannot say why. If you prefer, hash it
+yourself and compare:
 
 ```bash
 shasum -a 256 path/to/their-essay.pdf
 ```
 
-and comparing it to the receipt's `submission_hash`. Same honest limits
-apply (a student could hash a different file) — it's a binding aid, not
-proof. `null` means the agent couldn't hash the file at generation time.
+Same honest limits apply (a student could hash a different file): it's a binding
+aid, not proof. `null` means the agent couldn't hash the file at generation time.
+`--submission` checks one file against one receipt, so it does not combine with a
+batch.
 
 **Honest limits:** this is tamper-evident, not tamper-proof. A
 determined student can recompute the hash after editing since the
