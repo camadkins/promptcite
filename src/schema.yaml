@@ -250,23 +250,23 @@ fields:
           mla:
             type: string
             required: true
-            description: MLA 9 citation string.
+            description: MLA 9 citation string (MLA Style Center generative-AI guidance, revised August 2025).
           apa:
             type: string
             required: true
-            description: APA 7 citation string.
+            description: APA 7 citation string (APA Style generative-AI reference formats, September 2025).
           chicago:
             type: string
             required: true
-            description: Chicago 17 citation string.
+            description: Chicago 18 note citation string (CMOS 18th ed., §14.112). Receipts from older emitters may hold a Chicago 17 form; it stays valid.
           ieee:
             type: string
             required: false
-            description: IEEE citation string. Optional — older emitters may omit it.
+            description: IEEE citation string, common convention (no official AI guidance). Optional — older emitters may omit it.
           harvard:
             type: string
             required: false
-            description: Harvard author-date citation string. Optional.
+            description: Harvard author-date citation string, common convention (no single authority). Optional.
       appendix:
         type: object
         required: false

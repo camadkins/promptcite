@@ -29,11 +29,11 @@ Every session gets its own citation — a citation names one prompt, one tool, o
 model, one date. Both go in your Works Cited.
 
 ```
-1. "Structure for an essay arguing against a carbon tax." prompt.
-   *ChatGPT*, GPT-4o version, OpenAI, 14 May 2026.
+1. "Structure for an essay arguing against a carbon tax" prompt.
+   *ChatGPT*, model GPT-4o, OpenAI, 14 May 2026, chatgpt.com.
 
-2. "Why my citation-parsing script drops the last entry." prompt.
-   *Claude*, Claude Sonnet 4.6 version, Anthropic, 16 May 2026.
+2. "Why my citation-parsing script drops the last entry" prompt.
+   *Claude*, model Claude Sonnet 4.6, Anthropic, 16 May 2026, claude.ai.
 ```
 
 APA, Chicago, IEEE, and Harvard are stored for both sessions too — the student
