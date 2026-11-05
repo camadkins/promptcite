@@ -230,6 +230,31 @@ test('hook-register uninstall removes only our entry', () => {
   });
 });
 
+test('claude-hook registers all three events and uninstall removes exactly ours from each', () => {
+  inTempDir((dir) => {
+    const sandbox = join(dir, 'cfg');
+    mkdirSync(sandbox);
+    const file = join(sandbox, 'settings.json');
+    writeFileSync(file, EXISTING_SETTINGS);
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    const ours = (g) => g.hooks.filter((h) => h.command.includes('--id promptcite'));
+    const installed = JSON.parse(readFileSync(file, 'utf8')).hooks;
+    for (const event of ['PostToolUse', 'UserPromptSubmit', 'SessionStart']) {
+      assert.equal(installed[event].flatMap(ours).length, 1, `${event} has our hook`);
+    }
+    assert.equal(installed.UserPromptSubmit[0].matcher, undefined, 'UserPromptSubmit takes no matcher');
+    run(['--only', 'claude-hook', '--config-dir', sandbox], dir);
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).hooks, installed, 'idempotent');
+    run(['--only', 'claude-hook', '--config-dir', sandbox, '--uninstall'], dir);
+    const after = readFileSync(file, 'utf8');
+    assert.doesNotMatch(after, /promptcite/);
+    const parsed = JSON.parse(after);
+    assert.equal(parsed.hooks.PostToolUse[0].hooks[0].command, '/my/formatter.sh');
+    assert.equal(parsed.hooks.SessionStart[0].hooks[0].command, '/my/greeter.sh');
+    assert.equal(parsed.hooks.UserPromptSubmit, undefined, 'emptied event removed');
+  });
+});
+
 test('hook-register creates a config file when none exists', () => {
   inTempDir((dir) => {
     const sandbox = join(dir, 'cfg');

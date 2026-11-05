@@ -52,7 +52,8 @@ problem to solve.
    exists only as an *opt-in* appendix triggered by the student.
 5. **Local only.** Do not call any external service. Do not write
    files outside the current working directory unless the student
-   explicitly requests it.
+   explicitly requests it. (Saving a course file in `course add` is such
+   a request, and only after the student says yes to the draft.)
 6. **Format the output exactly as specified below.** Citation,
    disclosure paragraph, and JSON receipt are all produced from one
    interview pass.
@@ -97,8 +98,21 @@ or behavior the docs don't state.
 - **`recall`** (or `--recall`) → show the student what's in their local
   AI-use ledger (see *Ledger* below) and stop. Do NOT interview, generate,
   or purge. This is a read-only look at their own notes.
+- **`course add <file>`** → run the **course intake flow** (see *Course
+  files* below): read the student's syllabus and draft a course file from
+  it. Do NOT interview or generate a receipt.
+- **`course`** (or `--course`) → show the active course's rules (see *Course
+  files*) and stop. If no course is active, say so and list the student's
+  course files, or tell them how to add one.
+- **`ask <question>`** → answer the student's question from the active
+  course's guidance, quoting the syllabus (see *Asking about a course*). Do
+  NOT interview or generate a receipt.
 - **anything else** → treat as the full interview and note once that the
   unrecognized argument was ignored.
+
+Outside of `/receipt` entirely: when the student mentions a course they have
+a course file for ("working on CSCE 423 homework") and asks whether or how
+they may use AI on it, the same course rules apply. See *Course files*.
 
 ## Settings (`promptcite.config.json`)
 
@@ -128,6 +142,10 @@ below); leave it out and the profile is inferred per assignment.
 
 `disclosure_language` picks the language of the disclosure paragraph (see
 Step 5b); leave it out for English.
+
+`course` binds this folder to one of the student's course files (see *Course
+files* below). `promptcite course use <id>` writes it and `promptcite course
+clear` removes it; the student never has to type it by hand.
 
 `ledger` and `markers` are both **off by default** and control the optional
 capture layer described under *Ledger* below. `markers.attest` changes what a
@@ -222,13 +240,169 @@ How each key steers the interview:
   settings on the student's machine; a policy file cannot make the ledger
   leave their computer, and nothing about it is emitted in the receipt.
 
-**Precedence:** the instructor policy overrides student settings where
-they conflict (e.g. policy `required_citation_style` wins over a saved
+**Precedence:** the instructor policy overrides a course file's policy (see
+*Course files*), which overrides student settings, where they conflict (e.g. policy `required_citation_style` wins over a saved
 `citation_style`). Tell the student in one line when policy applies —
 e.g. *"This assignment's policy requires APA and a diff appendix for
 debug — I'll ask for those."* Policy is **configuration, not a receipt**:
 never hashed, never emitted inside the JSON. If the file is absent or
 malformed, ignore it and run normally.
+
+## Course files (`~/.promptcite/courses/<id>.json`)
+
+An instructor's rules for AI use usually live in the syllabus, not in a
+`promptcite.policy.json`. A **course file** is what one class's syllabus says
+about AI use, written down once so PromptCite can advise the student in a way
+that fits that class. It is the student's own configuration: it lives in
+`~/.promptcite/courses/`, outside any repository, one file per course, and
+the student can read, edit, or delete it at any time.
+
+```json
+{
+  "id": "csce-423",
+  "name": "CSCE 423",
+  "aliases": ["algorithms", "423"],
+  "term": "Fall 2026",
+  "instructor": "Dr. Example",
+  "policy": { "allowed_categories": ["explain", "brainstorm", "debug"], "required_citation_style": "IEEE" },
+  "guidance": [
+    {
+      "rule": "You may use AI to explain a concept, but not to solve a homework problem.",
+      "quote": "Generative AI tools may be used to help you understand course concepts. They may not be used to produce solutions, proofs, or code for graded homework.",
+      "where": "Academic Integrity, p. 3"
+    }
+  ],
+  "unclear": [{ "topic": "Whether AI may check a proof you wrote yourself" }],
+  "source": { "file": "csce423-syllabus.pdf", "added": "2026-08-24" }
+}
+```
+
+- **`id`** — lowercase letters, digits, and dashes. It is the file name.
+- **`name`**, **`aliases`** — how the student refers to the course. Used to
+  recognize it in what they type.
+- **`policy`** — the same keys as `promptcite.policy.json` **except**
+  `require_ledger`, `require_markers`, and `require_attestation`. Those stay
+  assignment-only, because the hook reads only the assignment's policy file. A
+  course file cannot switch recording on.
+- **`guidance`** — what the syllabus says, one rule per entry. `rule` is a
+  plain sentence; `quote` is the syllabus's **verbatim** text that the rule
+  comes from; `where` is the section or page. Every rule has a quote.
+- **`unclear`** — what the syllabus leaves open or vague: a `topic` and,
+  when there is one, the ambiguous `quote`.
+- **`source`** — the syllabus's file name (name only, never a path) and the
+  date it was added.
+
+`promptcite course check <file>` validates one; `promptcite course` lists
+them; `promptcite course show <id>` prints one.
+
+### Which course is active
+
+Resolve the course once per run, in this order:
+
+1. **Folder binding** — `promptcite.config.json` in the current directory has
+   `"course": "<id>"` (set by `promptcite course use <id>`). Load
+   `~/.promptcite/courses/<id>.json`. Use it without asking.
+2. **What the student says** — the student names a course in their message
+   ("working on CSCE 423", "my algorithms homework"). Match it against each
+   course file's `id`, `name`, and `aliases`, ignoring case, spaces, and
+   dashes. On a match, **confirm in one line before using it** — *"Using your
+   CSCE 423 course file (Fall 2026). Say 'no' if this is a different class."*
+   If two courses match, ask which one. Never guess a course from the
+   directory alone.
+3. **None** — no binding and no match. Run exactly as you would without
+   course files. Do not ask the student to set one up unless they ask about
+   course rules.
+
+If the bound file is missing or fails `promptcite course check`, say so in one
+line, suggest `promptcite course check ~/.promptcite/courses/<id>.json`, and
+continue as if no course were active. Never error out over a course file.
+
+### How the course steers things
+
+**Precedence**, highest first: the assignment's `promptcite.policy.json` >
+the course file's `policy` > the student's settings. The course policy steers
+the `/receipt` interview exactly as an assignment policy does (see
+*Instructor policy*: allowed categories in Step 2, citation style in Step 1,
+source verification, required appendices, disclosure language, profile).
+Where the assignment's policy and the course's disagree, the assignment wins,
+since it is the more specific instruction from the same instructor; say so in
+one line. The course file's `name` and `instructor` also fill the Step 1
+course and instructor answers.
+
+When the student picks a use category that the course's `guidance` speaks to,
+show the relevant rule and its quote in one short line before the follow-ups,
+so the student sees the class's rule at the moment it matters. Do not refuse
+the receipt over it: the student may be disclosing exactly the use the
+syllabus restricts, and an honest receipt is still the right output.
+
+### The course intake flow (`/receipt course add <file>`)
+
+1. **Read a local file only.** The student names a syllabus file on their
+   machine (PDF, Markdown, text, Word export). If they give a URL, ask them to
+   download the syllabus and give you the file. Do not fetch anything.
+2. **Find the AI-use parts.** Read the whole syllabus. Collect what it says
+   about AI, generative tools, chatbots, code assistants, collaboration, and
+   outside help, plus any course-level citation style.
+3. **Draft guidance, quote first.** For each thing the syllabus actually says,
+   write one `guidance` entry: copy the syllabus text **verbatim** into
+   `quote`, then write `rule` as a plain sentence that says no more and no
+   less than the quote. Add `where` (section heading or page). If you cannot
+   point at the sentence, it is not a guidance entry.
+4. **Park what's vague.** Anything ambiguous, contradictory, or simply absent
+   that a student would reasonably wonder about (exams, projects, group work,
+   checking your own work) goes in `unclear`, with the vague quote when there
+   is one.
+5. **Fill policy only from explicit text.** Set `policy` keys only where the
+   syllabus states them outright (e.g. "cite in IEEE format"). Leave the rest
+   out. Never add `require_ledger`, `require_markers`, or
+   `require_attestation`.
+6. **Ask for the identity fields** you could not read from the syllabus: the
+   short `name` the student uses, any `aliases`, and the `id` (suggest one,
+   like `csce-423`).
+7. **Show the whole draft** — every rule with its quote, then the unclear list
+   — and ask the student to confirm or correct it. **Write nothing until they
+   say yes.** On yes, write it to `~/.promptcite/courses/<id>.json` with
+   `source.file` set to the syllabus's file name (name only) and
+   `source.added` to today. If a file with that id exists, ask before
+   replacing it.
+8. Tell them where it was saved, suggest `promptcite course check
+   ~/.promptcite/courses/<id>.json`, and mention `promptcite course use <id>`
+   to bind a homework folder to it.
+
+Do not copy the syllabus into the course file. Quote only the sentences the
+rules come from.
+
+### Asking about a course (`/receipt ask <question>`, or in conversation)
+
+Resolve the active course (above), then answer the question from its
+`guidance` and `policy` only:
+
+- **Quote the syllabus.** Give the answer in a sentence, then the `quote` and
+  `where` it rests on. If several rules bear on it, quote each.
+- **If it's in `unclear`, or the syllabus doesn't address it, say so plainly**
+  — *"The syllabus doesn't say. Ask your instructor."* — and, when it helps,
+  suggest the one-line question to send them.
+- **Advise the way the class would want.** If the course allows explaining but
+  not solving, help the student understand rather than handing over a
+  solution, and say why in one line by pointing at the rule.
+
+### Honesty rules for course files (always)
+
+- **Silence is never permission.** If the syllabus doesn't address something,
+  the answer is "the syllabus doesn't say; ask your instructor," never "it
+  isn't prohibited, so it's fine."
+- **Never loosen a restriction.** Never paraphrase a rule into something more
+  permissive than its quote ("may not be used to produce solutions" does not
+  become "AI is fine as long as you understand it"). When in doubt, quote
+  instead of paraphrasing.
+- **PromptCite advises; it does not enforce or report.** It does not block the
+  student's work, refuse to help, or tell anyone what the student did. The
+  course file is a reading aid for the student. The syllabus and the
+  instructor are the authority, and the course file may be out of date.
+- **Course files stay on the student's screen.** Never write a course file, its
+  guidance, or its quotes into a receipt, a ledger, a marker, or any other
+  output. Only values that already have a receipt field (course name,
+  instructor) may appear in a receipt, the same as if the student typed them.
 
 ## Ledger (optional, off by default)
 
@@ -236,7 +410,8 @@ If the student has installed the PromptCite hook and enabled `ledger`, their
 agent records each AI insertion as it happens — a line per event in
 `~/.promptcite/ledgers/<hash>.jsonl`, **outside any repository**. The shape is
 `src/ledger.schema.yaml`: timestamp, tool, model, file, lines added. No code, no
-prompts, no hashes, no scores.
+prompts, no hashes, no scores. (A `session` event holds a path to the agent's own
+transcript, never its contents; see *Session pointers* below.)
 
 **The ledger exists for exactly one reason: so the student doesn't have to
 reconstruct their AI use from memory.** Its only consumer is this interview.
@@ -285,6 +460,19 @@ quietly destroy their notes about work they still have to disclose somewhere
 else. Say so in one short line — *"Cleared the entries this receipt covers; the
 rest are still in your ledger."* (Or just *"Cleared the ledger entries for this
 receipt."* when they selected everything.)
+
+**Session pointers (the whole assignment, not just what is left in context).**
+Besides insertion events, the ledger may hold `session` events: the path to a
+transcript file the student's own agent keeps on this machine. When the ledger
+has `session` pointers for this folder, read those transcript files to
+reconstruct AI use across the whole assignment, including sessions from before
+a compaction or a cleared context. They are local and the student's own. Use
+them the way you use insertion events: to jog the interview and fill in what the
+student confirms, summarized under the existing rules. **Never paste the
+transcript into the receipt** unless the student chose the `full_transcript`
+appendix. If a transcript file is gone or unreadable, say so in one line and ask
+the student what happened in that session. `session` events have no file, so leave them out of the numbered picker. Pointers follow the same selection,
+purge, and "never challenge the student" rules as everything else here.
 
 **Hard rules for the ledger — these are not stylistic:**
 
@@ -517,9 +705,10 @@ disclosure paragraph should be careful about.
 **Choosing one.** Precedence, highest first:
 
 1. **Policy** — `promptcite.policy.json` sets `profile`. It wins, always.
-2. **Settings** — `promptcite.config.json` sets `profile`.
-3. **Inference** — you pick from the signals below.
-4. **Default** — `code` in a directory that looks like a project, `essay`
+2. **Course** — the active course file's `policy.profile` (see *Course files*).
+3. **Settings** — `promptcite.config.json` sets `profile`.
+4. **Inference** — you pick from the signals below.
+5. **Default** — `code` in a directory that looks like a project, `essay`
    otherwise.
 
 **Inference signals, in the order you should weigh them.** What the student
@@ -637,6 +826,10 @@ First, load configuration:
   policy* above). If present, apply its requirements throughout the
   interview, and note in one line what it requires. Policy overrides
   settings on conflict.
+- **Course** — resolve the active course (see *Course files* above): the
+  folder's `course` binding, else a course the student named, confirmed in
+  one line. Apply its `policy` beneath the assignment policy and above
+  settings, and use its `name` and `instructor` for Step 1.
 - **Profile** — resolve the interview's shape (see *Profiles* above): policy,
   then settings, then your own read of the directory and the assignment. When
   you inferred it, confirm in one line so the student can switch.
@@ -745,8 +938,8 @@ Ask the student, in **one packed turn** (numbered list), to answer all at once:
 
 **Drop questions you already have answers for:** omit the citation-style
 question if an instructor policy set `required_citation_style` or saved
-settings set `citation_style`; omit course/instructor/name if settings or
-policy already supply them. Only ask what's actually still unknown.
+settings set `citation_style`; omit course/instructor/name if settings, the active course
+file, or policy already supply them. Only ask what's actually still unknown.
 
 Parse the student's reply (numbered or freeform). If any field is
 missing or ambiguous, ask only for the missing ones in a tight
@@ -1369,7 +1562,12 @@ End with one short line:
 - Refuse to generate a receipt because of judgments about the
   student's AI use.
 - Phone home, send telemetry, or write data anywhere outside the
-  current working directory.
+  current working directory, except a course file the student approved in
+  `course add`.
+- Fetch a syllabus from a URL, treat a syllabus's silence as permission, or
+  paraphrase a course rule into something looser than its quote.
+- Put a course file, or any of its guidance or quotes, into a receipt, a
+  ledger, or any other output.
 - Capture the raw prompt log without explicit student opt-in via the
   `full_transcript` appendix.
 - Embellish the student's answers, fabricate details, or "improve" the

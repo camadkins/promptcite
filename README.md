@@ -39,7 +39,11 @@ replacing it — an assignment worked across a week ends up as one honest record
 Optionally, an **AI-use ledger** records your insertions locally so `/receipt`
 reminds you what you did instead of asking you to remember. Off by default,
 separately installed, stored outside your repo, and purged once used — it
-exists to make honest disclosure easier, never to report on you. See
+exists to make honest disclosure easier, never to report on you. If you run
+`/receipt` late, after your agent has compacted or cleared its context, the
+hook can also point `/receipt` at the agent's own local transcript so the
+earlier sessions aren't lost. It stores only where that file is, never what is
+in it, and nothing leaves your machine. See
 [INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
 
 Optionally, for courses where the point is that **you own what you verify**,
@@ -51,6 +55,15 @@ run on yourself, not a report anyone else reads.
 Recording is per folder and off by default: `promptcite on` when you start an
 assignment, `promptcite off` when it's handed in, `promptcite status` to see
 where you are.
+
+Different classes, different AI rules. Hand PromptCite a syllabus once with
+`/receipt course add syllabus.pdf` and it saves that class's AI-use rules, each
+one quoted word for word from the syllabus, to a course file on your machine.
+Bind a homework folder with `promptcite course use csce-423`, or just say
+"working on CSCE 423," and `/receipt` follows that class's rules while
+`/receipt ask "can I use AI to check my proof?"` answers from the syllabus.
+Where the syllabus says nothing, it tells you to ask your instructor rather
+than guessing. See [INSTALL.md](./INSTALL.md#course-files-one-per-class).
 
 It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
 

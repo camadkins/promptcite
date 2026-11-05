@@ -17,3 +17,5 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |
 | [0007](./0007-multi-session-receipts.md) | One receipt covers a whole assignment | Accepted |
 | [0008](./0008-attestation-over-provenance.md) | Attestation: record the verification, not just the provenance | Accepted |
+| [0009](./0009-course-policies-from-the-syllabus.md) | Course policies come from the syllabus, held by the student | Accepted |
+| [0010](./0010-session-pointers-and-course-context.md) | Session pointers and course context: point at the agent's transcript, never copy it | Accepted |

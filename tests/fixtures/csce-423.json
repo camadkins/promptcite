@@ -1,0 +1,40 @@
+{
+  "_comment": "Made-up course for tests. The syllabus quoted here does not exist.",
+  "id": "csce-423",
+  "name": "CSCE 423",
+  "aliases": ["design and analysis of algorithms", "algorithms", "423"],
+  "term": "Fall 2026",
+  "instructor": "Dr. Example",
+  "policy": {
+    "profile": "math-proof",
+    "allowed_categories": ["explain", "brainstorm", "debug"],
+    "required_citation_style": "IEEE",
+    "require_source_verification": ["explain"],
+    "required_appendix": { "debug": "diff_or_test_log" }
+  },
+  "guidance": [
+    {
+      "rule": "You may use AI to explain a concept from lecture, but not to solve a homework problem.",
+      "quote": "Generative AI tools may be used to help you understand course concepts. They may not be used to produce solutions, proofs, or code for graded homework.",
+      "where": "Academic Integrity, AI Tools, p. 3"
+    },
+    {
+      "rule": "Any AI use on a homework must be disclosed at the top of the submission.",
+      "quote": "If you used an AI tool in any way while working on an assignment, say so at the top of your submission, naming the tool and what you used it for.",
+      "where": "Academic Integrity, AI Tools, p. 3"
+    },
+    {
+      "rule": "No AI of any kind during exams.",
+      "quote": "Exams are closed-book and closed-device. No AI tools.",
+      "where": "Exams, p. 2"
+    }
+  ],
+  "unclear": [
+    {
+      "topic": "Whether AI may check a proof you already wrote yourself",
+      "quote": "They may not be used to produce solutions, proofs, or code for graded homework."
+    },
+    { "topic": "Whether the programming project follows the homework rule or its own" }
+  ],
+  "source": { "file": "csce423-syllabus-fall2026.pdf", "added": "2026-08-24" }
+}

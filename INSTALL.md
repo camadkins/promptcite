@@ -103,8 +103,9 @@ asking you to remember. Install it only if you want that:
 | **Codex CLI** | `npx -y github:camadkins/promptcite --only codex-hook` | `~/.codex/hooks.json` |
 
 Both agents use the same hooks format, so one recorder (`bin/hook.js`) serves
-both — and any other agent that can run a command on a post-tool-use event is a
-one-line `MANIFEST` entry away.
+both. It registers for three events: after a tool runs, when you send a prompt,
+and when a session starts. Any other agent that can run a command on those
+events is a one-line `MANIFEST` entry away.
 
 **Registering the hook turns nothing on.** It stays inert until you opt in:
 
@@ -116,7 +117,13 @@ one-line `MANIFEST` entry away.
 What it does and doesn't do:
 
 - Records **only** timestamp, tool, model, file, and lines added — never your
-  code, never your prompts.
+  code, never your prompts. It also notes where your agent keeps its own
+  session transcript on your machine (the file path only, once per session), so
+  `/receipt` can read it later if your agent has compacted or cleared its
+  context. It never copies the transcript.
+- If you have a course file saved (`promptcite course`), it also reminds your
+  agent of that course's rules when you mention the course in a prompt. That
+  writes nothing to disk and works whether or not the ledger is on.
 - Writes to `~/.promptcite/ledgers/`, deliberately **outside** any repository,
   so it can't be swept into a submission. `/receipt` purges what it uses.
 - Never blocks, alters, or auto-approves a tool call. It observes after the
@@ -159,6 +166,42 @@ npx -y github:camadkins/promptcite --init-config   # writes promptcite.config.js
 Or just run `/receipt settings` inside your agent to set them
 conversationally. Settings are local config — never hashed, never part of
 a receipt, never sent anywhere.
+
+## Course files (one per class)
+
+Each class has its own AI rules, usually in the syllabus. Give PromptCite the
+syllabus once, inside your agent:
+
+```text
+/receipt course add ~/Downloads/csce423-syllabus.pdf
+```
+
+It drafts a course file from what the syllabus actually says: each rule with
+the syllabus's own words quoted under it, and a list of what the syllabus
+leaves unclear. Nothing is saved until you say yes. It reads a local file only;
+if your syllabus is a web page, download it first.
+
+Course files live in `~/.promptcite/courses/<id>.json`, outside any repo.
+
+```bash
+promptcite course                      # list your course files
+promptcite course show csce-423        # what the syllabus says, with quotes
+promptcite course use csce-423         # this folder is CSCE 423 work
+promptcite course clear                # unbind this folder
+promptcite course check my-course.json # validate a hand-edited file (exit 1 if not usable)
+```
+
+With a folder bound, `/receipt` uses that class's rules without asking. In an
+unbound folder, mention the course ("working on CSCE 423") and it asks once
+to confirm. `/receipt course` shows the active course's rules and
+`/receipt ask <question>` answers from them. An assignment's
+`promptcite.policy.json` still wins over a course file, and a course file can't
+turn recording on: `require_ledger`, `require_markers`, and
+`require_attestation` stay assignment-only.
+
+A course file is your reading of the syllabus, for your screen. It is never
+written into a receipt, and the syllabus and your instructor stay the
+authority.
 
 ## Manual install (no `curl | bash`)
 

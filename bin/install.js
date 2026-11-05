@@ -6,12 +6,13 @@
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir, rm, access, readdir } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 import process from 'node:process';
 import { composeRule } from './rule.js';
+import { coursePath, isSafeCourseId, listCourses, loadCourse, readCourseFile, resolveCoursesDir } from './course.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -286,7 +287,8 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  *                    (AGENTS.md, .goosehints, replit.md, …) so existing
  *                    content is preserved
  *   - cli-extension: shell out to the agent's own extension installer
- *   - hook-register: merge a PostToolUse entry into the agent's hooks config
+ *   - hook-register: merge our entries (PostToolUse, UserPromptSubmit,
+ *                    SessionStart) into the agent's hooks config
  *                    (JSON), preserving everything already in the file. Every
  *                    supported agent uses the same hooks shape, so adding one
  *                    is a data entry: give it a path, a base, and a `tool` id.
@@ -316,6 +318,7 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
  * @property {string} [tool]
  * @property {string} [event]
  * @property {GlobalSpec[]} [global]
+ * @property {string[]} [events]  Every hook event to register for (default: PostToolUse only).
  * @property {string} [matcher]
  */
 
@@ -334,6 +337,9 @@ description: Generate a structured AI-use receipt for academic assignments. Cond
 const COMMAND_FRONTMATTER = `---
 description: Generate a structured AI-use receipt for academic assignments (PromptCite)
 ---`;
+
+/** The three events bin/hook.js handles (ADR 0010). */
+const HOOK_EVENTS = ['PostToolUse', 'UserPromptSubmit', 'SessionStart'];
 
 /** @type {AgentSpec[]} */
 const MANIFEST = [
@@ -446,10 +452,10 @@ const MANIFEST = [
   //     requires it). Both agents take the same hooks shape; a third is a
   //     one-line entry here.
   { id: 'claude-hook', name: 'Claude Code (AI-use hook)', strategy: 'hook-register',
-    base: 'configDir', path: 'settings.json', optIn: true, tool: 'claude-code',
+    base: 'configDir', path: 'settings.json', optIn: true, tool: 'claude-code', events: HOOK_EVENTS,
     display: '~/.claude/settings.json (hooks block)', detect: { homePaths: ['.claude'] } },
   { id: 'codex-hook', name: 'Codex CLI (AI-use hook)', strategy: 'hook-register',
-    base: 'home', path: '.codex/hooks.json', optIn: true, tool: 'codex-cli',
+    base: 'home', path: '.codex/hooks.json', optIn: true, tool: 'codex-cli', events: HOOK_EVENTS,
     display: '~/.codex/hooks.json', detect: { homePaths: ['.codex'] } },
 
   { id: 'jules', name: 'Jules (Google)', strategy: 'block-append', base: 'cwd',
@@ -562,7 +568,25 @@ export function isOurHook(hook) {
 }
 
 /**
- * Merge our PostToolUse entry into an agent's hooks config, preserving
+ * Events an entry registers for. Matchers differ per event: PostToolUse only
+ * cares about file writes, UserPromptSubmit takes no matcher at all, and
+ * SessionStart's matcher is how the session began.
+ * @param {any} entry @returns {string[]}
+ */
+function eventsOf(entry) {
+  if (Array.isArray(entry.events) && entry.events.length) return entry.events;
+  return [entry.event || 'PostToolUse'];
+}
+
+/** @param {string} event @param {any} entry @returns {string | undefined} */
+function matcherFor(event, entry) {
+  if (event === 'UserPromptSubmit') return undefined;
+  if (event === 'SessionStart') return 'startup|resume|clear|compact';
+  return entry.matcher || 'Write|Edit';
+}
+
+/**
+ * Merge our entries into an agent's hooks config, one per event, preserving
  * everything already there. Both supported agents use the same shape — Claude
  * Code nests it among other settings keys, Codex gives it its own file — so a
  * third agent is a manifest entry, not new code.
@@ -571,45 +595,48 @@ export function isOurHook(hook) {
 export function mergeHookConfig(config, entry) {
   const next = config && typeof config === 'object' ? { ...config } : {};
   const hooks = { ...(next.hooks || {}) };
-  const event = entry.event || 'PostToolUse';
-  const groups = Array.isArray(hooks[event]) ? hooks[event].map((/** @type {any} */ g) => ({ ...g })) : [];
 
   const ours = {
     type: 'command',
     command: `${hookCommandPath()} --tool ${entry.tool} ${HOOK_MARKER}`,
   };
-  const matcher = entry.matcher || 'Write|Edit';
 
-  const existing = groups.find((/** @type {any} */ g) => g.matcher === matcher);
-  if (existing) {
-    const kept = (existing.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h));
-    existing.hooks = [...kept, ours];
-  } else {
-    groups.push({ matcher, hooks: [ours] });
+  for (const event of eventsOf(entry)) {
+    const groups = Array.isArray(hooks[event]) ? hooks[event].map((/** @type {any} */ g) => ({ ...g })) : [];
+    const matcher = matcherFor(event, entry);
+    const existing = groups.find((/** @type {any} */ g) => g.matcher === matcher);
+    if (existing) {
+      const kept = (existing.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h));
+      existing.hooks = [...kept, ours];
+    } else {
+      groups.push(matcher === undefined ? { hooks: [ours] } : { matcher, hooks: [ours] });
+    }
+    hooks[event] = groups;
   }
 
-  hooks[event] = groups;
   next.hooks = hooks;
   return next;
 }
 
 /**
- * Remove only our entries, and only empty groups we emptied.
+ * Remove only our entries, and only empty groups we emptied. Sweeps every
+ * event, not just the ones this version registers, so an install from an
+ * older or newer version is cleaned up too.
  * @param {any} config @param {any} entry @returns {any}
  */
 export function unmergeHookConfig(config, entry) {
   if (!config || typeof config !== 'object' || !config.hooks) return config;
   const next = { ...config };
   const hooks = { ...next.hooks };
-  const event = entry.event || 'PostToolUse';
-  if (!Array.isArray(hooks[event])) return config;
 
-  const groups = hooks[event]
-    .map((/** @type {any} */ g) => ({ ...g, hooks: (g.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h)) }))
-    .filter((/** @type {any} */ g) => g.hooks.length > 0);
-
-  if (groups.length) hooks[event] = groups;
-  else delete hooks[event];
+  for (const event of new Set([...eventsOf(entry), ...HOOK_EVENTS])) {
+    if (!Array.isArray(hooks[event])) continue;
+    const groups = hooks[event]
+      .map((/** @type {any} */ g) => ({ ...g, hooks: (g.hooks || []).filter((/** @type {any} */ h) => !isOurHook(h)) }))
+      .filter((/** @type {any} */ g) => g.hooks.length > 0);
+    if (groups.length) hooks[event] = groups;
+    else delete hooks[event];
+  }
 
   if (Object.keys(hooks).length) next.hooks = hooks;
   else delete next.hooks;
@@ -1017,7 +1044,221 @@ async function printSwitchStatus(ctx) {
       ctx.log('so turn it back on with "promptcite on" before you work on it.');
     }
   }
+  if (typeof config.course === 'string') {
+    const entry = loadCourse(config.course);
+    if (entry && entry.errors.length === 0) {
+      ctx.log(`course:    ${entry.course.name} (${entry.id})`);
+    } else {
+      ctx.log(`course:    ${config.course} ${c.yellow(entry ? '(invalid, run "promptcite course show ' + entry.id + '")' : '(no such course file)')}`);
+    }
+  } else {
+    ctx.log('course:    none bound here (promptcite course use <id>)');
+  }
   ctx.log('Pending markers: run "promptcite-check".');
+}
+
+/**
+ * Bind this folder to a course, or clear the binding. Same read-modify-write
+ * as setSwitch: keys it didn't come for are kept, and a config that isn't
+ * valid JSON is replaced rather than fatal.
+ *
+ * @param {InstallContext} ctx
+ * @param {string | null} id  The course id, or null to clear.
+ * @returns {Promise<boolean>} false when there was nothing to clear.
+ */
+async function setCourseBinding(ctx, id) {
+  const targetPath = join(ctx.cwd, 'promptcite.config.json');
+  const existing = await ctx.adapter.readFileIfPresent(targetPath);
+  /** @type {Record<string, any>} */
+  let config = {};
+  if (existing) {
+    try {
+      config = JSON.parse(existing);
+    } catch {
+      if (id === null) return false;
+      ctx.log(`${c.yellow('note:')} ${targetPath} isn't valid JSON, so I'm replacing it.`);
+      config = {};
+    }
+  }
+  if (id === null) {
+    if (!('course' in config)) return false;
+    delete config.course;
+  } else {
+    config.course = id;
+  }
+  await ctx.adapter.writeFile(targetPath, `${JSON.stringify(config, null, 2)}\n`);
+  return true;
+}
+
+/**
+ * The bound course id for this folder, or null.
+ *
+ * @param {InstallContext} ctx
+ * @returns {Promise<string | null>}
+ */
+async function boundCourse(ctx) {
+  const raw = await ctx.adapter.readFileIfPresent(join(ctx.cwd, 'promptcite.config.json'));
+  if (!raw) return null;
+  try {
+    const config = JSON.parse(raw);
+    return typeof config.course === 'string' ? config.course : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {InstallContext} ctx
+ * @param {string[]} problems
+ * @param {(msg: string) => void} [out]
+ */
+function logProblems(ctx, problems, out = ctx.log) {
+  for (const p of problems) out(`  - ${p}`);
+}
+
+/**
+ * Print a course file the way a student reads it: the rules, each with the
+ * syllabus's own words under it, then what the syllabus left open. Screen
+ * only. Nothing here goes into a receipt.
+ *
+ * @param {InstallContext} ctx
+ * @param {any} course
+ */
+function printCourse(ctx, course) {
+  ctx.log(c.bold(`${course.name} (${course.id})`));
+  const meta = [course.term, course.instructor].filter(Boolean).join(', ');
+  if (meta) ctx.log(meta);
+  if (Array.isArray(course.aliases) && course.aliases.length) ctx.log(`also known as: ${course.aliases.join(', ')}`);
+  const policy = course.policy && typeof course.policy === 'object' ? course.policy : {};
+  const policyKeys = Object.keys(policy).filter((k) => k !== '_comment');
+  if (policyKeys.length) {
+    ctx.log('');
+    ctx.log(c.bold('policy'));
+    for (const k of policyKeys) ctx.log(`  ${k}: ${JSON.stringify(policy[k])}`);
+  }
+  if (Array.isArray(course.guidance) && course.guidance.length) {
+    ctx.log('');
+    ctx.log(c.bold('what the syllabus says'));
+    for (const g of course.guidance) {
+      ctx.log(`  - ${g.rule}`);
+      ctx.log(c.dim(`    "${g.quote}"${g.where ? ` (${g.where})` : ''}`));
+    }
+  }
+  if (Array.isArray(course.unclear) && course.unclear.length) {
+    ctx.log('');
+    ctx.log(c.bold('not clear from the syllabus, ask your instructor'));
+    for (const u of course.unclear) {
+      ctx.log(`  - ${u.topic}`);
+      if (u.quote) ctx.log(c.dim(`    "${u.quote}"`));
+    }
+  }
+  if (course.source && typeof course.source === 'object') {
+    const from = [course.source.file, course.source.added].filter(Boolean).join(', added ');
+    if (from) {
+      ctx.log('');
+      ctx.log(c.dim(`from ${from}`));
+    }
+  }
+}
+
+/**
+ * `promptcite course …`. Course files hold what a syllabus says about AI use
+ * (ADR 0009). This command lists, shows, binds, and checks them. Adding one is
+ * the /receipt `course add` flow, because reading a syllabus takes a model and
+ * this installer never calls one.
+ *
+ * @param {InstallContext} ctx
+ * @param {string[]} args  Words after `course`.
+ * @returns {Promise<number>} exit code: 0 ok, 1 user error.
+ */
+async function runCourse(ctx, args) {
+  const [sub = 'list', arg] = args;
+  /** @param {string} msg */
+  const fail = (msg) => {
+    console.error(`${c.red('error:')} ${msg}`);
+    return 1;
+  };
+  const needsArg = ['show', 'use', 'check'];
+  if (!['list', ...needsArg, 'clear'].includes(sub)) {
+    return fail(`unknown course command "${sub}". Expected list, show, use, clear, or check.`);
+  }
+  if (needsArg.includes(sub) && !arg) {
+    return fail(`course ${sub} needs ${sub === 'check' ? 'a file' : 'a course id'}.`);
+  }
+  if (!needsArg.includes(sub) && arg) {
+    return fail(`course ${sub} takes no argument.`);
+  }
+  if ((sub === 'show' || sub === 'use') && !isSafeCourseId(arg)) {
+    return fail(`"${arg}" is not a course id. Ids are lowercase letters, digits, and dashes, like csce-423.`);
+  }
+
+  if (sub === 'list') {
+    const courses = listCourses();
+    const bound = await boundCourse(ctx);
+    if (courses.length === 0) {
+      ctx.log(`No course files yet in ${resolveCoursesDir()}.`);
+      ctx.log('Add one from your syllabus with "/receipt course add <file>" in your agent.');
+      return 0;
+    }
+    for (const entry of courses) {
+      const name = entry.course && typeof entry.course.name === 'string' ? entry.course.name : '?';
+      const term = entry.course && typeof entry.course.term === 'string' ? ` ${c.dim(entry.course.term)}` : '';
+      const flag = entry.errors.length ? ` ${c.red('invalid')}` : '';
+      const here = entry.id === bound ? ` ${c.green('(this folder)')}` : '';
+      ctx.log(`${entry.id.padEnd(16)} ${name}${term}${flag}${here}`);
+    }
+    if (courses.some((e) => e.errors.length)) {
+      ctx.log('');
+      ctx.log('Run "promptcite course show <id>" to see what is wrong with an invalid one.');
+    }
+    return 0;
+  }
+
+  if (sub === 'show' || sub === 'use') {
+    const entry = loadCourse(/** @type {string} */ (arg));
+    if (!entry) {
+      return fail(`no course "${arg}" in ${resolveCoursesDir()}. Run "promptcite course" to list them.`);
+    }
+    if (entry.errors.length) {
+      console.error(`${c.red('error:')} ${entry.file} can't be used:`);
+      logProblems(ctx, entry.errors, (m) => console.error(m));
+      return 1;
+    }
+    if (sub === 'show') {
+      printCourse(ctx, entry.course);
+      return 0;
+    }
+    await setCourseBinding(ctx, entry.id);
+    ctx.log(`${c.green('course')} ${entry.course.name} for ${ctx.cwd}`);
+    ctx.log('/receipt and /receipt ask follow this class\'s rules here.');
+    ctx.log('An assignment\'s promptcite.policy.json still wins where the two disagree.');
+    return 0;
+  }
+
+  if (sub === 'clear') {
+    const cleared = await setCourseBinding(ctx, null);
+    ctx.log(cleared ? `no course bound to ${ctx.cwd} now.` : 'no course was bound here.');
+    return 0;
+  }
+
+  // check
+  const file = resolve(ctx.cwd, /** @type {string} */ (arg));
+  const result = readCourseFile(file);
+  if (result.course && typeof result.course.id === 'string' && isSafeCourseId(result.course.id)) {
+    const expected = `${result.course.id}.json`;
+    if (basename(file) !== expected) {
+      result.warnings.push(`save it as ${coursePath(result.course.id)} so "promptcite course use" can find it`);
+    }
+  }
+  if (result.errors.length) {
+    console.error(`${c.red('invalid:')} ${file}`);
+    logProblems(ctx, result.errors, (m) => console.error(m));
+    if (result.warnings.length) logProblems(ctx, result.warnings.map((w) => `warning: ${w}`), (m) => console.error(m));
+    return 1;
+  }
+  ctx.log(`${c.green('valid:')} ${file}`);
+  logProblems(ctx, result.warnings.map((w) => `warning: ${w}`));
+  return 0;
 }
 
 /**
@@ -1055,6 +1296,13 @@ COMMANDS
                          entries already in your ledger are left alone.
   status                 Show what's on in this folder and what the assignment
                          expects. Run "promptcite-check" for pending markers.
+  course                 List your course files (~/.promptcite/courses).
+  course show <id>       Print what a course's syllabus says about AI use.
+  course use <id>        Bind this folder to a course, so /receipt and
+                         /receipt ask follow that class's rules here.
+  course clear           Remove this folder's course binding.
+  course check <file>    Check a course file. Exits 1 and says why if it's not
+                         usable. Add one with "/receipt course add <syllabus>".
 
   Run "on" when you start an assignment and "off" when it's handed in. The
   setting is per folder, so turning it on for homework leaves everything else
@@ -1088,6 +1336,7 @@ EXAMPLES
   promptcite on                                  # start recording in this folder
   promptcite off                                 # stop when the assignment is in
   promptcite status                              # what's on here
+  promptcite course use csce-423                 # this folder is CSCE 423 work
   promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
@@ -1133,10 +1382,12 @@ function parseCli(argv) {
   // Bare words are the primary form and --flags are aliases, matching how
   // /receipt already takes its modes.
   const command = positionals[0] ?? null;
-  if (command !== null && !['on', 'off', 'status'].includes(command)) {
-    throw new UserError(`unknown command "${command}". Expected on, off, or status.`);
+  if (command !== null && !['on', 'off', 'status', 'course'].includes(command)) {
+    throw new UserError(`unknown command "${command}". Expected on, off, status, or course.`);
   }
-  if (positionals.length > 1) {
+  // `course` takes a subcommand and at most one argument; everything else is
+  // a single bare word.
+  if (positionals.length > (command === 'course' ? 3 : 1)) {
     throw new UserError('one command at a time, please.');
   }
 
@@ -1161,6 +1412,7 @@ function parseCli(argv) {
     switchOn: command === 'on' || values.on === true,
     switchOff: command === 'off' || values.off === true,
     switchStatus: command === 'status' || values.status === true,
+    course: command === 'course' ? positionals.slice(1) : null,
     attest: values['no-attest'] !== true,
     only,
     all: only === null,
@@ -1273,6 +1525,10 @@ async function main(argv) {
   if (parsed.doctor) {
     await runDoctor(ctx);
     return 0;
+  }
+
+  if (parsed.course) {
+    return runCourse(ctx, parsed.course);
   }
 
   if (parsed.switchStatus) {
