@@ -68,9 +68,9 @@ For `block-append`, put some existing text in the file first and confirm
 it survives both install and uninstall.
 
 **4. Wire up the rest, then open the PR.** Add a row to the matrix in
-`INSTALL.md`, run `bun run typecheck && node --test tests/*.test.js`, add a one-line
-`CHANGELOG.md` entry under `[Unreleased]`, and open the PR (the CLA bot
-will prompt you). If the agent reads `AGENTS.md`, it may already be
+`INSTALL.md`, run `bun run typecheck && node --test tests/*.test.js`, and
+open the PR with a conventional commit subject (the CLA bot will prompt you).
+Release Please writes `CHANGELOG.md` from that subject, so don't edit it. If the agent reads `AGENTS.md`, it may already be
 covered — check the `AGENTS.md` family note in `INSTALL.md` first.
 
 ## Review
