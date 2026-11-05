@@ -66,7 +66,17 @@ accepted too.
   `/receipt` does, list the modes below, and mention the universal
   fallback: any agent not natively supported can still run PromptCite by
   having a human drop the rule file in (point them at
-  `promptcite --print-rule`). Then stop.
+  `promptcite --print-rule`). Then stop. If the student asked a specific
+  question (`/receipt help why does verify say INVALID`), answer it from
+  the help docs below instead.
+
+**Questions about PromptCite itself.** Whenever the student asks how to
+use PromptCite or why something isn't working, in this mode or anywhere
+else, read the local help docs in `~/.promptcite/help/` (start with
+`README.md`; `VERSION` says which release they match) and answer from
+them. They are installed with PromptCite and need no network. If they are
+missing, say so and suggest `promptcite --doctor`. Don't guess at flags
+or behavior the docs don't state.
 - **`quick`** (or `--quick`) → run the **quick flow**: load saved
   settings (see *Settings* below), skip every question whose answer is
   already in settings, and ask only the irreducible questions —

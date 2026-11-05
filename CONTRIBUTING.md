@@ -19,7 +19,7 @@ Thanks for showing up.
 
 - Bug fixes for things you actually hit
 - Tightening of the receipt rule based on real classroom use
-- New agent adapters (we ship 24; see "Add an agent" below — a great first PR)
+- New agent adapters (we ship 26; see "Add an agent" below — a great first PR)
 - Honest framing in docs — no overclaim of verifiability
 
 ## What's not
