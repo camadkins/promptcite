@@ -23,9 +23,8 @@ to the project instead of disappearing into a private fork.
 
 ## Contribution
 
-Contributions are licensed under AGPL v3, the same as the project. There is
-no CLA to sign. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR flow
-and what's welcome.
+Contributions are licensed under AGPL v3, the same as the project. See
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR flow and what's welcome.
 
 ## Trademarks
 
