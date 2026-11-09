@@ -30,7 +30,8 @@ fields:
       2.1 is 2.0 plus an optional per-session `verification` block, so a
       2.0 receipt is already a valid 2.1 receipt and needs no migration.
       2.2 adds optional per-session `stage`, `extent`, and
-      `verification.methods`; every 2.1 receipt is a valid 2.2 receipt.
+      `verification.methods`, and optional `outputs.short_statement` and
+      `outputs.journal_statement`; every 2.1 receipt is a valid 2.2 receipt.
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
@@ -429,6 +430,26 @@ fields:
           the recorded fields; the student's own words are never rewritten.
         min_length: 1
         max_length: 4000
+      short_statement:
+        type: string
+        required: false
+        description: |
+          Added in 2.2, optional. The disclosure as one line for an LMS
+          comment box, covering every session. Present only when the
+          student asked for the short form (receipt.md Step 5b, Other
+          forms). Never replaces disclosure_statement.
+        min_length: 1
+        max_length: 300
+      journal_statement:
+        type: string
+        required: false
+        description: |
+          Added in 2.2, optional. A journal's generative-AI declaration
+          covering every session, in Elsevier's wording unless the
+          student supplied the journal's own. The statement only; the
+          heading is added at display time. Present only when asked for.
+        min_length: 1
+        max_length: 2000
 
 # ---------------------------------------------------------------------------
 # Validation rules (consumer-side; not enforced by YAML itself)
@@ -472,6 +493,10 @@ validation:
       statement.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
+  - rule: other_forms_shape
+    message: |
+      outputs.short_statement and outputs.journal_statement, when present,
+      must be non-empty strings; short_statement is at most 300 characters.
   - rule: submission_hash_format
     message: |
       submission_hash, when present and non-null, must match
@@ -521,7 +546,8 @@ migration:
           the student checked before keeping the AI output. No field removed
           or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
     2.2 — additive: optional per-session ai_use[].stage, ai_use[].extent, and
-          ai_use[].verification.methods. No field removed or re-typed; every
+          ai_use[].verification.methods, plus optional outputs.short_statement
+          and outputs.journal_statement. No field removed or re-typed; every
           2.1 receipt is a valid 2.2 receipt. See ADR 0012.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
   upgrade_1x_to_2_0: |

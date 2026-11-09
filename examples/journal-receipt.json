@@ -1,0 +1,71 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-06T22:15:00Z",
+  "content_hash": "8248f9ae92ed791ded59e8d3ebb2e16289602020a7795c1984220b3a6d51cd4d",
+  "submission_hash": null,
+  "student": "R. Okafor",
+  "assignment": {
+    "course": "AGRO 896",
+    "instructor": "Dr. Example",
+    "title": "Manuscript: Cover crop effects on soil moisture"
+  },
+  "ai_use": [
+    {
+      "tool": "ChatGPT",
+      "model": "GPT-4o",
+      "date": "2026-10-28",
+      "metadata_source": "student_claimed",
+      "category": "brainstorm",
+      "stage": "planning",
+      "prompt_summary": "Possible explanations for lower soil moisture under rye",
+      "direct_content_used": false,
+      "revision_statement": "I tested each explanation against our field data and kept two.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Possible explanations for lower soil moisture under rye\" prompt. *ChatGPT*, model GPT-4o, OpenAI, 28 Oct. 2026, chatgpt.com.",
+        "apa": "OpenAI. (2026). *ChatGPT* [Large language model]. https://chatgpt.com/",
+        "chicago": "Response to \"Possible explanations for lower soil moisture under rye,\" ChatGPT GPT-4o, OpenAI, October 28, 2026.",
+        "ieee": "[1] ChatGPT, \"Possible explanations for lower soil moisture under rye,\" GPT-4o, OpenAI, Oct. 28, 2026.",
+        "harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model]."
+      }
+    },
+    {
+      "tool": "Claude",
+      "model": "Claude Sonnet 4.6",
+      "date": "2026-11-06",
+      "metadata_source": "agent_reported",
+      "category": "edit",
+      "stage": "revising",
+      "prompt_summary": "Tighten the wording of the discussion section",
+      "direct_content_used": true,
+      "revision_statement": "I accepted about half of the suggested cuts and rewrote the rest myself.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "small",
+        "student_change": "edited"
+      },
+      "citations": {
+        "mla": "\"Tighten the wording of the discussion section\" prompt. *Claude*, model Claude Sonnet 4.6, Anthropic, 6 Nov. 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"Tighten the wording of the discussion section,\" Claude Sonnet 4.6, Anthropic, November 6, 2026.",
+        "ieee": "[1] Claude, \"Tighten the wording of the discussion section,\" Claude Sonnet 4.6, Anthropic, Nov. 6, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
+      },
+      "verification": {
+        "attested": true,
+        "statement": "Reread every edited sentence against the results tables.",
+        "methods": [
+          "read_through",
+          "checked_sources"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on October 28, 2026 to brainstorm possible explanations for lower soil moisture under rye for this assignment. On November 6 I used Claude (Claude Sonnet 4.6) to edit the discussion section, where the AI rewrote paragraphs; a few lines of AI-generated text appear in the final submission, and I edited that text before keeping it. I accepted about half of the suggested cuts and rewrote the rest myself. The November 6 session was recorded inside Claude; the October 28 details are from my own notes.",
+    "journal_statement": "During the preparation of this work the author used ChatGPT (GPT-4o) and Claude (Claude Sonnet 4.6) in order to brainstorm explanations for lower soil moisture under rye and tighten the wording of the discussion section. After using this tool/service, the author reviewed and edited the content as needed and takes full responsibility for the content of the publication."
+  }
+}

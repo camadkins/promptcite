@@ -32,6 +32,7 @@ Type these after `/receipt`:
 | `course add <syllabus>` | Read a local syllabus and draft a course file. Nothing is saved until you say yes |
 | `course` | Show which course this folder follows |
 | `ask <question>` | Answer from your course's AI rules, quoting the syllabus |
+| `none` | Write a no-AI declaration for an assignment you did without AI. No receipt |
 | `help` | A short version of this page |
 
 ## Course rules
@@ -53,6 +54,14 @@ anyway. Check by hand with `promptcite policy check <uses>`.
 When a course rule allows what you did, `/receipt` can offer to start your
 disclosure with it, quoted: "Per the CSCE 423 AI policy (...), I used ...".
 You see the sentence first, and it only goes in if you say yes.
+
+## Other forms
+
+Need a one-liner for a Canvas comment box, or a journal's AI declaration? Ask
+for "the short version" or "the journal version", or set
+`"extra_statements": ["short", "journal"]` in `promptcite.config.json`. Both
+sit next to the paragraph and never replace it. The journal form uses
+Elsevier's wording unless you paste your journal's own.
 
 ## Verifying a receipt (for instructors too)
 

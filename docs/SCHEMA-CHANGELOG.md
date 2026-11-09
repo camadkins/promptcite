@@ -140,4 +140,10 @@ cross-checks: `ai_share: "none"` with `direct_content_used: true` is a
 contradiction and is invalid, and `methods` without `attested: true` is
 invalid. Nothing is measured. Every value is the student's pick.
 
+**Other forms.** 2.2 also adds two optional strings under `outputs`:
+`short_statement` (one line for an LMS comment box, at most 300 characters) and
+`journal_statement` (a journal's AI declaration, Elsevier's wording by
+default). Each is written only when the student asks for it, covers every
+session, and never replaces `disclosure_statement`. See ADR 0014.
+
 **Field mapping from 2.1:** none. No field was renamed, removed, or re-typed.

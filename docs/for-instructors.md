@@ -15,6 +15,16 @@ will hand you, alongside their paper or code:
    (MLA / APA / Chicago / IEEE / Harvard)
 3. **A JSON receipt** as an attachment or pasted appendix
 
+Sometimes also a one-line **short statement** (for an LMS comment box) or a
+**journal declaration**, stored as `outputs.short_statement` and
+`outputs.journal_statement`. They restate the paragraph and never replace it.
+
+A student who used no AI may hand you a **no-AI declaration** from
+`/receipt none` instead. It's their statement and nothing more: no JSON, no
+hash, nothing to verify. PromptCite won't write one when the student's ledger
+or a receipt for the assignment shows AI use, unless the student says those
+entries are from other work.
+
 You don't need any software to read these. The disclosure and citation
 are plain text. The JSON is structured and human-readable.
 

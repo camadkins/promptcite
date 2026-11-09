@@ -22,3 +22,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0011](./0011-ai-levels-warn-never-gate.md) | AI levels per assignment: AIAS by default, warn but never gate | Accepted, amended by 0013 |
 | [0012](./0012-stage-and-extent.md) | Stage and extent: closed lists the student picks from | Accepted |
 | [0013](./0013-students-may-cite-the-course-rule.md) | A student may choose to cite the course rule in their disclosure | Accepted |
+| [0014](./0014-other-forms-and-the-no-ai-declaration.md) | Other forms of the disclosure, and a no-AI declaration that isn't a receipt | Accepted |

@@ -52,7 +52,7 @@ test('every category the rule names has a lead string', () => {
 test('every key the rule references exists in en.md, and every en.md key is referenced', () => {
   const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
   const keys = [...parseLocale(en, 'src/locales/en.md').strings.keys()];
-  const referenced = new Set([...rule.matchAll(/`((?:brainstorm|outline|search|explain|edit|debug|draft|provenance|multi|extent|cite)\.\w+)`/g)].map((m) => m[1]));
+  const referenced = new Set([...rule.matchAll(/`((?:brainstorm|outline|search|explain|edit|debug|draft|provenance|multi|extent|cite|none|journal|short)\.\w+)`/g)].map((m) => m[1]));
   for (const key of referenced) assert.ok(keys.includes(key), `rule references ${key}, which en.md lacks`);
   for (const key of keys) assert.ok(referenced.has(key), `en.md has ${key}, which the rule never uses`);
 });
@@ -117,4 +117,50 @@ test('the course-rule example quotes its syllabus word for word, and the draft e
   assert.ok(m, cited);
   assert.ok(course.guidance.some((g) => g.quote.includes(m[1])), `"${m[1]}" is not in the fixture's guidance`);
   assert.doesNotMatch(read('../examples/draft-receipt.json').outputs.disclosure_statement, /^Per the /);
+});
+
+test('the journal form is Elsevier wording with only the author resolved', () => {
+  const strings = parseLocale(en, 'src/locales/en.md').strings;
+  assert.equal(
+    strings.get('journal.heading'),
+    'Declaration of generative AI and AI-assisted technologies in the manuscript preparation process',
+  );
+  // Elsevier policy, updated June 2026, with author(s) / take(s) resolved for one author.
+  const elsevier = 'During the preparation of this work the author(s) used [NAME OF TOOL/SERVICE] in order to [REASON]. After using this tool/service, the author(s) reviewed and edited the content as needed and take(s) full responsibility for the content of the publication.';
+  const ours = elsevier
+    .replaceAll('author(s)', 'author')
+    .replace('take(s)', 'takes')
+    .replace('[NAME OF TOOL/SERVICE]', '{tools}')
+    .replace('[REASON]', '{reasons}');
+  assert.equal(strings.get('journal.statement'), ours);
+});
+
+test('the other-form examples follow their strings and stay short', () => {
+  const read = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
+  const journal = read('../examples/journal-receipt.json');
+  assert.match(journal.outputs.journal_statement, /^During the preparation of this work the author used ChatGPT \(GPT-4o\) and Claude \(Claude Sonnet 4\.6\) in order to /);
+  assert.match(journal.outputs.journal_statement, /takes full responsibility for the content of the publication\.$/);
+  const short = read('../examples/short-receipt.json').outputs.short_statement;
+  assert.match(short, /^I used Copilot \(GPT-4\.1\) on this assignment to .+\. My AI-use receipt has the details\.$/);
+  assert.ok(short.length <= 300, `${short.length} chars`);
+  for (const f of ['brainstorm', 'draft', 'course-rule', 'multi-session']) {
+    const o = read(`../examples/${f}-receipt.json`).outputs;
+    assert.equal(o.short_statement, undefined, f);
+    assert.equal(o.journal_statement, undefined, f);
+  }
+});
+
+test('the no-AI declaration is a statement, checks first, and never claims proof', () => {
+  const strings = parseLocale(en, 'src/locales/en.md').strings;
+  assert.equal(strings.get('none.statement'), 'I did not use generative AI tools for any part of this assignment.');
+  assert.ok((strings.get('none.basic_tools') ?? '').includes('{tools}'));
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  const section = rule.slice(rule.indexOf('## No-AI declaration'), rule.indexOf('## Interview flow'));
+  assert.match(section, /no JSON is written and nothing is hashed/);
+  assert.match(section, /If the ledger \(when enabled\) has entries for\s+this folder/);
+  assert.match(section, /Never call the\s+declaration proof, evidence, or verification/);
+  assert.match(rule, /- \*\*`none`\*\* \(or `--none`\)/);
+  const example = readFileSync(new URL('../examples/no-ai-declaration.md', import.meta.url), 'utf8');
+  assert.ok(example.includes(strings.get('none.statement')));
+  assert.match(example, /not proof of anything/);
 });

@@ -149,3 +149,29 @@ None of the AI-generated text appears in the final submission.
 The {date_recorded} session was recorded inside {tool}; the {date_reported} details are from my own notes.
 
 > Used when some sessions were recorded inside the tool and some were reported by the student from memory.
+
+## none.statement
+I did not use generative AI tools for any part of this assignment.
+
+## none.basic_tools
+The only writing tools I used were {tools}, for spelling and grammar checks that did not write or rewrite any of my text.
+
+> {tools} names basic checkers, e.g. "the spell checker in Google Docs". Never a tool that rewrote sentences.
+
+## journal.heading
+Declaration of generative AI and AI-assisted technologies in the manuscript preparation process
+
+> This heading and the statement below are Elsevier's wording. Leave them in English if the journal publishes in English, whatever the student's language.
+
+## journal.statement
+During the preparation of this work the author used {tools} in order to {reasons}. After using this tool/service, the author reviewed and edited the content as needed and takes full responsibility for the content of the publication.
+
+> {tools} lists every tool with its model, e.g. "ChatGPT (GPT-4o) and Claude (Claude Sonnet 4.6)". {reasons} is what they were used for, from the sessions' categories and summaries, e.g. "brainstorm thesis angles and edit the introduction".
+
+## short.used
+I used {tools} on this assignment to {reasons}.
+
+> The one-line form for an LMS comment box. {tools} and {reasons} are filled the same way as journal.statement.
+
+## short.receipt
+My AI-use receipt has the details.
