@@ -150,7 +150,7 @@ Ideas, issues, and PRs are all welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 ## Docs
 
 - [INSTALL.md](./INSTALL.md) per-agent install commands and flags
-- [docs/for-instructors.md](./docs/for-instructors.md) instructor reading guide
+- [docs/for-instructors.md](./docs/for-instructors.md) instructor reading guide, and `promptcite policy init` to set an assignment's AI level
 - [CONTRIBUTING.md](./CONTRIBUTING.md) how to contribute
 - [SECURITY.md](./SECURITY.md) vulnerability reporting and threat model
 - [CHANGELOG.md](./CHANGELOG.md) release notes

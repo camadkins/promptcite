@@ -1297,7 +1297,7 @@ async function runPolicy(ctx, args, opts) {
     console.error(`${c.red('error:')} ${msg}`);
     return 1;
   };
-  if (sub !== 'check') return fail(`unknown policy command "${sub ?? ''}". Expected check.`);
+  if (sub !== 'check') return fail(`unknown policy command "${sub ?? ''}". Expected check or init.`);
   const bad = categories.filter((cat) => !CATEGORIES.includes(cat));
   if (bad.length) return fail(`not a use category: ${bad.join(', ')}. Expected ${CATEGORIES.join(', ')}.`);
 
@@ -1428,6 +1428,7 @@ EXAMPLES
   promptcite status                              # what's on here
   promptcite course use csce-423                 # this folder is CSCE 423 work
   promptcite timeline                            # receipts + commits, in order, hash-chained
+  promptcite policy init                         # instructors: write this assignment's policy
   promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
@@ -1592,6 +1593,10 @@ function selectProviders(parsed) {
  */
 async function main(argv) {
   // `timeline` has its own flags, so it gets its own parser. See bin/timeline.js.
+  if (argv[0] === 'policy' && argv[1] === 'init') {
+    const { runPolicyInit } = await import('./policyinit.js');
+    return runPolicyInit(argv.slice(2));
+  }
   if (argv[0] === 'timeline') {
     const { runTimeline } = await import('./timeline.js');
     return runTimeline(argv.slice(1));

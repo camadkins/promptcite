@@ -363,7 +363,19 @@ one, so read it as their account rather than a score. See
 [ADR 0016](./adr/0016-reflection-questions.md).
 
 **AI levels.** If you grade on the AI Assessment Scale (AIAS), or your own
-scale, set the level for the assignment and paste your rule with it:
+scale, set the level for the assignment and paste your rule with it. The
+easy way is to run this in the assignment folder and answer its questions:
+
+```bash
+npx -y github:camadkins/promptcite policy init
+npx -y github:camadkins/promptcite policy init --scale lanes --level 1 --allows brainstorm,explain --quote "..." --yes
+```
+
+It takes an AIAS level (1 to 5) or a lane on the two-lane model (Lane 1
+secure, where you say which uses are allowed; Lane 2 open), plus your rule
+word for word, checks the result, and writes `promptcite.policy.json`. Other
+keys already in the file are kept. See
+[ADR 0019](./adr/0019-policy-init-and-lanes.md). By hand, it looks like this:
 
 ```json
 { "ai_level": { "level": 2, "quote": "You may use AI to brainstorm and outline. Everything you submit must be your own.", "where": "Assignment 3" } }
