@@ -152,13 +152,17 @@ jobs:
             mark_pass "examples/*.json all match schema"
           fi
 
-          # 8c. bin/verify.js correctly verifies the example receipt.
-          # Sanity check that the verifier algorithm and the example
-          # receipt stay in sync. If either drifts, this fails.
-          if node bin/verify.js examples/brainstorm-receipt.json >/dev/null 2>&1; then
-            mark_pass "bin/verify.js verifies example receipt"
+          # 8c. bin/verify.js verifies every example receipt, so the
+          # verifier and the examples can't drift apart.
+          BAD_HASH=""
+          for f in examples/*.json; do
+            [ -f "$f" ] || continue
+            node bin/verify.js "$f" >/dev/null 2>&1 || BAD_HASH="$BAD_HASH $f"
+          done
+          if [ -n "$BAD_HASH" ]; then
+            mark_fail "bin/verify.js failed on:$BAD_HASH (hash mismatch or schema error, re-hash after editing a receipt)"
           else
-            mark_fail "bin/verify.js failed to verify examples/brainstorm-receipt.json (algorithm drift or hash mismatch)"
+            mark_pass "bin/verify.js verifies every example receipt"
           fi
 
           # 8d. Conventional commits required. Excludes merge commits,
@@ -174,9 +178,76 @@ jobs:
             mark_pass "All commits use conventional prefix"
           fi
 
+          # Lines this PR adds, for the diff-level checks below.
+          ADDED=$(git diff origin/main..HEAD -- . ':(exclude).github/workflows/pr-checks.yml' | grep -E '^\+' | grep -vE '^\+\+\+ ' || true)
+
+          # 8e. Hidden unicode. Bidi controls and zero-width characters can
+          # make code read differently than it runs (Trojan Source).
+          UNICODE_FILES=$(node -e "
+            const { execFileSync } = require('child_process');
+            const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
+            const bad = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/;
+            for (const f of git('diff', '--name-only', 'origin/main..HEAD').split('\n').filter(Boolean)) {
+              const added = git('diff', 'origin/main..HEAD', '--', f).split('\n').filter(l => l.startsWith('+') && !l.startsWith('+++'));
+              if (added.some(l => bad.test(l))) console.log(f);
+            }
+          " 2>/dev/null || true)
+          if [ -n "$UNICODE_FILES" ]; then
+            mark_fail "hidden unicode (bidi or zero-width characters) added in: $(echo "$UNICODE_FILES" | tr "\n" " ")"
+          else
+            mark_pass "No hidden unicode in added lines"
+          fi
+
+          # 8f. Every action in every workflow is pinned to a full commit SHA.
+          # A tag can be moved to point at different code, a SHA can't.
+          UNPINNED=$(grep -rhE '^\s*-?\s*uses:' .github/workflows | grep -vE 'uses:\s*\./' | grep -vE '@[0-9a-f]{40}(\s|$)' || true)
+          if [ -n "$UNPINNED" ]; then
+            mark_fail "actions not pinned to a full commit SHA: $(echo "$UNPINNED" | sed -E 's/^[[:space:]-]*uses:[[:space:]]*//' | head -5 | tr "\n" " ")"
+          else
+            mark_pass "All workflow actions pinned to a commit SHA"
+          fi
+
+          # 8g. No install-time scripts. Installing PromptCite must never run
+          # code from package.json lifecycle hooks.
+          HOOKS=$(node -e "const s = require('./package.json').scripts || {}; console.log(['preinstall','install','postinstall','preprepare','prepare','postprepare'].filter(k => k in s).join(' '))" 2>/dev/null)
+          if [ -n "$HOOKS" ]; then
+            mark_fail "package.json has install-time scripts: $HOOKS"
+          else
+            mark_pass "No install-time scripts in package.json"
+          fi
+
+          # 8h. No new executable files. The shipped executables are fixed.
+          NEW_EXEC=$(git diff origin/main..HEAD --summary | grep -E '(create|new) mode 100755|mode change 100644 => 100755' | sed -E 's/.* //' || true)
+          if [ -n "$NEW_EXEC" ]; then
+            mark_fail "new executable file(s): $(echo "$NEW_EXEC" | tr "\n" " ")"
+          else
+            mark_pass "No new executable files"
+          fi
+
+          # 8i. Secrets. Common key and token formats in added lines.
+          SECRET_HITS=$(echo "$ADDED" | grep -cE 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{60,}|sk-[A-Za-z0-9_-]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----' || true)
+          if [ "${SECRET_HITS:-0}" -gt 0 ]; then
+            mark_fail "$SECRET_HITS added line(s) look like a key or token. Remove it and rotate the credential"
+          else
+            mark_pass "No key or token patterns in added lines"
+          fi
+
           # =============================================================
           # WARN-level checks (note for maintainer, do not block)
           # =============================================================
+
+          # 10. Sensitive paths. On pull_request the PR's own copy of these
+          # workflows runs, so a PR could weaken the checks that review it.
+          SENSITIVE=$(git diff origin/main..HEAD --name-only | grep -E '^(\.github/|LICENSE|NOTICE\.md|SECURITY\.md|install\.(sh|ps1)$|bin/install\.js$|package\.json$)' || true)
+          if [ -n "$SENSITIVE" ]; then
+            mark_warn "touches sensitive files, review line by line: $(echo "$SENSITIVE" | tr "\n" " ")"
+          fi
+
+          # 10b. Binary files. Fine for images, but nothing should ship a blob.
+          BINARIES=$(git diff origin/main..HEAD --numstat | awk '$1=="-" && $2=="-" {print $3}' || true)
+          if [ -n "$BINARIES" ]; then
+            mark_warn "binary file(s) added or changed: $(echo "$BINARIES" | tr "\n" " ")"
+          fi
 
           # 9. Detection-language warning — scan code surfaces only.
           # receipt.md / SECURITY.md / NOTICE.md / README.md contain
