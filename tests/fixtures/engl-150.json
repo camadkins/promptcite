@@ -1,0 +1,44 @@
+{
+  "_comment": "Made-up course for tests. The syllabus quoted here does not exist.",
+  "id": "engl-150",
+  "name": "ENGL 150",
+  "aliases": ["writing and inquiry", "150"],
+  "term": "Fall 2026",
+  "instructor": "Dr. Example",
+  "policy": {
+    "ai_level": {
+      "level": 2,
+      "quote": "Unless an assignment says otherwise, you may use AI to brainstorm, outline, and find sources, but every sentence you submit must be your own.",
+      "where": "AI Use, p. 4"
+    }
+  },
+  "assignments": [
+    {
+      "name": "Reflection",
+      "aliases": ["weekly reflection", "journal"],
+      "ai_level": {
+        "level": 1,
+        "quote": "Reflections are written without AI tools of any kind.",
+        "where": "AI Use, p. 4"
+      }
+    },
+    {
+      "name": "Final project",
+      "aliases": ["final", "multimodal project"],
+      "ai_level": {
+        "scale": "aias",
+        "level": 3,
+        "quote": "For the final project you may work with AI on drafting and revision, and you must say how.",
+        "where": "Final Project, p. 6"
+      }
+    }
+  ],
+  "guidance": [
+    {
+      "rule": "AI may help plan, but the writing must be your own.",
+      "quote": "Unless an assignment says otherwise, you may use AI to brainstorm, outline, and find sources, but every sentence you submit must be your own.",
+      "where": "AI Use, p. 4"
+    }
+  ],
+  "source": { "file": "engl150-syllabus-fall2026.pdf", "added": "2026-11-08" }
+}

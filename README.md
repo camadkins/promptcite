@@ -62,7 +62,9 @@ one quoted word for word from the syllabus, to a course file on your machine.
 Bind a homework folder with `promptcite course use csce-423`, or just say
 "working on CSCE 423," and `/receipt` follows that class's rules while
 `/receipt ask "can I use AI to check my proof?"` answers from the syllabus.
-Where the syllabus says nothing, it tells you to ask your instructor rather
+If the assignment has an AI level (AIAS 1 to 5 or the instructor's own scale),
+`/receipt` warns before output when what you logged goes past it, quoting the
+rule, and writes the receipt anyway. Where the syllabus says nothing, it tells you to ask your instructor rather
 than guessing. See [INSTALL.md](./INSTALL.md#course-files-one-per-class).
 
 It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.

@@ -12,7 +12,8 @@ import { homedir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 import process from 'node:process';
 import { composeRule } from './rule.js';
-import { coursePath, isSafeCourseId, listCourses, loadCourse, readCourseFile, resolveCoursesDir } from './course.js';
+import { CATEGORIES, coursePath, isSafeCourseId, listCourses, loadCourse, readCourseFile, readPolicyFile, resolveCoursesDir } from './course.js';
+import { checkUses, describeLevel, matchAssignments, resolveAiLevel } from './level.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -1134,7 +1135,23 @@ function printCourse(ctx, course) {
   if (policyKeys.length) {
     ctx.log('');
     ctx.log(c.bold('policy'));
-    for (const k of policyKeys) ctx.log(`  ${k}: ${JSON.stringify(policy[k])}`);
+    for (const k of policyKeys) {
+      if (k === 'ai_level') {
+        ctx.log(`  ai_level: ${describeLevel(policy.ai_level)}`);
+        ctx.log(c.dim(`    "${policy.ai_level.quote}"${policy.ai_level.where ? ` (${policy.ai_level.where})` : ''}`));
+      } else {
+        ctx.log(`  ${k}: ${JSON.stringify(policy[k])}`);
+      }
+    }
+  }
+  if (Array.isArray(course.assignments) && course.assignments.length) {
+    ctx.log('');
+    ctx.log(c.bold('AI level by assignment'));
+    for (const a of course.assignments) {
+      const aka = Array.isArray(a.aliases) && a.aliases.length ? c.dim(` (also ${a.aliases.join(', ')})`) : '';
+      ctx.log(`  - ${a.name}${aka}: ${describeLevel(a.ai_level)}`);
+      ctx.log(c.dim(`    "${a.ai_level.quote}"${a.ai_level.where ? ` (${a.ai_level.where})` : ''}`));
+    }
   }
   if (Array.isArray(course.guidance) && course.guidance.length) {
     ctx.log('');
@@ -1262,6 +1279,76 @@ async function runCourse(ctx, args) {
 }
 
 /**
+ * `promptcite policy check [category…]`. Says which AI level applies to the
+ * work in this folder and whether the given use categories go past it (ADR
+ * 0011). /receipt runs it before output so the warning quotes the rule from
+ * the file, not from the model's memory of it. Always exits 0 on a readable
+ * setup, over or not: it warns, it never gates.
+ *
+ * @param {InstallContext} ctx
+ * @param {string[]} args  Words after `policy`.
+ * @param {{ course: string | null, assignment: string | null }} opts
+ * @returns {Promise<number>} exit code: 0 ok, 1 user error.
+ */
+async function runPolicy(ctx, args, opts) {
+  const [sub, ...categories] = args;
+  /** @param {string} msg */
+  const fail = (msg) => {
+    console.error(`${c.red('error:')} ${msg}`);
+    return 1;
+  };
+  if (sub !== 'check') return fail(`unknown policy command "${sub ?? ''}". Expected check.`);
+  const bad = categories.filter((cat) => !CATEGORIES.includes(cat));
+  if (bad.length) return fail(`not a use category: ${bad.join(', ')}. Expected ${CATEGORIES.join(', ')}.`);
+
+  const policyFile = join(ctx.cwd, 'promptcite.policy.json');
+  const read = readPolicyFile(policyFile);
+  if (read && read.errors.length) {
+    console.error(`${c.red('invalid:')} ${policyFile}`);
+    logProblems(ctx, read.errors, (m) => console.error(m));
+    return 1;
+  }
+
+  const courseId = opts.course ?? await boundCourse(ctx);
+  let course = null;
+  if (courseId !== null) {
+    if (!isSafeCourseId(courseId)) return fail(`"${courseId}" is not a course id.`);
+    const entry = loadCourse(courseId);
+    if (!entry) return fail(`no course "${courseId}" in ${resolveCoursesDir()}.`);
+    if (entry.errors.length) return fail(`course ${courseId} can't be used. Run "promptcite course show ${courseId}".`);
+    course = entry.course;
+  }
+
+  let assignment = null;
+  if (opts.assignment !== null) {
+    if (!course) return fail('--assignment needs a course: bind one with "promptcite course use <id>" or pass --course <id>.');
+    const found = matchAssignments(course, opts.assignment);
+    if (found.length === 0) {
+      const names = (course.assignments ?? []).map((/** @type {any} */ a) => a.name).join(', ');
+      return fail(`no assignment "${opts.assignment}" in ${course.name}${names ? ` (it has: ${names})` : ''}.`);
+    }
+    if (found.length > 1) return fail(`"${opts.assignment}" matches more than one assignment in ${course.name}.`);
+    assignment = found[0];
+  }
+
+  const resolved = resolveAiLevel({ policy: read?.policy, course, assignment });
+  if (!resolved) {
+    ctx.log('no AI level is set for this work.');
+    return 0;
+  }
+  ctx.log(`level: ${describeLevel(resolved.aiLevel)}, from the ${resolved.from}`);
+  if (categories.length === 0) return 0;
+  const result = checkUses(resolved.aiLevel, categories);
+  if (result.warning) {
+    ctx.log(`${c.yellow('over:')} ${result.over.join(', ')}`);
+    ctx.log(result.warning);
+  } else {
+    ctx.log(`${c.green('within:')} ${[...new Set(categories)].join(', ')}`);
+  }
+  return 0;
+}
+
+/**
  * Scaffold a starter promptcite.config.json in the cwd so the student can
  * set consistent-across-sessions defaults (citation style, etc.) that
  * /receipt reads to skip repeat questions. Personal fields are left out so
@@ -1303,6 +1390,9 @@ COMMANDS
   course clear           Remove this folder's course binding.
   course check <file>    Check a course file. Exits 1 and says why if it's not
                          usable. Add one with "/receipt course add <syllabus>".
+  policy check [use…]    Show the AI level for this work and warn if the given
+                         uses (draft, edit, …) go past it, quoting the rule.
+                         Add --course <id> or --assignment <name> to pick which.
 
   Run "on" when you start an assignment and "off" when it's handed in. The
   setting is per folder, so turning it on for homework leaves everything else
@@ -1376,19 +1466,24 @@ function parseCli(argv) {
       off: { type: 'boolean' },
       status: { type: 'boolean' },
       'no-attest': { type: 'boolean' },
+      course: { type: 'string' },
+      assignment: { type: 'string' },
     },
   });
 
   // Bare words are the primary form and --flags are aliases, matching how
   // /receipt already takes its modes.
   const command = positionals[0] ?? null;
-  if (command !== null && !['on', 'off', 'status', 'course'].includes(command)) {
-    throw new UserError(`unknown command "${command}". Expected on, off, status, or course.`);
+  if (command !== null && !['on', 'off', 'status', 'course', 'policy'].includes(command)) {
+    throw new UserError(`unknown command "${command}". Expected on, off, status, course, or policy.`);
   }
-  // `course` takes a subcommand and at most one argument; everything else is
-  // a single bare word.
-  if (positionals.length > (command === 'course' ? 3 : 1)) {
+  // `course` takes a subcommand and at most one argument, `policy check` takes
+  // any number of use categories, and everything else is a single bare word.
+  if (command !== 'policy' && positionals.length > (command === 'course' ? 3 : 1)) {
     throw new UserError('one command at a time, please.');
+  }
+  if (command !== 'policy' && (values.course !== undefined || values.assignment !== undefined)) {
+    throw new UserError('--course and --assignment go with "policy check".');
   }
 
   const only = values.only ?? null;
@@ -1413,6 +1508,9 @@ function parseCli(argv) {
     switchOff: command === 'off' || values.off === true,
     switchStatus: command === 'status' || values.status === true,
     course: command === 'course' ? positionals.slice(1) : null,
+    policy: command === 'policy' ? positionals.slice(1) : null,
+    policyCourse: values.course ?? null,
+    policyAssignment: values.assignment ?? null,
     attest: values['no-attest'] !== true,
     only,
     all: only === null,
@@ -1529,6 +1627,10 @@ async function main(argv) {
 
   if (parsed.course) {
     return runCourse(ctx, parsed.course);
+  }
+
+  if (parsed.policy) {
+    return runPolicy(ctx, parsed.policy, { course: parsed.policyCourse, assignment: parsed.policyAssignment });
   }
 
   if (parsed.switchStatus) {

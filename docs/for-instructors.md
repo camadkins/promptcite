@@ -307,6 +307,23 @@ prevent dishonesty (a student can ignore or edit the file). Same trust
 model as everything else here. Where a student's saved settings conflict
 with your policy, the policy wins.
 
+**AI levels.** If you grade on the AI Assessment Scale (AIAS), or your own
+scale, set the level for the assignment and paste your rule with it:
+
+```json
+{ "ai_level": { "level": 2, "quote": "You may use AI to brainstorm and outline. Everything you submit must be your own.", "where": "Assignment 3" } }
+```
+
+Before the receipt is written, a student whose logged uses go past that level
+sees a warning with your rule quoted word for word. The receipt still gets
+written, unchanged, and the level and warning never go into it. You decide
+what the disclosure means. For AIAS, level 1 allows no use, level 2 allows
+brainstorm, outline, search, and explain, and levels 3 to 5 allow all seven
+categories, so the warning can't tell 3, 4, and 5 apart. A custom scale lists
+which categories each of its levels allows. A syllabus that sets levels per
+kind of assignment can be put in the student's course file the same way. See
+[ADR 0011](./adr/0011-ai-levels-warn-never-gate.md).
+
 **Disclosure language.** Set `"disclosure_language": "es"` (or any language
 PromptCite ships) and every student's disclosure paragraph comes out in that
 language, built from reviewed wording rather than a fresh machine
