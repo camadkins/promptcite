@@ -3,7 +3,7 @@
 
 # 0011 — AI levels per assignment: AIAS by default, warn but never gate
 
-**Status:** Accepted
+**Status:** Accepted, amended by [0013](./0013-students-may-cite-the-course-rule.md)
 **Relates to:** [ADR 0009](./0009-course-policies-from-the-syllabus.md)
 
 ## Context

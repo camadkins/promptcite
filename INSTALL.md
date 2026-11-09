@@ -213,7 +213,9 @@ promptcite policy check --course engl-150             # just show the level
 
 A course file is your reading of the syllabus, for your screen. It is never
 written into a receipt, and the syllabus and your instructor stay the
-authority.
+authority. The one exception is yours to make: when a rule allows what you
+did, `/receipt` can offer to open your disclosure with it, quoted, and shows
+you the sentence first. Say no and it doesn't.
 
 ## Manual install (no `curl | bash`)
 

@@ -3,7 +3,7 @@
 
 # 0009 — Course policies come from the syllabus, held by the student
 
-**Status:** Accepted
+**Status:** Accepted, amended by [0013](./0013-students-may-cite-the-course-rule.md)
 **Relates to:** [ADR 0006](./0006-ledger-outside-the-repository.md)
 
 ## Context

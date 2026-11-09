@@ -55,3 +55,11 @@ npx -y github:camadkins/promptcite promptcite-verify draft-receipt.json
 
 See [`src/schema.yaml`](../src/schema.yaml) for the field definitions and
 [ADR 0012](../docs/adr/0012-stage-and-extent.md) for why they are closed lists.
+
+**Why no course rule is cited.** In the test course file, ENGL 150's final
+project is AIAS level 3 (AI Collaboration), so both sessions are within it and
+`/receipt` offered to cite the rule. This student said no, so the paragraph
+uses plain wording. Had it been the weekly reflection (level 1), `/receipt`
+would have warned and offered nothing, because a disclosure must never claim
+the policy allows something it doesn't. Compare
+[`course-rule-receipt.md`](./course-rule-receipt.md).

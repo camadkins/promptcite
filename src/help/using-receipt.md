@@ -50,6 +50,10 @@ scale), `/receipt` tells you the level at the start and warns before output
 if what you logged goes past it, quoting the rule. It writes the receipt
 anyway. Check by hand with `promptcite policy check <uses>`.
 
+When a course rule allows what you did, `/receipt` can offer to start your
+disclosure with it, quoted: "Per the CSCE 423 AI policy (...), I used ...".
+You see the sentence first, and it only goes in if you say yes.
+
 ## Verifying a receipt (for instructors too)
 
 `promptcite-verify receipt.json` checks it. Add `--submission <file>` to check

@@ -285,7 +285,9 @@ entry > the course file's `policy.ai_level`.
 **The level check is a warning, never a gate.** It shows the level, the uses
 that go past it, and the quote, and then the receipt goes ahead. A student
 disclosing a use their level doesn't allow is writing exactly the receipt they
-should. Never put an `ai_level`, its quote, or the warning into a receipt.
+should. Never put an `ai_level` or the warning into a receipt. Its quote goes
+in only when the student chooses to cite it in the disclosure (see *Citing
+the course rule* in Step 5b).
 
 ## Course files (`~/.promptcite/courses/<id>.json`)
 
@@ -456,6 +458,8 @@ Resolve the active course (above), then answer the question from its
   guidance, or its quotes into a receipt, a ledger, a marker, or any other
   output. Only values that already have a receipt field (course name,
   instructor) may appear in a receipt, the same as if the student typed them.
+  The one exception is a rule the student chooses to cite in the disclosure
+  paragraph, shown to them word for word first (Step 5b).
 
 ## Ledger (optional, off by default)
 
@@ -1323,7 +1327,8 @@ written. In English, wording may be varied naturally as long as the structure
 and the facts cited stay put; in any other language, change only what grammar
 requires. Write the filled-in `{placeholders}` in the same language as the
 paragraph, except the student's revision statement, which is always quoted
-in their own words.
+in their own words, and a cited course rule's `{quote}`, which stays in the
+instructor's words.
 
 **Recipes.** Always start with the category's `.lead` string. `<Revision
 statement>` is the student's `revision_statement`, omitted when empty.
@@ -1346,9 +1351,42 @@ statement>` is the student's `revision_statement`, omitted when empty.
 - **`debug`:** `debug.lead` · what happened to the AI's help:
   `debug.explained_only`, `debug.code_kept`, or `debug.code_modified` ·
   `<Revision statement>`.
-- **`draft`:** `draft.lead` · `draft.verbatim` · `<Revision statement —
-  what was changed, rejected, or rewritten>` · `draft.verified` only if
-  `source_verification` is true AND the draft contained factual claims.
+- **`draft`:** `draft.lead` · how much was kept: the extent sentences below
+  when the session has `extent`, else `draft.verbatim` when the student gave
+  a rough percentage · `<Revision statement — what was changed, rejected, or
+  rewritten>` · `draft.verified` only if `source_verification` is true AND
+  the draft contained factual claims.
+
+**Extent (schema 2.2).** When a session has `extent`, say how much was kept
+with it, in place of the category's `content_used` / `content_not_used` /
+`verbatim` string: `ai_share` `none` keeps the category's `content_not_used`
+(or `explain.content`), and `small`, `part`, `most` use `extent.small`,
+`extent.part`, `extent.most`, followed by `extent.kept`, `extent.edited`, or
+`extent.reworked` for `student_change`. No `extent` → the recipe as written.
+`stage` and `verification.methods` stay in the JSON and aren't written into
+the paragraph.
+
+**Citing the course rule (opt-in, one quote per paragraph).** When an active
+course file or assignment policy has a rule that permits a session's use,
+offer the student once, before Step 5: *"Want your disclosure to cite the
+rule? It would read: Per the ENGL 150 AI policy ("You may use AI to
+brainstorm, outline, and find sources"), I used Claude ... Say yes or no."*
+Show the exact sentence. On yes, start that session's sentence with
+`cite.rule`, with `{lead}` the session's lead and `{quote}` the rule's
+words exactly. On no, or no answer, use the plain recipe. Offer only:
+
+- the `ai_level` quote, when `promptcite policy check` (Step 4b) printed
+  `within:` for **every** session in the receipt, or
+- a course `guidance` quote that plainly allows the session's category,
+  when no `ai_level` applies.
+
+Never offer one when any use is over the level, when the topic is in the
+course's `unclear` list, or when you'd have to read permission into the
+quote. A disclosure must never claim the policy allows something the policy
+doesn't say. In a multi-session paragraph, cite once, on the first session
+the rule covers. The student chose this sentence, so it goes into
+`disclosure_statement` like any other words they confirmed, and nothing else
+from the course file goes with it (ADR 0013).
 
 **Provenance addendum (agent_reported only):** if `metadata_source ==
 "agent_reported"`, append `provenance.agent_reported` after the category's
@@ -1660,7 +1698,10 @@ End with one short line:
 - Fetch a syllabus from a URL, treat a syllabus's silence as permission, or
   paraphrase a course rule into something looser than its quote.
 - Put a course file, or any of its guidance or quotes, into a receipt, a
-  ledger, or any other output.
+  ledger, or any other output, except the one rule a student chose to cite
+  in their disclosure after seeing the sentence.
+- Cite a course rule in a disclosure without the student's yes, or for a use
+  the rule doesn't plainly allow.
 - Assign an AI level the syllabus or instructor didn't state, put a level or
   its warning into a receipt, or treat a level warning as a reason to change
   the student's answers.

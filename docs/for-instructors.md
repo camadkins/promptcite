@@ -355,6 +355,11 @@ since what you leave unsaid comes back to students as "the syllabus doesn't
 say; ask your instructor" rather than as permission. And the course file is the
 student's reading, never sent to you and never part of a receipt; your
 syllabus stays the authority. See [ADR 0009](./adr/0009-course-policies-from-the-syllabus.md).
+The one exception is the student's choice: when a rule plainly allows what
+they did, they can have the disclosure open with it, quoted, like "Per the
+CSCE 423 AI policy ("..."), I used ...". They see the sentence and say yes
+first, and it's never offered for a use past the rule. See
+[ADR 0013](./adr/0013-students-may-cite-the-course-rule.md).
 
 **Policy that PromptCite explicitly does not support:**
 > ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite

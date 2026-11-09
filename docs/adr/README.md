@@ -17,7 +17,8 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |
 | [0007](./0007-multi-session-receipts.md) | One receipt covers a whole assignment | Accepted |
 | [0008](./0008-attestation-over-provenance.md) | Attestation: record the verification, not just the provenance | Accepted |
-| [0009](./0009-course-policies-from-the-syllabus.md) | Course policies come from the syllabus, held by the student | Accepted |
+| [0009](./0009-course-policies-from-the-syllabus.md) | Course policies come from the syllabus, held by the student | Accepted, amended by 0013 |
 | [0010](./0010-session-pointers-and-course-context.md) | Session pointers and course context: point at the agent's transcript, never copy it | Accepted |
-| [0011](./0011-ai-levels-warn-never-gate.md) | AI levels per assignment: AIAS by default, warn but never gate | Accepted |
+| [0011](./0011-ai-levels-warn-never-gate.md) | AI levels per assignment: AIAS by default, warn but never gate | Accepted, amended by 0013 |
 | [0012](./0012-stage-and-extent.md) | Stage and extent: closed lists the student picks from | Accepted |
+| [0013](./0013-students-may-cite-the-course-rule.md) | A student may choose to cite the course rule in their disclosure | Accepted |
