@@ -78,6 +78,7 @@ const USE_CATEGORIES = ['brainstorm', 'outline', 'draft', 'edit', 'debug', 'expl
 export const STAGES = ['planning', 'researching', 'drafting', 'revising', 'checking'];
 export const AI_SHARES = ['none', 'small', 'part', 'most'];
 export const STUDENT_CHANGES = ['kept', 'edited', 'reworked'];
+export const SHORT_MAX = 300;
 export const CHECK_METHODS = ['read_through', 'ran_code', 'ran_tests', 'checked_sources', 'checked_course_material', 'asked_someone', 'other'];
 
 /** Plain words for the report. */
@@ -285,6 +286,15 @@ export function validateSchema(receipt) {
       errs.push('outputs must be an object');
     } else {
       str('outputs.disclosure_statement', o.disclosure_statement);
+      // 2.2: optional other forms of the same disclosure.
+      for (const opt of ['short_statement', 'journal_statement']) {
+        if (o[opt] !== undefined && (typeof o[opt] !== 'string' || o[opt].length === 0)) {
+          errs.push(`outputs.${opt}, when present, must be a non-empty string`);
+        }
+      }
+      if (typeof o.short_statement === 'string' && o.short_statement.length > SHORT_MAX) {
+        errs.push(`outputs.short_statement must be at most ${SHORT_MAX} characters (it has ${o.short_statement.length})`);
+      }
     }
   } else {
     // Schema 1.x — unchanged from the original validator.
@@ -447,6 +457,8 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
   const o = (r.outputs && typeof r.outputs === 'object') ? r.outputs : {};
   lines.push('Disclosure paragraph (the text the student pastes into the paper):');
   lines.push(`            ${hang(o.disclosure_statement)}`);
+  if (o.short_statement) lines.push(`Short form: ${hang(o.short_statement)}`);
+  if (o.journal_statement) lines.push(`Journal:    ${hang(o.journal_statement)}`);
 
   lines.push(`Hash:       ${hashStatus}${hashStatus === 'INTACT' ? ' (unchanged since the agent emitted it)' : hashStatus === 'MISMATCH' ? ' (edited since emission, or non-spec serializer)' : ' (no content_hash — unverifiable beyond self-disclosure)'}`);
   if (r.submission_hash) {

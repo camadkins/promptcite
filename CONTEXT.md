@@ -60,6 +60,13 @@ is responsible for accuracy; the reader evaluates plausibility.
   never part of a receipt, except one rule the student chooses to cite in
   their disclosure (ADR 0013). Precedence: **assignment policy > course
   policy > settings**. See ADR 0009.
+- **Other forms** — `outputs.short_statement` (one line, at most 300
+  characters, for an LMS comment box) and `outputs.journal_statement` (a
+  journal's AI declaration, Elsevier's wording by default). Optional, written
+  only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **No-AI declaration** — what `/receipt none` writes: a statement that no AI
+  was used, with no JSON and no hash, because a receipt without sessions is
+  not a receipt. See ADR 0014.
 - **Course binding** — the `"course": "<id>"` key in a folder's
   `promptcite.config.json`, written by `promptcite course use <id>` and removed
   by `promptcite course clear`. It makes that course active in that folder

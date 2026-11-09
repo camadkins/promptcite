@@ -32,6 +32,10 @@ PromptCite installs into 26 AI coding/writing agents (Claude Code, Gemini CLI, C
 - A plain-language **disclosure paragraph** for the paper's header.
 - A structured **JSON receipt** for instructor review and archival.
 
+Ask for a one-line **short form** for an LMS comment box or a **journal
+declaration** in Elsevier's wording and it writes those too. Didn't use AI?
+`/receipt none` writes a plain no-AI statement instead.
+
 One receipt covers one **assignment**, not one sitting. Run `/receipt` again a
 few days later and it adds that session to the existing receipt rather than
 replacing it — an assignment worked across a week ends up as one honest record.

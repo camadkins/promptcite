@@ -105,6 +105,8 @@ or behavior the docs don't state.
 - **`ask <question>`** → answer the student's question from the active
   course's guidance, quoting the syllabus (see *Asking about a course*). Do
   NOT interview or generate a receipt.
+- **`none`** (or `--none`) → write a **no-AI declaration** (see *No-AI
+  declaration* below). No receipt JSON is written.
 - **anything else** → treat as the full interview and note once that the
   unrecognized argument was ignored.
 
@@ -130,6 +132,7 @@ All keys are optional:
   "default_instructor": "Dr. Martinez",
   "flow": "full",
   "profile": "code",
+  "extra_statements": ["short"],
   "ledger": { "enabled": false, "ttl_days": 30 },
   "markers": { "enabled": false, "style": "line", "min_lines": 5, "attest": false }
 }
@@ -140,6 +143,11 @@ below); leave it out and the profile is inferred per assignment.
 
 `disclosure_language` picks the language of the disclosure paragraph (see
 Step 5b); leave it out for English.
+
+`extra_statements` lists other forms of the disclosure to write alongside the
+paragraph: `short` (one line for an LMS comment box) and `journal` (a
+journal's AI declaration). See *Other forms* in Step 5b. The student can also ask for one in
+the moment ("give me the short version too").
 
 `course` binds this folder to one of the student's course files (see *Course
 files* below). `promptcite course use <id>` writes it and `promptcite course
@@ -871,6 +879,40 @@ receipt, not making one. Do not interview.
    chat rather than the terminal. Same honest framing: tamper-evident,
    not tamper-proof.
 
+## No-AI declaration
+
+Some courses ask students to state that they used no AI, and a student
+whose work gets flagged wants to have said so up front. `/receipt none`
+writes that statement. It is not a receipt: a receipt records AI sessions,
+and this has none, so no JSON is written and nothing is hashed.
+
+1. **Check before writing.** If the ledger (when enabled) has entries for
+   this folder, or a receipt in the current directory already covers this
+   assignment, do not write the declaration. Tell the student what you found
+   in one line and offer a receipt instead: *"Your ledger has two AI edits
+   in this folder from Nov 3. Want a receipt for those instead?"* A student
+   can still say those entries aren't from this assignment; take their word
+   and go on.
+2. **Ask the identity batch** from Step 1 (course, instructor, assignment,
+   name), skipping what settings already hold.
+3. **Ask one question:** *"Did you use a spelling or grammar checker? If so,
+   which one?"* If the tool rewrote sentences, suggested wording, or
+   autocompleted text, that's AI use: say so plainly and run the interview
+   from Step 0 with `edit` (or `draft` for autocomplete) instead.
+4. **Write it** from the disclosure strings in `disclosure_language`:
+   `none.statement`, then `none.basic_tools` when the student named a
+   checker. Above it, one line naming the course, the assignment, the
+   student, and today's date.
+5. **Display it** under `═══ No-AI Declaration ═══` with one closing line:
+   *"This is your statement, not proof of anything. Your drafts and version
+   history are the evidence of your process, so keep them."* Never call the
+   declaration proof, evidence, or verification.
+
+Save it only when the student asks, as `ai-declaration.md` in the current
+directory by default, under the same never-overwrite rule as receipts
+(Step 6). If they later use AI on the assignment, the declaration no longer
+holds: say so, and write a receipt.
+
 ## Interview flow
 
 ### Step 0 — Provenance gate (SOLO — branches the flow)
@@ -1025,6 +1067,9 @@ Definitions for the student if asked:
 - `debug` — identifying or fixing errors in code or logic
 - `explain` — having a concept clarified that the student didn't keep in the submission
 - `search` — using AI to find sources, references, or background information
+
+If the student says they didn't use AI at all, offer the no-AI declaration
+instead (see *No-AI declaration*) and stop the interview.
 
 ### Step 3 — Category-specific follow-ups (PACKED within category)
 
@@ -1434,6 +1479,35 @@ Worked example, two sessions (`outline` then `debug`):
 > AI-generated text appears in the final submission. I rewrote the outline in my
 > own words and fixed the parsing bug myself once I understood it.
 
+**Other forms (only when asked).** Some places want the disclosure in a
+different shape. Write these when `extra_statements` in settings names them,
+or the student asks, and never in place of the paragraph. Both cover every
+session in the receipt. `{tools}` lists each tool once with its model,
+joined with "and", e.g. "ChatGPT (GPT-4o) and Claude (Claude Sonnet 4.6)".
+`{reasons}` says what they were used for, built from the sessions'
+categories and prompt summaries, e.g. "brainstorm thesis angles and edit the
+introduction". Never add a use the sessions don't record, and never drop
+one.
+
+- **`short`**, one line for an LMS comment box: `short.used` then
+  `short.receipt`. Keep it under 300 characters. Past that, shorten
+  `{reasons}` to the categories alone. Stored as `outputs.short_statement`.
+- **`journal`**, the declaration a journal asks for: the `journal.heading`
+  line, then `journal.statement`. This is Elsevier's wording (policy updated
+  June 2026), and most journals accept it or something close. If the student
+  names a journal with its own required wording, use theirs exactly as they
+  paste it. Stored as `outputs.journal_statement`, statement only, without
+  the heading. Write the journal form in the language the journal publishes
+  in, which is usually English whatever `disclosure_language` says.
+
+Elsevier doesn't ask for a declaration over basic spelling, grammar, or
+reference-manager tools. If those are the only tools a student used, say so,
+and don't write the journal form.
+
+Like the paragraph, both forms are built from what the student told you. The
+course rule citation, the provenance addendum, and stage, extent, and
+methods stay out of them.
+
 **Disclosure strings.** The text every recipe above is built from. Each
 language lives in its own file under `src/locales/` and is filled in here
 when the rule is built, so this list is complete as installed.
@@ -1487,10 +1561,17 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
     }
   ],
   "outputs": {
-    "disclosure_statement": "..."
+    "disclosure_statement": "...",
+    "short_statement": "<only when the short form was written>",
+    "journal_statement": "<only when the journal form was written>"
   }
 }
 ```
+
+**`outputs.short_statement` and `outputs.journal_statement` are optional
+(schema 2.2).** Include each only when that form was written in Step 5b. When
+you add a session to a receipt that has one, rewrite it to cover the new
+session too, since it describes the whole receipt, like the paragraph.
 
 **`ai_use` is an array — always, even for one session.** Order it oldest first by
 `date`. Adding a session appends to it; it never replaces what is there.
@@ -1601,6 +1682,13 @@ CITATION<S> (<chosen style>):
 DISCLOSURE (paste into your paper's header or acknowledgments):
   <the single disclosure paragraph>
 
+SHORT (paste into the LMS comment box):          <- only when written
+  <the short statement>
+
+JOURNAL DECLARATION (goes before the references): <- only when written
+  <journal.heading>
+  <the journal statement>
+
 JSON RECEIPT (save to file or paste as appendix):
   <pretty-printed JSON>
 ```
@@ -1649,8 +1737,9 @@ End with one short line:
 
 - **Student gives ambiguous category.** Pick the closest match, confirm
   with one sentence, proceed.
-- **Student says "I didn't really use AI."** Ask once whether they want
-  to skip the receipt; if they confirm, exit cleanly without writing
+- **Student says "I didn't really use AI."** Ask once whether they used
+  it for anything at all. If not, offer the no-AI declaration (see *No-AI
+  declaration*); if they don't want one, exit cleanly without writing
   anything.
 - **Student opts into `full_transcript` appendix.** Ask them to paste
   it; do not auto-capture from the current conversation. Make clear it
@@ -1705,6 +1794,11 @@ End with one short line:
 - Assign an AI level the syllabus or instructor didn't state, put a level or
   its warning into a receipt, or treat a level warning as a reason to change
   the student's answers.
+- Write a no-AI declaration when the ledger or a receipt shows AI use on the
+  assignment and the student hasn't said those entries belong to other work,
+  or call a declaration proof that no AI was used.
+- Put a use into the short or journal form that the receipt doesn't record,
+  or leave a recorded one out.
 - Capture the raw prompt log without explicit student opt-in via the
   `full_transcript` appendix.
 - Embellish the student's answers, fabricate details, or "improve" the

@@ -682,7 +682,7 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
@@ -763,4 +763,30 @@ test('the report shows stage, extent and methods in plain words, and nothing whe
   assert.match(out, /how: ran the code, checked against course material/);
   const plain = formatReport(v2(), 'UNVERIFIABLE', []);
   assert.doesNotMatch(plain, /stage:|AI share|how:/);
+});
+
+// --- schema 2.2: other forms of the disclosure -------------------------------
+
+test('short and journal statements validate when present and are optional', () => {
+  const base = v22([session()]);
+  assert.deepEqual(validateSchema(base), []);
+  assert.deepEqual(validateSchema({ ...base, outputs: { ...base.outputs, short_statement: 'I used ChatGPT on this assignment to brainstorm. My AI-use receipt has the details.', journal_statement: 'During the preparation of this work the author used ChatGPT (GPT-4o) in order to brainstorm.' } }), []);
+});
+
+test('an empty or over-long short statement, or a non-string journal statement, is invalid', () => {
+  const base = v22([session()]);
+  const bad = (/** @type {any} */ extra) => validateSchema({ ...base, outputs: { ...base.outputs, ...extra } });
+  assert.ok(bad({ short_statement: '' }).some((e) => e.includes('outputs.short_statement, when present')));
+  assert.ok(bad({ short_statement: 'x'.repeat(301) }).some((e) => e.includes('at most 300 characters (it has 301)')));
+  assert.deepEqual(bad({ short_statement: 'x'.repeat(300) }), []);
+  assert.ok(bad({ journal_statement: 42 }).some((e) => e.includes('outputs.journal_statement, when present')));
+});
+
+test('the report shows the other forms only when they exist', () => {
+  const base = v22([session()]);
+  assert.doesNotMatch(formatReport(base, 'INTACT', []), /Short form:|Journal:/);
+  const both = { ...base, outputs: { ...base.outputs, short_statement: 'One line.', journal_statement: 'The declaration.' } };
+  const out = formatReport(both, 'INTACT', []);
+  assert.match(out, /^Short form: One line\.$/m);
+  assert.match(out, /^Journal:    The declaration\.$/m);
 });

@@ -1,0 +1,47 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-05T16:02:00Z",
+  "content_hash": "812801a222b6e8fdc6ac64e5fb98d4c1151a40c1bcf4c66010430e3308e60c0b",
+  "submission_hash": null,
+  "student": "J. Park",
+  "assignment": {
+    "course": "CSCE 156",
+    "instructor": "Dr. Example",
+    "title": "Lab 9: Linked lists"
+  },
+  "ai_use": [
+    {
+      "tool": "Copilot",
+      "model": "GPT-4.1",
+      "date": "2026-11-05",
+      "metadata_source": "agent_reported",
+      "category": "debug",
+      "stage": "checking",
+      "prompt_summary": "Why removing the last node leaves a dangling tail pointer",
+      "direct_content_used": false,
+      "revision_statement": "I fixed the tail update myself once I saw the problem.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Why removing the last node leaves a dangling tail pointer\" prompt. *Copilot*, model GPT-4.1, GitHub, 5 Nov. 2026, github.com/features/copilot.",
+        "apa": "GitHub. (2026). *Copilot* [Large language model]. https://github.com/features/copilot",
+        "chicago": "Response to \"Why removing the last node leaves a dangling tail pointer,\" Copilot GPT-4.1, GitHub, November 5, 2026.",
+        "ieee": "[1] Copilot, \"Why removing the last node leaves a dangling tail pointer,\" GPT-4.1, GitHub, Nov. 5, 2026.",
+        "harvard": "GitHub (2026) Copilot (GPT-4.1) [Large language model]."
+      },
+      "verification": {
+        "attested": true,
+        "statement": "Ran the remove tests after my fix.",
+        "methods": [
+          "ran_tests"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used Copilot (GPT-4.1) on November 5, 2026 to debug why removing the last node left a dangling tail pointer. The AI only explained what was wrong. I fixed the tail update myself once I saw the problem. This receipt was generated inside Copilot itself, so the tool, model, and date fields above were agent-verified rather than student-reported.",
+    "short_statement": "I used Copilot (GPT-4.1) on this assignment to debug a dangling tail pointer. My AI-use receipt has the details."
+  }
+}
