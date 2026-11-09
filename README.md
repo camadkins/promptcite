@@ -91,7 +91,9 @@ What did you use the AI for?
 
   (1) one-sentence summary of what you asked the AI to brainstorm
   (2) did any AI-generated text appear verbatim?
-> counterarguments to carbon tax policies / no
+  (3) stage: planning, right? how much of what you hand in came from it?
+      how did you check it?
+> counterarguments to carbon tax policies / no / yes, none, read it through
 
 Anything to add for the revision statement?
 > Used the list to structure my own outline, rewrote arguments in my own words.

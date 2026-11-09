@@ -12,7 +12,7 @@
 # change. Universities relying on the receipt format need a stable contract.
 # Migration strategy required before institutional adoption.
 
-schema_version: "2.1"
+schema_version: "2.2"
 
 # ---------------------------------------------------------------------------
 # Top-level shape
@@ -23,12 +23,14 @@ fields:
     type: string
     required: true
     description: |
-      Version of this schema the receipt conforms to. Currently "2.1".
+      Version of this schema the receipt conforms to. Currently "2.2".
       Receipts produced by older clients tagged with their schema_version
       at generation time; consumers MUST check this before parsing —
       1.x and 2.0 differ in the shape of `ai_use` (object vs array).
       2.1 is 2.0 plus an optional per-session `verification` block, so a
       2.0 receipt is already a valid 2.1 receipt and needs no migration.
+      2.2 adds optional per-session `stage`, `extent`, and
+      `verification.methods`; every 2.1 receipt is a valid 2.2 receipt.
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
@@ -233,6 +235,59 @@ fields:
           in those workflows, and the field stays null in the JSON output.
           The disclosure paragraph's "I independently verified ..."
           sentence renders only when this field is `true`.
+      stage:
+        type: string
+        required: false
+        description: |
+          Where in the work this session happened. Added in 2.2, optional.
+          `category` says what the AI did; `stage` says when. A brainstorm
+          during revision means something different from one at the start.
+
+          One closed set for every discipline, so instructors compare like
+          with like. The interview words it for the student by profile: for
+          code, "design" is planning, "building" is drafting, "debugging or
+          refactoring" is revising, and "testing or review" is checking.
+        enum:
+          - planning
+          - researching
+          - drafting
+          - revising
+          - checking
+      extent:
+        type: object
+        required: false
+        description: |
+          How much of the submission came from this session, and what the
+          student did with it. Added in 2.2, optional. The student picks
+          both; nothing is measured. `direct_content_used` stays the yes/no
+          on verbatim text, and `revision_statement` stays the student's
+          own words. This is the graded middle the two of them could not say.
+        fields:
+          ai_share:
+            type: string
+            required: true
+            description: |
+              Of what the student handed in, how much came from the AI in
+              this session, verbatim or reworded. `none` (nothing),
+              `small` (a few lines or phrases), `part` (a section or
+              more), `most` (most of the submission).
+            enum:
+              - none
+              - small
+              - part
+              - most
+          student_change:
+            type: string
+            required: false
+            description: |
+              What the student did with the AI's part. Required when
+              `ai_share` is not `none`, absent when it is. `kept` (used
+              as given), `edited` (small changes), `reworked` (rewrote or
+              restructured most of it).
+            enum:
+              - kept
+              - edited
+              - reworked
       citations:
         type: object
         required: true
@@ -332,6 +387,23 @@ fields:
               words. Present when `attested` is true. Never generated,
               never paraphrased, never improved by the agent.
             max_length: 2000
+          methods:
+            type: array
+            required: false
+            description: |
+              How the student checked, picked from a short list. Added in
+              2.2, optional, and only alongside `attested: true`. Like the
+              statement, these are the student's claims and nothing checks
+              them. `other` needs a `statement` saying what it was.
+            item_type: string
+            enum:
+              - read_through
+              - ran_code
+              - ran_tests
+              - checked_sources
+              - checked_course_material
+              - asked_someone
+              - other
 
   outputs:
     type: object
@@ -385,6 +457,19 @@ validation:
       `attested`; `statement` is optional and free-form. Absent
       verification is valid at every schema version and means the receipt
       predates attestation or the student chose not to use it.
+  - rule: extent_shape
+    message: |
+      when ai_use[].extent is present it must carry a valid `ai_share`;
+      `student_change` is required when ai_share is not "none" and must be
+      absent when it is. An extent of "none" alongside
+      direct_content_used true contradicts itself and is invalid.
+  - rule: stage_enum
+    message: ai_use[].stage, when present, must be one of the five listed values.
+  - rule: verification_methods
+    message: |
+      ai_use[].verification.methods, when present, must be a non-empty list
+      of the listed values, needs attested true, and "other" needs a
+      statement.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
   - rule: submission_hash_format
@@ -435,6 +520,9 @@ migration:
     2.1 — additive: optional per-session ai_use[].verification, recording what
           the student checked before keeping the AI output. No field removed
           or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
+    2.2 — additive: optional per-session ai_use[].stage, ai_use[].extent, and
+          ai_use[].verification.methods. No field removed or re-typed; every
+          2.1 receipt is a valid 2.2 receipt. See ADR 0012.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
   upgrade_1x_to_2_0: |
     Mechanical, lossless, and performed in place by `/receipt` the first

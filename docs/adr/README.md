@@ -20,3 +20,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0009](./0009-course-policies-from-the-syllabus.md) | Course policies come from the syllabus, held by the student | Accepted |
 | [0010](./0010-session-pointers-and-course-context.md) | Session pointers and course context: point at the agent's transcript, never copy it | Accepted |
 | [0011](./0011-ai-levels-warn-never-gate.md) | AI levels per assignment: AIAS by default, warn but never gate | Accepted |
+| [0012](./0012-stage-and-extent.md) | Stage and extent: closed lists the student picks from | Accepted |
