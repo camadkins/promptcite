@@ -134,7 +134,7 @@ PromptCite is open source under **AGPL v3**, for everyone: students, instructors
 - License: [LICENSE](./LICENSE) (AGPL v3 verbatim)
 - Plain-language summary: [NOTICE.md](./NOTICE.md)
 
-Ideas, issues, and PRs are all welcome, and there's no CLA to sign. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Ideas, issues, and PRs are all welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Docs
 
