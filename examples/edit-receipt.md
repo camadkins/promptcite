@@ -23,7 +23,8 @@ tool/model/date.
 
 ```
 "Grammar, punctuation, and phrasing fixes for my policy analysis
-essay draft." prompt. *ChatGPT*, GPT-4o version, OpenAI, 16 May 2026.
+essay draft" prompt. *ChatGPT*, model GPT-4o, OpenAI, 16 May
+2026, chatgpt.com.
 ```
 
 Drop this in your Works Cited.
@@ -31,15 +32,20 @@ Drop this in your Works Cited.
 ## Citation (APA)
 
 ```
-OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].
+OpenAI. (2026). *ChatGPT* [Large language model].
+https://chatgpt.com/
 ```
 
 ## Citation (Chicago — notes-bibliography)
 
 ```
-ChatGPT, GPT-4o, response to "Grammar, punctuation, and phrasing
-fixes for my policy analysis essay draft," May 16, 2026, OpenAI.
+Response to "Grammar, punctuation, and phrasing fixes for my
+policy analysis essay draft," ChatGPT GPT-4o, OpenAI, May 16,
+2026.
 ```
+
+Use this as a footnote. Chicago usually leaves AI output out of the
+bibliography.
 
 ## Disclosure paragraph
 
