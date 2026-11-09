@@ -190,3 +190,15 @@ test('the file step lists from markers, asks the student for every role, and cou
   assert.ok(r.code_files.some((/** @type {any} */ f) => f.source === 'student'));
   for (const f of r.code_files) assert.deepEqual(Object.keys(f).sort(), ['file', 'role', 'source', 'tools']);
 });
+
+test('the source check flags unconfirmed sources by name before output, and never looks them up', () => {
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  const step = rule.slice(rule.indexOf('### Step 4c'), rule.indexOf('### Step 5 '));
+  assert.match(step, /AI tools make up sources that look real/);
+  assert.match(step, /Name each unconfirmed source; don't count them/);
+  assert.match(step, /doesn't block the receipt/);
+  assert.match(rule, /Never look a source up, never mark one\s+confirmed on their behalf/);
+  assert.ok(rule.indexOf('### Step 4b') < rule.indexOf('### Step 4c'), 'steps out of order');
+  const partly = parseLocale(en, 'src/locales/en.md').strings.get('search.partly_verified') ?? '';
+  for (const p of ['{confirmed}', '{unconfirmed}', '{verified_against}']) assert.ok(partly.includes(p), p);
+});

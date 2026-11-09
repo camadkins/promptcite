@@ -79,6 +79,7 @@ export const STAGES = ['planning', 'researching', 'drafting', 'revising', 'check
 export const AI_SHARES = ['none', 'small', 'part', 'most'];
 export const STUDENT_CHANGES = ['kept', 'edited', 'reworked'];
 export const SHORT_MAX = 300;
+export const SOURCE_MAX = 300;
 /** Reflection questions (schema 2.2), in the order the interview asks them. */
 export const REFLECTION_KEYS = ['tried_first', 'why_ai', 'what_changed', 'use_again'];
 export const REFLECTION_MAX = 1000;
@@ -136,6 +137,31 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
   if (u.source_verification !== undefined && u.source_verification !== null
       && typeof u.source_verification !== 'boolean') {
     errs.push(`${path}.source_verification must be true, false, or null`);
+  }
+
+  // Sources (schema 2.2): the AI-suggested sources the student listed, each
+  // with whether they confirmed it themselves. source_verification is the
+  // summary of this list, so the two must agree.
+  if (u.sources !== undefined) {
+    if (!Array.isArray(u.sources) || u.sources.length === 0) {
+      errs.push(`${path}.sources, when present, must be a non-empty list`);
+    } else {
+      u.sources.forEach((/** @type {any} */ s, /** @type {number} */ j) => {
+        const at = `${path}.sources[${j}]`;
+        if (!s || typeof s !== 'object') { errs.push(`${at} must be an object`); return; }
+        if (typeof s.ref !== 'string' || !s.ref.trim()) errs.push(`${at}.ref must name the source`);
+        else if (s.ref.length > SOURCE_MAX) errs.push(`${at}.ref must be at most ${SOURCE_MAX} characters`);
+        if (typeof s.confirmed !== 'boolean') errs.push(`${at}.confirmed must be true or false`);
+        if (s.how !== undefined && (typeof s.how !== 'string' || !s.how.trim() || s.how.length > SOURCE_MAX)) errs.push(`${at}.how, when present, must be a non-empty string of at most ${SOURCE_MAX} characters`);
+        if (s.how !== undefined && s.confirmed === false) errs.push(`${at}.how says how a source was confirmed, so it needs confirmed true`);
+      });
+      const flags = u.sources.map((/** @type {any} */ s) => s?.confirmed);
+      if (flags.every((/** @type {unknown} */ f) => typeof f === 'boolean')) {
+        const all = flags.every((/** @type {boolean} */ f) => f);
+        if (typeof u.source_verification !== 'boolean') errs.push(`${path}.sources needs source_verification set: true when every source is confirmed, false otherwise`);
+        else if (u.source_verification !== all) errs.push(`${path}.source_verification is ${u.source_verification} but ${all ? 'every listed source is confirmed' : 'a listed source is not confirmed'}; they must agree`);
+      }
+    }
   }
 
   // Attestation (schema 2.1): optional, student-authored, never judged. Only its
@@ -425,6 +451,13 @@ export function advisoryNotes(receipt) {
       notes.push(`session ${i + 1} (${cur}) is dated before session ${i} (${prev}); the schema asks for oldest first`);
     }
   }
+  // Sources the student listed but didn't confirm. Named, not counted: the
+  // reader should know which ones to look up before trusting the citation.
+  sessions.forEach((/** @type {any} */ u, /** @type {number} */ i) => {
+    if (!u || !Array.isArray(u.sources)) return;
+    const open = u.sources.filter((/** @type {any} */ s) => s && s.confirmed === false && typeof s.ref === 'string').map((/** @type {any} */ s) => `"${s.ref}"`);
+    if (open.length) notes.push(`${sessions.length > 1 ? `session ${i + 1}: ` : ''}AI-suggested source${open.length > 1 ? 's' : ''} the student has not confirmed: ${open.join(', ')}`);
+  });
   return notes;
 }
 
@@ -475,6 +508,12 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       lines.push(`            AI text kept verbatim: ${u.direct_content_used === true ? 'yes' : u.direct_content_used === false ? 'no' : NOT_STATED}`);
       lines.push(`            revision: ${hang(u.revision_statement)}`);
       lines.push(`            sources checked by the student: ${u.source_verification === true ? 'yes' : u.source_verification === false ? 'no' : NOT_STATED}`);
+      if (Array.isArray(u.sources)) {
+        for (const s of u.sources) {
+          if (!s || typeof s !== 'object') continue;
+          lines.push(`            source: ${s.ref} (${s.confirmed === true ? `confirmed by the student${s.how ? `: ${s.how}` : ''}` : 'NOT confirmed by the student'})`);
+        }
+      }
       lines.push(`            appendix: ${appendixKinds(u.appendix)}`);
       // Stage and extent (schema 2.2) print only when the student gave them.
       // Older receipts don't have them, and that is not a gap in the receipt.

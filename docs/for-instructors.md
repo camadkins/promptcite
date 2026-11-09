@@ -341,6 +341,12 @@ prevent dishonesty (a student can ignore or edit the file). Same trust
 model as everything else here. Where a student's saved settings conflict
 with your policy, the policy wins.
 
+**Sources.** On `search` sessions (and drafts with factual claims), a receipt
+may list each AI-suggested source with whether the student confirmed it, and
+how. `promptcite-verify` names any unconfirmed source in an advisory note, so
+you know which to look up. "Confirmed" is the student's word; PromptCite never
+looks a source up. See [ADR 0018](./adr/0018-unconfirmed-sources.md).
+
 **File table (code).** A code receipt may carry `code_files`: one row per
 file the AI touched, with the tools, whether the AI wrote it or improved the
 student's code (`generated` / `improved` / `both`), and whether the row came

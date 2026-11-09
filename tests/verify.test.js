@@ -682,7 +682,7 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json', 'files-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json', 'files-receipt.json', 'sources-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
@@ -863,4 +863,40 @@ test('the report shows the file table in plain words', () => {
   const out = formatReport({ ...base, code_files: [{ file: 'a.py', tools: ['Claude'], role: 'improved', source: 'marker' }, { file: 'b.py', tools: ['Copilot'], role: 'generated', source: 'student' }] }, 'INTACT', []);
   assert.match(out, /^ {2}a\.py: AI improved the student's code, Claude$/m);
   assert.match(out, /^ {2}b\.py: AI wrote it, Copilot \(added by the student\)$/m);
+});
+
+// --- schema 2.2: sources --------------------------------------------------------
+
+const searchSession = (/** @type {any} */ over = {}) => session({ category: 'search', ...over });
+
+test('a source list that agrees with source_verification validates', () => {
+  assert.deepEqual(validateSchema(v22([searchSession({ source_verification: true, sources: [{ ref: 'Ruis 2019', confirmed: true, how: 'library database' }] })])), []);
+  assert.deepEqual(validateSchema(v22([searchSession({ source_verification: false, sources: [{ ref: 'Ruis 2019', confirmed: true }, { ref: 'Hansen 2017', confirmed: false }] })])), []);
+});
+
+test('the list and the boolean must agree, and each source needs a name and an answer', () => {
+  const errs = (/** @type {any} */ over) => validateSchema(v22([searchSession(over)]));
+  assert.ok(errs({ source_verification: true, sources: [{ ref: 'Hansen 2017', confirmed: false }] }).some((e) => e.includes('must agree')));
+  assert.ok(errs({ source_verification: false, sources: [{ ref: 'Ruis 2019', confirmed: true }] }).some((e) => e.includes('must agree')));
+  assert.ok(errs({ source_verification: null, sources: [{ ref: 'Ruis 2019', confirmed: true }] }).some((e) => e.includes('needs source_verification set')));
+  assert.ok(errs({ source_verification: true, sources: [] }).some((e) => e.includes('non-empty list')));
+  assert.ok(errs({ source_verification: true, sources: [{ ref: ' ', confirmed: true }] }).some((e) => e.includes('ref must name the source')));
+  assert.ok(errs({ source_verification: true, sources: [{ ref: 'x' }] }).some((e) => e.includes('confirmed must be true or false')));
+  assert.ok(errs({ source_verification: false, sources: [{ ref: 'x', confirmed: false, how: 'library' }] }).some((e) => e.includes('needs confirmed true')));
+});
+
+test('an unconfirmed source is flagged by name in the advisory notes, and a confirmed one is not', () => {
+  const flagged = advisoryNotes(v22([searchSession({ source_verification: false, sources: [{ ref: 'Ruis 2019', confirmed: true }, { ref: 'Hansen and Kirk 2017', confirmed: false }] })]));
+  assert.deepEqual(flagged, ['AI-suggested source the student has not confirmed: "Hansen and Kirk 2017"']);
+  assert.deepEqual(advisoryNotes(v22([searchSession({ source_verification: true, sources: [{ ref: 'Ruis 2019', confirmed: true }] })])), []);
+  const two = advisoryNotes(v22([searchSession({ date: '2026-11-01' }), searchSession({ date: '2026-11-02', source_verification: false, sources: [{ ref: 'A', confirmed: false }, { ref: 'B', confirmed: false }] })]));
+  assert.deepEqual(two, ['session 2: AI-suggested sources the student has not confirmed: "A", "B"']);
+});
+
+test('the shipped sources example verifies and carries its flag', async () => {
+  const { readFileSync } = await import('node:fs');
+  const r = JSON.parse(readFileSync(new URL('../examples/sources-receipt.json', import.meta.url), 'utf8'));
+  assert.deepEqual(validateSchema(r), []);
+  assert.match(advisoryNotes(r).join('\n'), /not confirmed: "Hansen and Kirk \(2017\)/);
+  assert.match(formatReport(r, 'INTACT', []), /source: Hansen and Kirk \(2017\).*\(NOT confirmed by the student\)/);
 });

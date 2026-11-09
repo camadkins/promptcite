@@ -64,6 +64,10 @@ is responsible for accuracy; the reader evaluates plausibility.
   characters, for an LMS comment box) and `outputs.journal_statement` (a
   journal's AI declaration, Elsevier's wording by default). Optional, written
   only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **Sources** — a session's optional `sources` list: each AI-suggested source
+  as the student names it, and whether they confirmed it. Summarized by
+  `source_verification`; unconfirmed ones are flagged before output and
+  named by `promptcite-verify`. Never looked up. See ADR 0018.
 - **File table** — the receipt's optional `code_files`: one row per file of
   code the AI touched, listed from markers (`promptcite-check --files`) and
   the ledger, each role (`generated` / `improved` / `both`) picked by the

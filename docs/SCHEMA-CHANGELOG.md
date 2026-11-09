@@ -154,6 +154,12 @@ instructor policy, a course file, or the student's settings turn on
 out. One per receipt, since it's about the assignment, not a session. See
 ADR 0016.
 
+**Sources.** 2.2 also adds an optional per-session `sources` list, `{ ref,
+confirmed, how? }`, on sessions where `source_verification` applies. With a
+list, `source_verification` is its summary (true only when every source is
+confirmed) and the verifier rejects a mismatch. Unconfirmed sources are
+named in an advisory note, not an error. See ADR 0018.
+
 **File table.** 2.2 also adds an optional top-level `code_files` list for code:
 one row per file the AI touched, with `file`, `tools`, `role` (`generated`,
 `improved`, or `both`, the student's answer), and `source` (`marker`,
