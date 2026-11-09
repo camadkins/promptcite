@@ -294,8 +294,8 @@ PromptCite reads AIAS levels as use categories this way: level 1 allows none,
 level 2 allows `brainstorm`, `outline`, `search`, and `explain`, and levels 3
 to 5 allow all seven. Levels 3 to 5 differ in how much of the work AI may
 produce, which a category can't show, so the check can only catch a use that
-goes past level 1 or 2. Say so if the student asks why a level 4 assignment
-gave no warning that a level 3 one would have needed.
+goes past level 1 or 2. Say so if the student asks why a level 3, 4, or 5
+assignment never warned them, even when AI wrote most of the work.
 
 **Where a level comes from**, highest first: the assignment's
 `promptcite.policy.json` > the active course file's matching `assignments`
@@ -861,8 +861,11 @@ receipt, not making one. Do not interview.
    and stop.
 2. **Schema check** — read `schema_version` first and check the matching shape;
    the two differ and both are valid.
-   - **2.0 and 2.1** — same shape; 2.1 only adds an optional per-session
-     `verification` object, so validate both against this list:
+   - **2.0, 2.1, and 2.2** — same core shape. 2.1 adds an optional per-session
+     `verification`. 2.2 adds optional `stage`, `extent`, `verification.methods`,
+     and `sources` per session, `outputs.short_statement` and
+     `outputs.journal_statement`, and top-level `reflection` and `code_files`.
+     Validate all three against this list:
      `schema_version`, `generated_at`, `student`,
      `assignment.{course,instructor,title}`, `ai_use` as a **non-empty array**
      where each entry has `tool`, `model`, `date`, a valid `metadata_source`, a
@@ -929,7 +932,8 @@ holds: say so, and write a receipt.
 
 When a student wants to show how their work came together (a detector
 flagged it, or an instructor asked), run `promptcite timeline` in the
-assignment folder. It writes `promptcite-timeline.json` and `.md`: the
+assignment folder. It writes `promptcite-timeline.json` and `.md` (or the next
+free name, like `promptcite-timeline-2.json`, if those exist): the
 receipt sessions and git commits in date order, each entry hash-chained to
 the one before. Tell the student which files it wrote and the head hash.
 
@@ -1006,11 +1010,11 @@ State what the file already holds and offer the choice in one turn:
   Step 6). The existing file is not touched.
 
 **Upgrading an older receipt.** If the existing file has `schema_version` `1.x`,
-adding a session upgrades it to `2.0` in place. The mapping is mechanical and
+adding a session upgrades it to `2.2` in place. The mapping is mechanical and
 lossless — `ai_use` becomes `ai_use[0]`, top-level `metadata_source` moves onto
 that session, `outputs.citation_*` become `ai_use[0].citations.*` with the prefix
 dropped, and a top-level `appendix` moves onto the session. Say so in one line:
-*"Upgraded the receipt to schema 2.0 so it can hold both sessions."* Never
+*"Upgraded the receipt to schema 2.2 so it can hold both sessions."* Never
 discard a field you don't recognize — carry it through.
 
 **If the assignment does not match**, this is a different piece of work. Leave the

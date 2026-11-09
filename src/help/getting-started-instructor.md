@@ -12,8 +12,9 @@ npx -y -p github:camadkins/promptcite promptcite-verify ai-receipt.json
 npx -y -p github:camadkins/promptcite promptcite-verify receipts/
 ```
 
-INTACT means the receipt hasn't been edited since it was made. MISMATCH means
-it has. A folder checks every receipt in it. Notes in the report, like a
+INTACT means the receipt still matches its hash. MISMATCH means it was edited
+after it was made. It's tamper-evident, not tamper-proof: a determined student
+can recompute the hash. A folder checks every receipt in it. Notes in the report, like a
 source the student didn't confirm, are advisory, not problems.
 
 ## 2. Two ways students use it
@@ -57,8 +58,9 @@ account. It doesn't verify their AI use, so don't present it as proof.
 npx -y github:camadkins/promptcite timeline verify promptcite-timeline.json
 ```
 
-INTACT means the file hasn't been edited since it was made. It doesn't show
-when it was made or that it's complete.
+INTACT means the hash chain holds. If the student gave you the head hash
+earlier, a matching one now means it's the same file. It doesn't show when it
+was made or that it's complete.
 
 ## More
 

@@ -29,7 +29,7 @@ import { resolveLedgerPath } from './hook.js';
 
 export const TIMELINE_VERSION = '1.0';
 
-export const NOTE = 'Evidence of process, compiled by the student. Receipts are the student\'s own disclosures, git history can be changed before export, and ledger notes (when included) miss anything typed by hand. The hash chain shows this file has not been edited since it was made, not when it was made or that it is complete.';
+export const NOTE = 'Evidence of process, compiled by the student. Receipts are the student\'s own disclosures, git history can be changed before export, and ledger notes (when included) miss anything typed by hand. The hash chain shows whether this file still matches a head hash handed over earlier, not when it was made or that it is complete.';
 
 const LEDGER_NOTE = 'AI insertion note from the local ledger, incomplete by design';
 
@@ -325,7 +325,7 @@ export async function runTimeline(argv, io = {}) {
     }
     const broken = checkTimeline(t);
     if (broken) { log(`BROKEN  ${target}: ${broken}`); return 1; }
-    log(`INTACT  ${target} (head ${String(t.head).slice(0, 12)}…, unchanged since it was made)`);
+    log(`INTACT  ${target} (head ${String(t.head).slice(0, 12)}…, the chain holds; compare the head with any you were given earlier)`);
     return 0;
   }
   if (positionals.length) { err(`error: unknown timeline command "${positionals[0]}". Expected verify, or nothing.`); return 1; }

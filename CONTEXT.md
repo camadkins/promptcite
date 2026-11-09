@@ -96,7 +96,9 @@ is responsible for accuracy; the reader evaluates plausibility.
   by the hook and read by `/receipt` to jog the student's memory. Lives at
   `~/.promptcite/ledgers/<hash>.jsonl`, outside any repository, and is purged
   once consumed. Shape in [`src/ledger.schema.yaml`](./src/ledger.schema.yaml).
-  **Not a receipt, not evidence, never emitted.** Off by default. See ADR 0006.
+  **Not a receipt, not evidence, and never emitted by PromptCite on its own.** The
+  one way out is the student's choice in `promptcite timeline --with-ledger`,
+  after seeing the entries (ADR 0015). Off by default. See ADR 0006.
 - **Marker** — the optional one-line comment the hook writes above an inserted
   block in the source file itself (`// @ai-assisted <date> <model> …`). Off by
   default. Its absence from a file attests nothing.
@@ -150,4 +152,6 @@ duplicate either into adapters or edit `GEMINI.md` by hand.
 - **PromptCite cannot testify against its user.** No feature may produce an
   artifact that a third party can use to make a case the student did not
   volunteer. This is the constraint the ledger's location, its purge-on-use, and
-  its exclusion from every output all follow from.
+  its exclusion from every output PromptCite makes on its own all follow from.
+  The student can still hand over their own notes through
+  `promptcite timeline --with-ledger` (ADR 0015).
