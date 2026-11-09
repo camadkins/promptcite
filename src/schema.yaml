@@ -31,7 +31,8 @@ fields:
       2.0 receipt is already a valid 2.1 receipt and needs no migration.
       2.2 adds optional per-session `stage`, `extent`, and
       `verification.methods`, and optional `outputs.short_statement` and
-      `outputs.journal_statement`; every 2.1 receipt is a valid 2.2 receipt.
+      `outputs.journal_statement`, and an optional top-level `reflection`;
+      every 2.1 receipt is a valid 2.2 receipt.
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
@@ -406,6 +407,38 @@ fields:
               - asked_someone
               - other
 
+  reflection:
+    type: object
+    required: false
+    description: |
+      Added in 2.2, optional. The student's reflection on the whole
+      assignment, asked when an instructor policy, a course file, or the
+      student's settings turn it on (receipt.md Step 4a). One per
+      receipt, not per session. Every answer is the student's own words,
+      stored verbatim; skipped questions are left out, and an object with
+      no answers is not written. Never part of the disclosure paragraph.
+    fields:
+      tried_first:
+        type: string
+        required: false
+        description: What the student tried before using AI.
+        max_length: 1000
+      why_ai:
+        type: string
+        required: false
+        description: Why they turned to AI at that point.
+        max_length: 1000
+      what_changed:
+        type: string
+        required: false
+        description: What they changed about the AI's output, and why.
+        max_length: 1000
+      use_again:
+        type: string
+        required: false
+        description: Whether they'd use AI the same way next time, and why.
+        max_length: 1000
+
   outputs:
     type: object
     required: true
@@ -493,6 +526,11 @@ validation:
       statement.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
+  - rule: reflection_shape
+    message: |
+      reflection, when present, must be an object with at least one of
+      tried_first, why_ai, what_changed, use_again, each a non-empty
+      string of at most 1000 characters, and no other keys.
   - rule: other_forms_shape
     message: |
       outputs.short_statement and outputs.journal_statement, when present,
@@ -546,8 +584,8 @@ migration:
           the student checked before keeping the AI output. No field removed
           or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
     2.2 — additive: optional per-session ai_use[].stage, ai_use[].extent, and
-          ai_use[].verification.methods, plus optional outputs.short_statement
-          and outputs.journal_statement. No field removed or re-typed; every
+          ai_use[].verification.methods, plus optional outputs.short_statement,
+          outputs.journal_statement, and a top-level reflection. No field removed or re-typed; every
           2.1 receipt is a valid 2.2 receipt. See ADR 0012.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
   upgrade_1x_to_2_0: |

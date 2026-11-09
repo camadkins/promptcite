@@ -164,3 +164,17 @@ test('the no-AI declaration is a statement, checks first, and never claims proof
   assert.ok(example.includes(strings.get('none.statement')));
   assert.match(example, /not proof of anything/);
 });
+
+test('the reflection step asks four questions, stores them verbatim, and only when turned on', () => {
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  const step = rule.slice(rule.indexOf('### Step 4a'), rule.indexOf('### Step 4b'));
+  assert.match(step, /when `reflection` is true in an instructor policy, a course file's\s+policy, or the student's settings/);
+  for (const q of ['What did you try before using AI?', 'Why did you turn to AI at that point?', 'What did you change about what it gave you, and why?', 'Would you use AI the same way next time?']) {
+    assert.ok(step.includes(q), q);
+  }
+  for (const k of ['tried_first', 'why_ai', 'what_changed', 'use_again']) assert.ok(step.includes(`\`${k}\``), k);
+  assert.match(step, /Never write, summarize, or improve an answer/);
+  assert.match(step, /never goes into the disclosure paragraph/);
+  const r = JSON.parse(readFileSync(new URL('../examples/reflection-receipt.json', import.meta.url), 'utf8'));
+  for (const v of Object.values(r.reflection)) assert.ok(!r.outputs.disclosure_statement.includes(String(v)), 'reflection leaked into the paragraph');
+});

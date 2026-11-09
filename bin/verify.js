@@ -79,6 +79,16 @@ export const STAGES = ['planning', 'researching', 'drafting', 'revising', 'check
 export const AI_SHARES = ['none', 'small', 'part', 'most'];
 export const STUDENT_CHANGES = ['kept', 'edited', 'reworked'];
 export const SHORT_MAX = 300;
+/** Reflection questions (schema 2.2), in the order the interview asks them. */
+export const REFLECTION_KEYS = ['tried_first', 'why_ai', 'what_changed', 'use_again'];
+export const REFLECTION_MAX = 1000;
+/** @type {Record<string, string>} */
+const REFLECTION_LABELS = {
+  tried_first: 'tried first',
+  why_ai: 'why AI',
+  what_changed: 'what changed',
+  use_again: 'next time',
+};
 export const CHECK_METHODS = ['read_through', 'ran_code', 'ran_tests', 'checked_sources', 'checked_course_material', 'asked_someone', 'other'];
 
 /** Plain words for the report. */
@@ -296,6 +306,21 @@ export function validateSchema(receipt) {
         errs.push(`outputs.short_statement must be at most ${SHORT_MAX} characters (it has ${o.short_statement.length})`);
       }
     }
+    // 2.2: optional assignment-level reflection, the student's own words.
+    if (r.reflection !== undefined) {
+      const f = r.reflection;
+      if (!f || typeof f !== 'object' || Array.isArray(f)) {
+        errs.push('reflection, when present, must be an object');
+      } else {
+        const keys = Object.keys(f);
+        for (const k of keys) {
+          if (!REFLECTION_KEYS.includes(k)) errs.push(`reflection.${k} is not a reflection question (expected ${REFLECTION_KEYS.join(', ')})`);
+          else if (typeof f[k] !== 'string' || f[k].trim().length === 0) errs.push(`reflection.${k} must be a non-empty string`);
+          else if (f[k].length > REFLECTION_MAX) errs.push(`reflection.${k} must be at most ${REFLECTION_MAX} characters`);
+        }
+        if (keys.length === 0) errs.push('reflection, when present, needs at least one answer');
+      }
+    }
   } else {
     // Schema 1.x — unchanged from the original validator.
     if (r.metadata_source !== 'agent_reported' && r.metadata_source !== 'student_claimed') {
@@ -459,6 +484,12 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
   lines.push(`            ${hang(o.disclosure_statement)}`);
   if (o.short_statement) lines.push(`Short form: ${hang(o.short_statement)}`);
   if (o.journal_statement) lines.push(`Journal:    ${hang(o.journal_statement)}`);
+  if (r.reflection && typeof r.reflection === 'object') {
+    lines.push('Reflection (the student\'s own words, for the whole assignment):');
+    for (const k of REFLECTION_KEYS) {
+      if (typeof r.reflection[k] === 'string') lines.push(`  ${REFLECTION_LABELS[k]}: ${r.reflection[k]}`);
+    }
+  }
 
   lines.push(`Hash:       ${hashStatus}${hashStatus === 'INTACT' ? ' (unchanged since the agent emitted it)' : hashStatus === 'MISMATCH' ? ' (edited since emission, or non-spec serializer)' : ' (no content_hash — unverifiable beyond self-disclosure)'}`);
   if (r.submission_hash) {

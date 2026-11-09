@@ -7,7 +7,7 @@ import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } fr
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes, STAGES, AI_SHARES, STUDENT_CHANGES, CHECK_METHODS } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes, STAGES, AI_SHARES, STUDENT_CHANGES, CHECK_METHODS, REFLECTION_KEYS } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -682,7 +682,7 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
@@ -789,4 +789,36 @@ test('the report shows the other forms only when they exist', () => {
   const out = formatReport(both, 'INTACT', []);
   assert.match(out, /^Short form: One line\.$/m);
   assert.match(out, /^Journal:    The declaration\.$/m);
+});
+
+// --- schema 2.2: reflection ---------------------------------------------------
+
+test('the reflection keys match src/schema.yaml', async () => {
+  const { readFileSync } = await import('node:fs');
+  const yaml = readFileSync(new URL('../src/schema.yaml', import.meta.url), 'utf8');
+  const block = yaml.slice(yaml.indexOf('\n  reflection:'), yaml.indexOf('\n  outputs:'));
+  assert.deepEqual([...block.matchAll(/^ {6}([a-z_]+):$/gm)].map((m) => m[1]), REFLECTION_KEYS);
+});
+
+test('a reflection with some answers validates, and it is optional', () => {
+  const base = v22([session()]);
+  assert.deepEqual(validateSchema({ ...base, reflection: { tried_first: 'The textbook.', use_again: 'Probably.' } }), []);
+  assert.deepEqual(validateSchema(base), []);
+});
+
+test('a bad reflection is reported: empty, unknown key, blank answer, too long, not an object', () => {
+  const base = v22([session()]);
+  const errs = (/** @type {any} */ reflection) => validateSchema({ ...base, reflection });
+  assert.ok(errs({}).some((e) => e.includes('needs at least one answer')));
+  assert.ok(errs({ mood: 'fine' }).some((e) => e.includes('reflection.mood is not a reflection question')));
+  assert.ok(errs({ why_ai: '   ' }).some((e) => e.includes('reflection.why_ai must be a non-empty string')));
+  assert.ok(errs({ why_ai: 'x'.repeat(1001) }).some((e) => e.includes('at most 1000 characters')));
+  assert.ok(errs(['tried']).some((e) => e.includes('must be an object')));
+});
+
+test('the report shows the reflection in question order, only when present', () => {
+  const base = v22([session()]);
+  assert.doesNotMatch(formatReport(base, 'INTACT', []), /Reflection/);
+  const out = formatReport({ ...base, reflection: { use_again: 'No.', tried_first: 'Notes.' } }, 'INTACT', []);
+  assert.match(out, /Reflection \(the student's own words, for the whole assignment\):\n {2}tried first: Notes\.\n {2}next time: No\./);
 });
