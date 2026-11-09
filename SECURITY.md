@@ -46,19 +46,12 @@ Out-of-scope (per design):
 
 ## Patch and disclosure
 
-Critical fixes are merged via the standard PR flow with **CLA signature
-required** (enforced by branch protection). Patches must not skip the
-CLA bot. Once the fix lands on `main`, a release note discloses the
+Critical fixes are merged via the standard PR flow. Once the fix lands on `main`, a release note discloses the
 issue, credits the reporter (if they consented), and recommends the
 upgrade.
 
-For "fix urgent" cases where the maintainer alone authors the patch, the
-maintainer's own CLA signature on file is sufficient.
+## Patches go through PRs
 
-## CLA-gated patches
-
-All security patches — including the maintainer's own — flow through
-pull requests so the CLA bot can record the signature on the patch
-itself. **No direct-to-main commits**, even for security fixes. This is
-enforced by branch protection and is non-negotiable: the audit trail's
-value depends on it being complete.
+All security patches, including the maintainer's own, go through pull
+requests. **No direct-to-main commits**, even for security fixes. Branch
+protection enforces this, and the audit trail depends on it.

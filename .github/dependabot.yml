@@ -17,9 +17,6 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "chore(deps)"
-    # PRs still require CLA signature per branch protection — Dependabot's
-    # CLA signing is handled via cla-assistant's allowlist (configured
-    # separately via the bot's web UI).
 
   - package-ecosystem: "github-actions"
     directory: "/"

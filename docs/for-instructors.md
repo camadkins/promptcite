@@ -441,7 +441,7 @@ PromptCite is usually easier to approve than it looks:
 | Does the check tool report anywhere? | No. `promptcite-check` reads files, prints to the terminal, and exits. It writes nothing and sends nothing. |
 | Can it be removed cleanly? | Yes — `--uninstall` per agent; the hook removes only its own entry. |
 
-For institutional deployment, see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).
+Schools can deploy it under the same AGPL v3 license as everyone else. There is no separate institutional license.
 
 ## Limitations to be aware of
 
@@ -477,6 +477,3 @@ If you're a department or institution adopting PromptCite at scale
 and the receipt schema doesn't fit your governance review, file an
 issue at https://github.com/camadkins/promptcite/issues. Schema
 changes follow semver; v1.x receipts will remain readable.
-
-For commercial license inquiries (universities deploying PromptCite
-institutionally), see [`LICENSE-COMMERCIAL`](../LICENSE-COMMERCIAL).

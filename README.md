@@ -129,13 +129,12 @@ Exit `0` means the hash matches. Tamper-evident, not tamper-proof: the algorithm
 
 ## License
 
-PromptCite is **dual-licensed**: **AGPL v3** for individual students, contributors, researchers, and non-commercial open-source use. A separate **commercial license** is required for universities, edtech vendors, LMS integrations, and any hosted-service deployment.
+PromptCite is open source under **AGPL v3**, for everyone: students, instructors, schools, researchers, and anyone building on it. Use it, fork it, change it. If you run a modified version as a service, share your changes.
 
-- Community use: [LICENSE](./LICENSE) (AGPL v3 verbatim)
-- Commercial inquiries: [LICENSE-COMMERCIAL](./LICENSE-COMMERCIAL)
+- License: [LICENSE](./LICENSE) (AGPL v3 verbatim)
 - Plain-language summary: [NOTICE.md](./NOTICE.md)
 
-All contributions require a signed CLA. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contributor flow.
+Ideas, issues, and PRs are all welcome, and there's no CLA to sign. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Docs
 

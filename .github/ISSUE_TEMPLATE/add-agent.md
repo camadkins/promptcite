@@ -29,5 +29,4 @@ labels: 'good first issue, agent-adapter'
 - [ ] `npm run typecheck && npm test` pass
 - [ ] Commit subject is conventional (`feat: add <agent> adapter`), no CHANGELOG edit
 
-<!-- New contributors welcome — comment to claim this before starting.
-     Heads up: a signed CLA is required before merge (the bot will prompt). -->
+<!-- New contributors welcome — comment to claim this before starting. -->
