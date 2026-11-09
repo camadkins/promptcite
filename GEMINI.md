@@ -1184,6 +1184,35 @@ policy's `required_appendix` names an appendix for the chosen category,
 prompt the student for it and include it — it is required for this
 assignment, not opt-in.
 
+### Step 3b — Files (code only)
+
+Run this when the work is code: the `code` profile, a `debug` or code
+`draft` session, or any PromptCite markers in the project. Skip it for
+writing.
+
+1. **List what's recorded.** Run `promptcite-check --files --json` and take
+   each file with its models and dates. Add any file named by a ledger entry
+   you read in Step 0 that has no marker, with that entry's tool and model.
+   If neither exists, skip straight to the question in step 3.
+2. **Show the list and ask once, packed:**
+   > These files have AI work recorded in them:
+   > `src/sort.py` (Claude Opus 5), `src/parse.js` (GPT-4.1).
+   > For each one, did the AI **write** it, **improve** code you wrote, or
+   > **both**? And did AI work on any file that isn't listed?
+3. **Write the table** to the receipt's `code_files`: one row per file, with
+   `tools` from the markers or ledger (or what the student says), `role` from
+   their answer (`generated`, `improved`, `both`), and `source` set to
+   `marker`, `ledger`, or `student`. A file they add gets `source: student`.
+
+Never pick a role for the student, even when a marker makes one look
+obvious: a marker says where AI output landed, not how much of the file is
+theirs. Don't count lines or markers, and don't put a number in the table. If
+a listed file is from a different assignment, the student can say so and it
+stays out, but never treat leaving it out as the AI use not having happened.
+On an existing receipt, keep every row as it is, add new files, and add any
+new tool to a file already listed. Change a row's role only if the student
+says it changed.
+
 ### Step 4 — Revision statement (SOLO — optional add-on)
 
 Ask one final question:
@@ -1677,6 +1706,15 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 }
 ```
 
+**`code_files` is optional (schema 2.2).** Present only when Step 3b ran and
+at least one file was confirmed:
+
+```json
+"code_files": [
+  { "file": "src/sort.py", "tools": ["Claude Opus 5"], "role": "improved", "source": "marker" }
+]
+```
+
 **`reflection` is optional (schema 2.2).** A top-level object, present only
 when Step 4a ran and the student answered at least one question:
 
@@ -1803,6 +1841,9 @@ CITATION<S> (<chosen style>):
 DISCLOSURE (paste into your paper's header or acknowledgments):
   <the single disclosure paragraph>
 
+FILES (what the AI did to each file):             <- only for code
+  <file>: <wrote it | improved yours | both>, <tools>
+
 SHORT (paste into the LMS comment box):          <- only when written
   <the short statement>
 
@@ -1897,6 +1938,8 @@ End with one short line:
 - Suggest that the student leave AI use out of a receipt, or treat a
   deselected ledger entry as though the AI use behind it never happened.
 - Write, reword, or summarize a reflection answer, or push for a longer one.
+- Pick a file's role for the student, or put a line or marker count in the
+  file table.
 - Set `verification.attested` to true, or write a `statement`, on anything
   other than the student telling you what they checked.
 - Look for AI-written code that carries no marker. A missing marker is not a

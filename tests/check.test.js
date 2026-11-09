@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { scan, pendingLines, walk } from '../bin/check.js';
+import { scan, pendingLines, walk, markedFiles, markersIn } from '../bin/check.js';
 
 const CHECK = new URL('../bin/check.js', import.meta.url).pathname;
 
@@ -369,6 +369,79 @@ test('a file given where a directory belongs is user error', () => {
     const { code, err } = runCheck(cwd, ['a.py']);
     assert.equal(code, 3);
     assert.match(err, /cannot read/);
+  } finally {
+    cleanup();
+  }
+});
+
+// --- --files: the receipt's file table ----------------------------------------
+
+/** Any-state marker, built from parts for the same reason as MARKER above. */
+const MARK = (/** @type {string} */ state, /** @type {string} */ date, /** @type {string} */ model, /** @type {string} */ id) => `@ai-${state} ${date}${model ? ` ${model}` : ''} via ${'Prompt'}Cite (pc:${id})`;
+
+/** A fixture repo: two marked files, a disputed one, a string, a dependency. */
+function fixtureRepo() {
+  const box = sandbox();
+  const { cwd } = box;
+  mkdirSync(join(cwd, 'src'));
+  mkdirSync(join(cwd, 'node_modules', 'lib'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'sort.py'), [
+    `# ${MARK('verified', '2026-11-03', 'Claude Opus 5', 'a4f21')}: traced it by hand`,
+    'def merge(a, b):', '    pass',
+    `# ${MARK('unverified', '2026-11-05', 'Claude Opus 5', 'b7c33')}`,
+    'def split(x):', '    pass', '',
+  ].join('\n'));
+  writeFileSync(join(cwd, 'src', 'parse.js'), [
+    `// ${MARK('assisted', '2026-11-04', 'GPT-4.1', 'c9d01')}`,
+    'export const parse = (s) => s.split(",");', '',
+  ].join('\n'));
+  writeFileSync(join(cwd, 'src', 'mine.js'), [
+    `// ${MARK('disputed', '2026-11-04', 'GPT-4.1', 'd1e22')}: i wrote this`,
+    `const PATTERN = "// ${MARK('assisted', '2026-11-04', 'X', 'fffff')}";`, '',
+  ].join('\n'));
+  writeFileSync(join(cwd, 'src', 'nomodel.rb'), `# ${MARK('assisted', '2026-11-06', '', 'e0e0e')}\n`);
+  writeFileSync(join(cwd, 'node_modules', 'lib', 'a.js'), `// ${MARK('assisted', '2026-11-01', 'X', 'aaaaa')}\n`);
+  return box;
+}
+
+test('markedFiles lists marked files with models, dates and states, and skips disputed, strings and deps', () => {
+  const { cwd, cleanup } = fixtureRepo();
+  try {
+    const files = markedFiles(cwd);
+    assert.deepEqual(files.map((f) => f.file), ['src/nomodel.rb', 'src/parse.js', 'src/sort.py']);
+    const sort = files.find((f) => f.file === 'src/sort.py');
+    assert.deepEqual(sort?.models, ['Claude Opus 5']);
+    assert.deepEqual(sort?.dates, ['2026-11-03', '2026-11-05']);
+    assert.deepEqual(sort?.markers.map((m) => [m.line, m.state, m.id]), [[1, 'verified', 'a4f21'], [4, 'unverified', 'b7c33']]);
+    assert.deepEqual(files.find((f) => f.file === 'src/nomodel.rb')?.models, []);
+    for (const f of files) assert.ok(!('role' in f), 'the scan must not guess a role');
+  } finally {
+    cleanup();
+  }
+});
+
+test('markersIn ignores a marker inside a string', () => {
+  assert.deepEqual(markersIn(`const s = \`\n// ${MARK('assisted', '2026-11-04', 'X', 'abcde')}\n\`;\n`), []);
+});
+
+test('--files prints the table and always exits 0, --json gives the raw list, and nothing is counted', () => {
+  const { cwd, cleanup } = fixtureRepo();
+  try {
+    const text = runCheck(cwd, ['--files']);
+    assert.equal(text.code, 0, 'an unverified marker must not fail --files');
+    assert.match(text.out, /^src\/sort\.py {2}Claude Opus 5 {2}2026-11-03, 2026-11-05$/m);
+    assert.match(text.out, /^src\/nomodel\.rb {2}model not recorded/m);
+    assert.match(text.out, /your answer to give/);
+    assert.doesNotMatch(text.out, /\b\d+ (markers?|lines?|files?)\b/, 'a count leaked into the output');
+    const json = runCheck(cwd, ['--files', '--json']);
+    assert.equal(json.code, 0);
+    assert.equal(JSON.parse(json.out).length, 3);
+    const empty = sandbox();
+    try {
+      assert.match(runCheck(empty.cwd, ['--files']).out, /No PromptCite markers/);
+    } finally {
+      empty.cleanup();
+    }
   } finally {
     cleanup();
   }

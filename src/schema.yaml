@@ -31,8 +31,8 @@ fields:
       2.0 receipt is already a valid 2.1 receipt and needs no migration.
       2.2 adds optional per-session `stage`, `extent`, and
       `verification.methods`, and optional `outputs.short_statement` and
-      `outputs.journal_statement`, and an optional top-level `reflection`;
-      every 2.1 receipt is a valid 2.2 receipt.
+      `outputs.journal_statement`, and optional top-level `reflection` and
+      `code_files`; every 2.1 receipt is a valid 2.2 receipt.
       See docs/SCHEMA-CHANGELOG.md for the version history.
     pattern: '^\d+\.\d+$'
 
@@ -407,6 +407,51 @@ fields:
               - asked_someone
               - other
 
+  code_files:
+    type: array
+    required: false
+    description: |
+      Added in 2.2, optional. One row per file of code the AI touched in
+      this assignment, rolled up across every session. Listed from
+      PromptCite markers (`promptcite-check --files`) and ledger entries,
+      plus any file the student adds. The student confirms every row and
+      picks the role; nothing is counted and nothing is guessed. A file
+      the AI touched with no marker is still the student's to add.
+    item_type: object
+    fields:
+      file:
+        type: string
+        required: true
+        description: Path relative to the project root, forward slashes, no "..".
+      tools:
+        type: array
+        required: true
+        item_type: string
+        description: |
+          The tools or models that worked on this file, free-form (ADR
+          0001), e.g. "Claude Opus 5" or "Copilot (GPT-4.1)".
+      role:
+        type: string
+        required: true
+        description: |
+          The student's answer: `generated` (the AI wrote it), `improved`
+          (the AI changed code the student wrote), or `both`.
+        enum:
+          - generated
+          - improved
+          - both
+      source:
+        type: string
+        required: true
+        description: |
+          Where the row came from: `marker` (a PromptCite marker in the
+          file), `ledger` (a ledger entry with no marker), or `student`
+          (the student added it).
+        enum:
+          - marker
+          - ledger
+          - student
+
   reflection:
     type: object
     required: false
@@ -526,6 +571,12 @@ validation:
       statement.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
+  - rule: code_files_shape
+    message: |
+      code_files, when present, must be a non-empty list. Each row needs a
+      relative `file` (no "..", listed once), a non-empty `tools` list, a
+      `role` of generated, improved, or both, and a `source` of marker,
+      ledger, or student.
   - rule: reflection_shape
     message: |
       reflection, when present, must be an object with at least one of
@@ -585,7 +636,8 @@ migration:
           or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
     2.2 — additive: optional per-session ai_use[].stage, ai_use[].extent, and
           ai_use[].verification.methods, plus optional outputs.short_statement,
-          outputs.journal_statement, and a top-level reflection. No field removed or re-typed; every
+          outputs.journal_statement, a top-level reflection, and a
+          top-level code_files table. No field removed or re-typed; every
           2.1 receipt is a valid 2.2 receipt. See ADR 0012.
     Canonical version history: docs/SCHEMA-CHANGELOG.md.
   upgrade_1x_to_2_0: |

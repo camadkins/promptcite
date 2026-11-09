@@ -178,3 +178,15 @@ test('the reflection step asks four questions, stores them verbatim, and only wh
   const r = JSON.parse(readFileSync(new URL('../examples/reflection-receipt.json', import.meta.url), 'utf8'));
   for (const v of Object.values(r.reflection)) assert.ok(!r.outputs.disclosure_statement.includes(String(v)), 'reflection leaked into the paragraph');
 });
+
+test('the file step lists from markers, asks the student for every role, and counts nothing', () => {
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  const step = rule.slice(rule.indexOf('### Step 3b'), rule.indexOf('### Step 4 '));
+  assert.match(step, /promptcite-check --files --json/);
+  assert.match(step, /Never pick a role for the student/);
+  assert.match(step, /Don't count lines or markers/);
+  assert.match(step, /never treat leaving it out as the AI use not having happened/);
+  const r = JSON.parse(readFileSync(new URL('../examples/files-receipt.json', import.meta.url), 'utf8'));
+  assert.ok(r.code_files.some((/** @type {any} */ f) => f.source === 'student'));
+  for (const f of r.code_files) assert.deepEqual(Object.keys(f).sort(), ['file', 'role', 'source', 'tools']);
+});

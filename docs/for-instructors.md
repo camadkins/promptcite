@@ -341,6 +341,13 @@ prevent dishonesty (a student can ignore or edit the file). Same trust
 model as everything else here. Where a student's saved settings conflict
 with your policy, the policy wins.
 
+**File table (code).** A code receipt may carry `code_files`: one row per
+file the AI touched, with the tools, whether the AI wrote it or improved the
+student's code (`generated` / `improved` / `both`), and whether the row came
+from a marker, the ledger, or the student. The role is always the student's
+answer, and nothing in the table is a line count or a share. See
+[ADR 0017](./adr/0017-file-table-for-code.md).
+
 **Reflection questions.** Set `"reflection": true` and `/receipt` asks the
 student four questions about the assignment: what they tried before AI, why
 they turned to it, what they changed, and whether they'd use it the same way

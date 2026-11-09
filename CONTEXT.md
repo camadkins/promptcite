@@ -64,6 +64,10 @@ is responsible for accuracy; the reader evaluates plausibility.
   characters, for an LMS comment box) and `outputs.journal_statement` (a
   journal's AI declaration, Elsevier's wording by default). Optional, written
   only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **File table** — the receipt's optional `code_files`: one row per file of
+  code the AI touched, listed from markers (`promptcite-check --files`) and
+  the ledger, each role (`generated` / `improved` / `both`) picked by the
+  student. No counts. See ADR 0017.
 - **Reflection** — the receipt's optional top-level `reflection` object: the
   student's verbatim answers to four questions about the whole assignment.
   Turned on by `reflection: true` in a policy, course file, or settings. One
