@@ -63,7 +63,7 @@ See [`multi-session-receipt.json`](./multi-session-receipt.json). Verify it the
 same way as any other receipt:
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-verify multi-session-receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify multi-session-receipt.json
 ```
 
 The verifier prints one line per session with its own provenance, and reports the

@@ -330,7 +330,8 @@ Options:
                 skipped by default: ${[...SKIP_DIRS].slice(0, 6).join(', ')}, and others
   -q, --quiet   report through the exit code alone
   --files       list every file with a PromptCite marker, for the receipt's
-                file table (always exits 0). Add --json for the raw list
+                file table (exits 0, or 3 for a bad path). Add --json for
+                the raw list
 
 Exit codes:
   0  nothing pending

@@ -576,7 +576,7 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
 }
 
 function printHelp() {
-  console.log(`promptcite verify <receipt.json> [more receipts or a directory] [options]
+  console.log(`promptcite-verify <receipt.json> [more receipts or a directory] [options]
 
 Verifies PromptCite receipts: recomputes the content_hash, validates each
 receipt against the schema, and prints a plain-English summary of what the

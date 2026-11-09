@@ -39,9 +39,12 @@ command-line tools. The attack surface is intentionally minimal:
   - course files in `~/.promptcite/courses/`, only after the student approves;
   - `promptcite timeline` and `promptcite policy init`, to the current
     directory, never over an existing timeline.
-- **One subprocess at runtime:** `promptcite timeline` runs `git log` through
-  `execFile` with an argument array (no shell), with external diff and textconv
-  turned off so repository config can't attach a command to it.
+- **Subprocesses:** `promptcite timeline` runs `git log` through `execFile`
+  with an argument array (no shell), with external diff, textconv, and
+  signature display turned off so repository config can't attach a command to
+  it. The installer, `--list`, and `--doctor` run `command -v <agent>` through
+  a shell to detect agents (the names are fixed in the installer, never user
+  input), and the installer may run an agent's own CLI.
 
 In-scope concerns we take seriously:
 

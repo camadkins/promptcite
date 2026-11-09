@@ -5,7 +5,7 @@ on your machine.
 
 > The one-liner URLs below resolve against the `main` branch by default.
 > For maximum determinism, install from a tagged release (e.g.,
-> `…/main/install.sh` → `…/v1.0.0/install.sh`) — tagged releases include
+> `…/main/install.sh` → `…/v2.0.0/install.sh`) — tagged releases include
 > a sigstore build-provenance attestation you can verify with
 > `gh attestation verify <tarball> --repo camadkins/promptcite`.
 
@@ -33,6 +33,19 @@ What it does:
 - Leaves the optional AI-use hooks alone. Those install only with `--only`.
 - Skips anything you don't have. Safe to re-run. ~30 seconds end-to-end.
 
+### The command-line tools
+
+The `promptcite`, `promptcite-verify`, and `promptcite-check` commands need
+one more step, since the install above only sets up your agents:
+
+```bash
+npm install -g github:camadkins/promptcite
+```
+
+Or run any of them without installing: `npx -y github:camadkins/promptcite help`
+for `promptcite`, and `npx -y -p github:camadkins/promptcite promptcite-verify ...`
+for the other two.
+
 Want to preview before installing? Use `--dry-run`:
 
 ```bash
@@ -47,7 +60,7 @@ runs under the hood), use the table below. Every row also works as
 
 | Agent | Install command | Auto-activates? |
 |---|---|:-:|
-| **Claude Code** | `claude plugin marketplace add camadkins/promptcite && claude plugin install promptcite@promptcite` | Yes |
+| **Claude Code** | `npx -y github:camadkins/promptcite --only claude` | Global: skill at `~/.claude/skills/promptcite/SKILL.md` (type `/receipt`) |
 | **Gemini CLI** | `gemini extensions install https://github.com/camadkins/promptcite` | Yes |
 | **Codex CLI** | `npx -y github:camadkins/promptcite --only codex` | Global: surgical block in `~/.codex/AGENTS.md`. With `--with-init`, also `AGENTS.md` at project root |
 | **Cursor** | `npx -y github:camadkins/promptcite --only cursor` | Global: skill at `~/.cursor/skills/receipt/SKILL.md` (type `/receipt`). With `--with-init`, also `.cursor/rules/promptcite-receipt.md` |
@@ -82,14 +95,14 @@ the rest of your own `AGENTS.md` / rules files alone.
 The full agent matrix lives in `bin/install.js` under the `MANIFEST`
 array — each agent is one declarative entry (strategy + detect + path).
 
-**`AGENTS.md` family.** opencode, Amp, Crush, and Jules all read a
-root-level `AGENTS.md`, so they share one block there (installing any of
-them — or Codex — writes the same idempotent block). They're listed
-separately for discoverability. Any *other* `AGENTS.md`-aware agent picks
+**`AGENTS.md` family.** Codex, opencode, Amp, Crush, Droid, and Jules all read
+`AGENTS.md`. A plain install writes each one's own global file (for example
+`~/.codex/AGENTS.md`). With `--with-init`, installing any of them also writes
+the same idempotent block to the project's root `AGENTS.md`, which they share.
+They're listed separately for discoverability. Any *other* `AGENTS.md`-aware agent picks
 up `/receipt` automatically once that block exists. For anything still
 unlisted, `promptcite --print-rule` is the universal fallback.
 
-For "auto-activates? No" agents, type `/receipt` once per session.
 
 ## Optional: the AI-use hook
 
@@ -256,7 +269,7 @@ node bin/install.js --all              # install for everything detected
 | Flag | Effect |
 |---|---|
 | `--all` | Install for every detected agent. The full ride. |
-| `--only <id>` | One agent only. Repeatable: `--only claude --only cursor`. |
+| `--only <id>` | One agent only. |
 | `--dry-run` | Print every command. Write nothing. |
 | `--with-init` | Drop always-on rule files into the current repo (`.cursor/`, `.windsurf/`, `.clinerules/`, `.github/copilot-instructions.md`, `AGENTS.md`). |
 | `--config-dir <path>` | Override Claude Code config dir. Default: `$CLAUDE_CONFIG_DIR` or `~/.claude`. |
@@ -265,6 +278,11 @@ node bin/install.js --all              # install for everything detected
 | `--list` | Print the full agent matrix and exit. |
 | `--doctor` | Diagnose your install: per-agent detection, whether each rule file is present / stale, and whether `promptcite.config.json` / `promptcite.policy.json` exist. Writes nothing. |
 | `--print-rule` / `--manual` | Print the `/receipt` rule to stdout (universal install for any agent not in the matrix). Writes nothing. |
+| `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
+| `--force` | Re-run even if already installed. |
+| `--uninstall` | Remove everything. |
+| `--version` / `-v` | Print version and exit. |
+| `--help` / `-h` | Print this help and exit. |
 
 ### Turning it on and off
 
@@ -294,11 +312,12 @@ Lists AI-written blocks you haven't verified yet and exits non-zero while any
 remain, so it drops into a pre-submit script the same way a linter does.
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-check        # this directory
-npx -y github:camadkins/promptcite promptcite-check src    # one subtree
+npx -y -p github:camadkins/promptcite promptcite-check        # this directory
+npx -y -p github:camadkins/promptcite promptcite-check src    # one subtree
 ```
 
 Exit `0` nothing pending, `1` something is still unverified, `3` bad path.
+(`--files` exits `0`, or `3` for a bad path.)
 It needs the hook installed with `markers.attest` (or an instructor's
 `require_attestation`) turned on, since it reads the markers the hook writes.
 A clean run means no pending markers, which is not the same as no AI use.
@@ -307,11 +326,6 @@ A clean run means no pending markers, which is not the same as no AI use.
 the model and date from each one, for the receipt's file table. `/receipt`
 runs it on code assignments and asks you what the AI did to each file. Add
 `--json` for the raw list.
-| `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
-| `--force` | Re-run even if already installed. |
-| `--uninstall` | Remove everything. |
-| `--version` / `-v` | Print version and exit. |
-| `--help` / `-h` | Print this help and exit. |
 
 ## Uninstall
 
@@ -329,8 +343,8 @@ Removes the slash command from every agent the installer touched, the
 shared rule file, and any `--with-init` artifacts in the current repo.
 
 Removing one agent with `--only <id> --uninstall` keeps a block another
-agent still reads (one `AGENTS.md` block serves Codex, Copilot, Amp, Crush,
-Droid and the rest). Add `--force` to remove it anyway. Folders left empty
+agent still reads (one project `AGENTS.md` block serves Codex, opencode, Amp,
+Crush, Droid, and Jules). Add `--force` to remove it anyway. Folders left empty
 are listed at the end with an `rmdir` line; they're yours to keep or delete.
 
 ## Privacy

@@ -3,6 +3,12 @@
 Start with `promptcite --doctor`. It shows which agents were found and whether
 each installed rule matches this version. It writes nothing.
 
+## `promptcite: command not found`
+
+The one-line install sets up your agents, not the commands. Install them once
+with `npm install -g github:camadkins/promptcite`, or put
+`npx -y -p github:camadkins/promptcite` in front of the command.
+
 ## `/receipt` doesn't show up
 
 - Open a fresh session. Most agents only read rules when a session starts.
@@ -36,10 +42,12 @@ each installed rule matches this version. It writes nothing.
   tell it what you did before.
 - `/receipt recall` shows what's recorded for this folder.
 
-## verify says INVALID or MODIFIED
+## verify says MISMATCH, UNVERIFIABLE, or INVALID
 
-- MODIFIED (exit 1): the receipt was edited after `/receipt` wrote it. Make a
+- MISMATCH (exit 1): the receipt was edited after `/receipt` wrote it. Make a
   fresh one rather than editing by hand.
+- UNVERIFIABLE (exit 2): the receipt has no `content_hash`, usually because the
+  agent that wrote it couldn't run code. It can't be checked for edits.
 - INVALID (exit 4): the file is missing a field or has a bad value. The report
   lists each problem. Older receipts only get notes for date formats.
 

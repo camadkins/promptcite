@@ -218,7 +218,7 @@ function sandbox(fn) {
 test('policy check with nothing set says so', () => sandbox(({ run }) => {
   const r = run(['policy', 'check', 'draft']);
   assert.equal(r.code, 0);
-  assert.match(r.out, /no AI level is set for this work/);
+  assert.match(r.out, /no AI level or allowed uses are set for this work/);
 }));
 
 test('policy check warns from the assignment policy file, quoting it', () => sandbox(({ run, writePolicy }) => {

@@ -36,7 +36,7 @@ Each session has its own citation. The November 2 one is in the JSON.
 See [`draft-receipt.json`](./draft-receipt.json). Check it hasn't been edited:
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-verify draft-receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify draft-receipt.json
 ```
 
 ---

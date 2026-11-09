@@ -26,6 +26,18 @@ Or with Node 18+ on any system: `npx -y github:camadkins/promptcite`.
 
 It finds the supported AI agents on your machine and adds `/receipt` to each.
 Safe to re-run. Per-agent commands and flags are in [INSTALL.md](./INSTALL.md).
+
+The `promptcite`, `promptcite-verify`, and `promptcite-check` commands need
+one more step, since the install above only sets up your agents:
+
+```bash
+npm install -g github:camadkins/promptcite
+```
+
+Or run any of them without installing: `npx -y github:camadkins/promptcite help`
+for `promptcite`, and `npx -y -p github:camadkins/promptcite promptcite-verify ...`
+for the other two.
+
 Then:
 
 ```bash
@@ -110,7 +122,7 @@ You don't need to install anything to read a receipt. To check one hasn't been
 edited:
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-verify receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify receipt.json
 ```
 
 To set an assignment's AI level, run this in the folder students will work in

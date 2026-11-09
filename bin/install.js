@@ -1404,9 +1404,17 @@ COMMANDS
   course clear           Remove this folder's course binding.
   course check <file>    Check a course file. Exits 1 and says why if it's not
                          usable. Add one with "/receipt course add <syllabus>".
-  policy check [use…]    Show the AI level for this work and warn if the given
-                         uses (draft, edit, …) go past it, quoting the rule.
-                         Add --course <id> or --assignment <name> to pick which.
+  policy check [use…]    Show the AI level and allowed uses for this work, and
+                         warn if the given uses (draft, edit, …) go past them,
+                         quoting the rule. Add --course <id> or --assignment
+                         <name> to pick which.
+  policy init            Instructors: write this assignment's AI level and rule
+                         to promptcite.policy.json. See "policy init --help".
+  timeline               Put this folder's receipts and git commits in date
+                         order, hash-chained. See "timeline --help".
+  timeline verify <file> Check a timeline hasn't been edited since it was made.
+  help [student|instructor]
+                         Getting started for students or for instructors.
 
   Run "on" when you start an assignment and "off" when it's handed in. The
   setting is per folder, so turning it on for homework leaves everything else
@@ -1449,8 +1457,8 @@ EXAMPLES
 
 EXIT CODES
   0  success
-  1  user error (unknown flag, bad value)
-  2  internal error
+  1  a command said no (bad value, invalid file, unknown topic)
+  2  unknown flag, command, or agent id, or an internal error
 
 DOCS  https://github.com/camadkins/promptcite`);
 }

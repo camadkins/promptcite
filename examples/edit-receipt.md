@@ -71,7 +71,7 @@ fields, canonically serialized). Instructors can verify the receipt
 hasn't been edited:
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-verify edit-receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify edit-receipt.json
 ```
 
 Tamper-evident speed bump, not tamper-proof. Honest about its limits.
