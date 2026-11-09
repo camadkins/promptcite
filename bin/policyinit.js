@@ -11,7 +11,7 @@
 //
 // Local only: reads and writes promptcite.policy.json in the current folder.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
@@ -128,10 +128,22 @@ export async function runPolicyInit(argv, io = {}) {
   const file = join(cwd, 'promptcite.policy.json');
   /** @type {Record<string, unknown>} */
   let existing = {};
-  const existed = existsSync(file);
-  if (existed) {
+  // Read rather than check-then-read: a missing file is ENOENT, and there's no
+  // window between deciding the file exists and using it.
+  /** @type {string | null} */
+  let raw = null;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (/** @type {any} */ e) {
+    if (e?.code !== 'ENOENT') {
+      err(`error: can't read ${file}: ${e?.message ?? e}. Nothing was written.`);
+      return 1;
+    }
+  }
+  const existed = raw !== null;
+  if (raw !== null) {
     try {
-      existing = JSON.parse(readFileSync(file, 'utf8'));
+      existing = JSON.parse(raw);
     } catch {
       err(`error: ${file} isn't valid JSON. Fix or move it first; nothing was written.`);
       return 1;
