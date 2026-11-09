@@ -22,63 +22,116 @@ curl -fsSL https://raw.githubusercontent.com/camadkins/promptcite/main/install.s
 irm https://raw.githubusercontent.com/camadkins/promptcite/main/install.ps1 | iex
 ```
 
-Installs into every supported AI agent on your machine. ~30 seconds, idempotent, safe to re-run. Per-agent commands and flags in [INSTALL.md](./INSTALL.md).
+Or with Node 18+ on any system: `npx -y github:camadkins/promptcite`.
+
+It finds the supported AI agents on your machine and adds `/receipt` to each.
+Safe to re-run. Per-agent commands and flags are in [INSTALL.md](./INSTALL.md).
+Then:
+
+```bash
+promptcite help student       # the short path for students
+promptcite help instructor    # the short path for instructors
+```
 
 ## What it is
 
-PromptCite installs into 26 AI coding/writing agents (Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue, Roo, Aider, Amazon Q, Kiro, Augment, Trae, JetBrains Junie, Goose, Replit, OpenHands, Qodo, Zed, opencode, Amp, Crush, GitHub Copilot CLI, Factory Droid, Jules) — plus any other `AGENTS.md`-aware agent automatically, and anything else via `promptcite --print-rule` — and adds a single command: `/receipt`. After AI-assisted work, a student runs `/receipt`, answers a handful of questions in under two minutes, and gets back three things to paste into their submission:
+PromptCite adds one command, `/receipt`, to 26 AI coding and writing agents
+(Claude Code, Gemini CLI, Cursor, Windsurf, Codex, Copilot, Cline, Continue,
+Roo, Aider, Amazon Q, Kiro, Augment, Trae, JetBrains Junie, Goose, Replit,
+OpenHands, Qodo, Zed, opencode, Amp, Crush, GitHub Copilot CLI, Factory Droid,
+Jules), plus any other `AGENTS.md`-aware agent, and anything else through
+`promptcite --print-rule`.
 
-- A formatted **citation** (MLA, APA, Chicago, IEEE, or Harvard).
+After AI-assisted work, a student runs `/receipt`, answers a few short
+questions, and gets three things to hand in:
+
+- A **citation** in MLA, APA, Chicago, IEEE, or Harvard.
 - A plain-language **disclosure paragraph** for the paper's header.
-- A structured **JSON receipt** for instructor review and archival.
+- A **JSON receipt** an instructor can check hasn't been edited.
 
-Ask for a one-line **short form** for an LMS comment box or a **journal
-declaration** in Elsevier's wording and it writes those too. Didn't use AI?
-`/receipt none` writes a plain no-AI statement instead.
+It is not an AI detector and produces no scores. It records what the student
+says, and only what they confirm. It never blocks: a student who used AI
+where a course doesn't allow it still gets an honest receipt, with the rule
+quoted next to it.
 
-Work got flagged? `promptcite timeline` puts your receipts and git commits in
-date order, hash-chained, as evidence of your process.
+## For students
 
-One receipt covers one **assignment**, not one sitting. Run `/receipt` again a
-few days later and it adds that session to the existing receipt rather than
-replacing it — an assignment worked across a week ends up as one honest record.
+**On your own.** If your instructor allows AI and wants it cited, there's
+nothing to set up. Type `/receipt` after you use AI. Worked across several
+days? Run it again and it adds the session to the same receipt, so one
+assignment ends up as one record.
 
-Optionally, an **AI-use ledger** records your insertions locally so `/receipt`
-reminds you what you did instead of asking you to remember. Off by default,
-separately installed, stored outside your repo, and purged once used — it
-exists to make honest disclosure easier, never to report on you. If you run
-`/receipt` late, after your agent has compacted or cleared its context, the
-hook can also point `/receipt` at the agent's own local transcript so the
-earlier sessions aren't lost. It stores only where that file is, never what is
-in it, and nothing leaves your machine. See
-[INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
+**With your instructor's policy.** If they hand you a `promptcite.policy.json`,
+put it in your assignment folder. `/receipt` then follows it: the AI level and
+the rule in your instructor's words, the citation style they want, and any
+extra questions they turned on.
 
-Optionally, for courses where the point is that **you own what you verify**,
-PromptCite can mark AI-written code `@ai-unverified` and ask you what you
-checked before you keep it. Your answer goes in the comment, in your words, and
-`promptcite-check` lists anything you haven't got to yet. It's a to-do list you
-run on yourself, not a report anyone else reads.
+What `/receipt` can do for you:
 
-Recording is per folder and off by default: `promptcite on` when you start an
-assignment, `promptcite off` when it's handed in, `promptcite status` to see
-where you are.
+- **Say what kind of help, at what stage, and how much.** Each session records
+  the stage (planning, researching, drafting, revising, checking), how much of
+  the work came from the AI, and how you checked it. You pick every answer.
+- **Catch sources you haven't checked.** AI tools make up sources that look
+  real. If you haven't confirmed one the AI named, `/receipt` names it before
+  you hand anything in.
+- **Cite your course's rule.** If the rule allows what you did, it can open
+  your disclosure with it, quoted. It shows you the sentence first.
+- **Other forms.** A one-line version for an LMS comment box, or a journal's
+  AI declaration in Elsevier's wording.
+- **No AI at all?** `/receipt none` writes a plain statement saying so.
+- **Code.** A table of which files the AI wrote or improved, from the markers
+  in your code and your answers.
+- **Reflection.** If your instructor turns it on, four short questions about
+  how the assignment went, stored in your words.
 
-Different classes, different AI rules. Hand PromptCite a syllabus once with
-`/receipt course add syllabus.pdf` and it saves that class's AI-use rules, each
-one quoted word for word from the syllabus, to a course file on your machine.
-Bind a homework folder with `promptcite course use csce-423`, or just say
-"working on CSCE 423," and `/receipt` follows that class's rules while
-`/receipt ask "can I use AI to check my proof?"` answers from the syllabus.
-If the assignment has an AI level (AIAS 1 to 5 or the instructor's own scale),
-`/receipt` warns before output when what you logged goes past it, quoting the
-rule, and writes the receipt anyway. Where the syllabus says nothing, it tells you to ask your instructor rather
-than guessing. See [INSTALL.md](./INSTALL.md#course-files-one-per-class).
+**Course files.** Different classes, different AI rules. Run
+`/receipt course add syllabus.pdf` once per class and PromptCite saves that
+class's rules, each one quoted word for word, on your machine. Bind a folder
+with `promptcite course use csce-423`, or just say "working on CSCE 423." Ask
+`/receipt ask "can I use AI to check my proof?"` and it answers from the
+syllabus. Where the syllabus says nothing, it tells you to ask your
+instructor. See [INSTALL.md](./INSTALL.md#course-files-one-per-class).
 
-It is not an AI detector. It produces no originality scores. It is a transparency artifact for assignments where AI use is **permitted** and **disclosure is required**.
+**If your work is questioned.** `promptcite timeline` puts your receipts and
+git commits in date order, each entry hash-chained to the one before, as
+evidence of your process. It's not proof, and it says so.
+
+**Optional, while you work.** An AI-use ledger can record your AI edits
+locally so `/receipt` reminds you what you did. It's off by default,
+installed separately, stored outside your repo, and cleared once a receipt
+uses it. For code, PromptCite can also mark AI-written blocks and ask what
+you checked before you keep them. `promptcite-check` lists the ones you
+haven't got to. Turn recording on per folder with `promptcite on`, off with
+`promptcite off`. See [INSTALL.md](./INSTALL.md#optional-the-ai-use-hook).
+
+## For instructors
+
+You don't need to install anything to read a receipt. To check one hasn't been
+edited:
+
+```bash
+npx -y github:camadkins/promptcite promptcite-verify receipt.json
+```
+
+To set an assignment's AI level, run this in the folder students will work in
+and answer its questions:
+
+```bash
+npx -y github:camadkins/promptcite policy init
+```
+
+It takes an AIAS level (1 to 5) or a lane on the two-lane model, plus your
+rule word for word, and writes `promptcite.policy.json`. Students' `/receipt`
+then names the level, quotes your rule, and warns before output when a use
+goes past it. It warns; it never blocks.
+
+`promptcite help instructor` has a paragraph you can paste into a syllabus.
+The full reading guide, every policy key, and what a receipt can and can't
+tell you are in [docs/for-instructors.md](./docs/for-instructors.md).
 
 ## See it in action
 
-Student finishes a policy essay in Claude Code. Fresh session.
+A student finishes a policy essay in Claude Code and opens a fresh session.
 
 ```
 > /receipt
@@ -105,42 +158,49 @@ What did you use the AI for?
 Anything to add for the revision statement?
 > Used the list to structure my own outline, rewrote arguments in my own words.
 
-══════ AI Use Receipt ══════
+═══ AI Use Receipt ═══
 
 CITATION (MLA):
-  "Counterarguments to carbon tax policies." prompt. *Claude*,
-  Opus 4.7 version, Anthropic, 14 May 2026.
+  "Counterarguments to carbon tax policies" prompt. *Claude*, model
+  Claude Opus 4.7, Anthropic, 14 May 2026, claude.ai.
 
 DISCLOSURE:
-  I used Claude (Opus 4.7) on 2026-05-14 to brainstorm counterarguments
-  to carbon tax policies for this assignment. No AI-generated text
-  appears in the final submission. I used the list to structure my own
-  outline and rewrote the arguments in my own words. This receipt was
-  generated inside Claude itself, so the tool, model, and date fields
-  above were agent-verified rather than student-reported.
+  I used Claude (Claude Opus 4.7) on May 14, 2026 to brainstorm
+  counterarguments to carbon tax policies for this assignment. No
+  AI-generated text appears in the final submission. I used the list to
+  structure my own outline and rewrote the arguments in my own words.
+  This receipt was generated inside Claude itself, so the tool, model,
+  and date fields above were agent-verified rather than student-reported.
 
-JSON receipt saved as ai-receipt.json (content_hash dc84..4ed1).
-Paste citation in your Works Cited. Paste disclosure in your paper's
-header. Attach ai-receipt.json to your submission.
-
-Five turns. Under two minutes. Receipt is yours to submit.
+JSON receipt saved as ai-receipt.json.
 ```
 
-A real sample receipt is in [examples/brainstorm-receipt.json](./examples/brainstorm-receipt.json). The full instructor-side reading guide is in [docs/for-instructors.md](./docs/for-instructors.md).
+Sample receipts for each kind of use are in [examples/](./examples/).
 
 ## Verifying a receipt
 
-Each receipt includes a `content_hash` field (sha256 of the canonical other fields). Instructors can verify the receipt was not edited between generation and submission:
+Each receipt carries a `content_hash`, the sha256 of its other fields in a
+fixed order. `promptcite-verify` recomputes it and checks the receipt's shape.
+Exit `0` means the hash matches and the receipt is valid. Point it at a folder
+to check a stack at once.
 
-```bash
-npx -y github:camadkins/promptcite promptcite-verify receipt.json
-```
+Tamper-evident, not tamper-proof: the algorithm is public, so a determined
+student can recompute the hash after editing. Full discussion in
+[docs/for-instructors.md](./docs/for-instructors.md).
 
-Exit `0` means the hash matches. Tamper-evident, not tamper-proof: the algorithm is public and a determined student can recompute the hash after editing. For most disclosures this is a meaningful speed bump. Full discussion in [docs/for-instructors.md](./docs/for-instructors.md).
+## Privacy
+
+Everything runs on the student's machine. Once installed, PromptCite makes no
+network calls, sends no telemetry, has no accounts or server, and has zero
+runtime dependencies. Receipts stay in the assignment folder. Course files,
+the ledger, and the help docs live under `~/.promptcite/`. Installing writes
+each agent's rule file where that agent reads it. See [SECURITY.md](./SECURITY.md).
 
 ## License
 
-PromptCite is open source under **AGPL v3**, for everyone: students, instructors, schools, researchers, and anyone building on it. Use it, fork it, change it. If you run a modified version as a service, share your changes.
+PromptCite is open source under **AGPL v3**, for everyone: students,
+instructors, schools, researchers, and anyone building on it. Use it, fork it,
+change it. If you run a modified version as a service, share your changes.
 
 - License: [LICENSE](./LICENSE) (AGPL v3 verbatim)
 - Plain-language summary: [NOTICE.md](./NOTICE.md)
@@ -149,9 +209,9 @@ Ideas, issues, and PRs are all welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Docs
 
-- [INSTALL.md](./INSTALL.md) per-agent install commands and flags
-- [docs/for-instructors.md](./docs/for-instructors.md) instructor reading guide, and `promptcite policy init` to set an assignment's AI level
-- [CONTRIBUTING.md](./CONTRIBUTING.md) how to contribute
-- [SECURITY.md](./SECURITY.md) vulnerability reporting and threat model
-- [CHANGELOG.md](./CHANGELOG.md) release notes
-- [examples/](./examples/) sample receipt artifacts
+- [INSTALL.md](./INSTALL.md): per-agent install commands, flags, the hook, course files, the timeline
+- [docs/for-instructors.md](./docs/for-instructors.md): reading receipts, policy files, `promptcite policy init`
+- [docs/SCHEMA-CHANGELOG.md](./docs/SCHEMA-CHANGELOG.md): the receipt format, version by version
+- [docs/adr/](./docs/adr/): why things are the way they are
+- [examples/](./examples/): sample receipts
+- [CONTRIBUTING.md](./CONTRIBUTING.md), [SECURITY.md](./SECURITY.md), [CHANGELOG.md](./CHANGELOG.md)
