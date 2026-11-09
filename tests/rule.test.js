@@ -202,3 +202,15 @@ test('the source check flags unconfirmed sources by name before output, and neve
   const partly = parseLocale(en, 'src/locales/en.md').strings.get('search.partly_verified') ?? '';
   for (const p of ['{confirmed}', '{unconfirmed}', '{verified_against}']) assert.ok(partly.includes(p), p);
 });
+
+test('allowed_categories warns and never narrows what a student can record', () => {
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  assert.doesNotMatch(rule, /ask (them|for) (to choose )?an allowed one/i);
+  assert.doesNotMatch(rule, /offer only (these|those)/i);
+  assert.match(rule, /Never ask\s+them to pick an allowed one instead/);
+  assert.match(rule, /\*\*`allowed_categories` too\.\*\*/);
+  for (const topic of ['student', 'instructor']) {
+    const guide = readFileSync(new URL(`../src/help/getting-started-${topic}.md`, import.meta.url), 'utf8');
+    assert.match(guide, /never blocks/, `${topic} guide must say it never blocks`);
+  }
+});

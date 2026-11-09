@@ -6,6 +6,9 @@ and they always match the version you installed. Ask your agent things like
 "how do I use /receipt for a project that took three sessions?" or "why does
 verify say INVALID?", and it reads the answer from here.
 
+- `getting-started-student.md` and `getting-started-instructor.md`: the short
+  path for each side, also printed by `promptcite help student` and
+  `promptcite help instructor`
 - `using-receipt.md`: what `/receipt` does, every mode, and the usual workflow
 - `troubleshooting.md`: when something doesn't show up or doesn't work
 
