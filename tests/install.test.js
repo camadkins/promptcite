@@ -531,3 +531,34 @@ test('--dry-run never writes the help docs', () => inSandbox((home, cwd) => {
   assert.equal(run(['--only', 'copilot-cli', '--dry-run'], cwd).code, 0);
   assert.ok(!existsSync(join(home, '.promptcite')));
 }));
+
+// --- promptcite help: the getting-started guides ------------------------------
+
+test('promptcite help prints each guide, and every command a guide names exists', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { spawnSync } = await import('node:child_process');
+  const cli = new URL('../bin/install.js', import.meta.url).pathname;
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  const commands = ['on', 'off', 'status', 'course', 'policy', 'timeline', 'help'];
+  for (const topic of ['student', 'instructor']) {
+    const r = spawnSync(process.execPath, [cli, 'help', topic], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const guide = readFileSync(new URL(`../src/help/getting-started-${topic}.md`, import.meta.url), 'utf8');
+    assert.equal(r.stdout.trimEnd(), guide.trimEnd());
+    for (const m of guide.matchAll(/(?<![\w-])promptcite ([a-z][a-z-]*)/g)) {
+      // `npx ... promptcite promptcite-verify` names a bin, checked below.
+      if (m[1].startsWith('promptcite-')) continue;
+      assert.ok(commands.includes(m[1]), `${topic} guide names "promptcite ${m[1]}", which isn't a command`);
+    }
+    for (const m of guide.matchAll(/\b(promptcite-[a-z]+)\b(?!\.)/g)) assert.ok(m[1] in pkg.bin, `${topic} guide names ${m[1]}, which isn't a bin`);
+    for (const m of guide.matchAll(/\/receipt ([a-z]+)/g)) {
+      assert.match(rule, new RegExp(`- \\*\\*\`${m[1]}`), `${topic} guide names /receipt ${m[1]}, which isn't a mode`);
+    }
+    for (const m of guide.matchAll(/promptcite policy ([a-z]+)/g)) assert.ok(['check', 'init'].includes(m[1]), m[1]);
+    for (const m of guide.matchAll(/promptcite timeline ([a-z]+)/g)) assert.ok(['verify'].includes(m[1]), m[1]);
+  }
+  const bare = spawnSync(process.execPath, [cli, 'help'], { encoding: 'utf8' });
+  assert.match(bare.stdout, /promptcite help student/);
+  assert.equal(spawnSync(process.execPath, [cli, 'help', 'nope'], { encoding: 'utf8' }).status, 1);
+});

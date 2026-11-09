@@ -4,7 +4,7 @@
 // PromptCite installer — github.com/camadkins/promptcite
 
 import { parseArgs } from 'node:util';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile, mkdir, rm, access, readdir } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1427,6 +1427,7 @@ EXAMPLES
   promptcite off                                 # stop when the assignment is in
   promptcite status                              # what's on here
   promptcite course use csce-423                 # this folder is CSCE 423 work
+  promptcite help student                        # getting started (or: help instructor)
   promptcite timeline                            # receipts + commits, in order, hash-chained
   promptcite policy init                         # instructors: write this assignment's policy
   promptcite --init-config                       # scaffold promptcite.config.json
@@ -1477,7 +1478,7 @@ function parseCli(argv) {
   // /receipt already takes its modes.
   const command = positionals[0] ?? null;
   if (command !== null && !['on', 'off', 'status', 'course', 'policy'].includes(command)) {
-    throw new UserError(`unknown command "${command}". Expected on, off, status, course, policy, or timeline.`);
+    throw new UserError(`unknown command "${command}". Expected on, off, status, course, policy, timeline, or help.`);
   }
   // `course` takes a subcommand and at most one argument, `policy check` takes
   // any number of use categories, and everything else is a single bare word.
@@ -1588,11 +1589,37 @@ function selectProviders(parsed) {
 }
 
 /**
+ * `promptcite help [student|instructor]`: the getting-started guide for each
+ * side, read from the same src/help files the installer copies for agents.
+ *
+ * @param {string | undefined} topic
+ * @returns {number}
+ */
+function printGuide(topic) {
+  if (topic === undefined) {
+    console.log(`PromptCite getting started
+
+  promptcite help student      install, write a receipt, hand it in
+  promptcite help instructor   check receipts, set an assignment's AI level
+
+All commands and flags: promptcite --help`);
+    return 0;
+  }
+  if (topic !== 'student' && topic !== 'instructor') {
+    console.error(`${c.red('error:')} unknown help topic "${topic}". Expected student or instructor.`);
+    return 1;
+  }
+  console.log(readFileSync(join(__dirname, '..', 'src', 'help', `getting-started-${topic}.md`), 'utf8').trimEnd());
+  return 0;
+}
+
+/**
  * @param {string[]} argv
  * @returns {Promise<number>}
  */
 async function main(argv) {
   // `timeline` has its own flags, so it gets its own parser. See bin/timeline.js.
+  if (argv[0] === 'help') return printGuide(argv[1]);
   if (argv[0] === 'policy' && argv[1] === 'init') {
     const { runPolicyInit } = await import('./policyinit.js');
     return runPolicyInit(argv.slice(2));
