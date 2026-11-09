@@ -18,13 +18,13 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { canonicalize } from './verify.js';
+import { canonicalize, validateSchema } from './verify.js';
 import { resolveLedgerPath } from './hook.js';
 
 export const TIMELINE_VERSION = '1.0';
@@ -35,6 +35,17 @@ const LEDGER_NOTE = 'AI insertion note from the local ledger, incomplete by desi
 
 /** @param {unknown} value */
 const sha256 = (value) => createHash('sha256').update(canonicalize(value)).digest('hex');
+
+/** @param {string} at */
+const day = (at) => String(at).slice(0, 10);
+
+/**
+ * The value as it will be written to JSON, with undefined keys gone.
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
+const plain = (value) => JSON.parse(JSON.stringify(value));
 
 /**
  * @typedef {{ at: string, kind: 'receipt_session' | 'commit' | 'ledger', [k: string]: unknown }} Entry
@@ -83,8 +94,9 @@ export function receiptEntries(receipts) {
  */
 export function gitEntries(cwd, { since = null } = {}) {
   // --no-ext-diff and --no-textconv: --numstat runs a diff, and git config can
-  // attach commands to diffs. Reading history must never run one.
-  const args = ['-C', cwd, 'log', '--reverse', '--no-color', '--no-ext-diff', '--no-textconv', '--format=%x1e%H%x1f%aI%x1f%s', '--numstat'];
+  // attach commands to diffs. --no-show-signature: log.showSignature would run
+  // gpg.program. Reading history must never run anything from config.
+  const args = ['-C', cwd, 'log', '--reverse', '--no-color', '--no-ext-diff', '--no-textconv', '--no-show-signature', '--format=%x1e%H%x1f%aI%x1f%s', '--numstat'];
   if (since) args.push(`--since=${since}`);
   args.push('--', '.');
   let out;
@@ -146,10 +158,17 @@ export function ledgerEntries(cwd, { home = homedir(), since = null } = {}) {
  * @param {{ generatedAt: string, assignment: any, student: string | null, sources: any, entries: Entry[] }} args
  */
 export function buildTimeline({ generatedAt, assignment, student, sources, entries }) {
-  const header = { timeline_version: TIMELINE_VERSION, generated_at: generatedAt, note: NOTE, student, assignment, sources };
+  // Hash exactly what gets written: JSON drops undefined keys, so a field that
+  // is undefined here would hash differently once the file is read back.
+  const header = plain({ timeline_version: TIMELINE_VERSION, generated_at: generatedAt, note: NOTE, student, assignment, sources });
+  // Order by calendar day first, as each entry states it (a commit's own
+  // offset, a receipt's date), then by time within the day. Comparing instants
+  // would put an evening commit after the next day's receipt.
   const sorted = entries
-    .map((e, i) => ({ e, i, t: Date.parse(e.at) }))
-    .sort((a, b) => (a.t - b.t) || (a.i - b.i))
+    .map((e, i) => ({ e: plain(e), i, day: day(e.at), t: Date.parse(e.at) }))
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0)
+      || ((Number.isNaN(a.t) || Number.isNaN(b.t)) ? 0 : a.t - b.t)
+      || (a.i - b.i))
     .map(({ e }) => e);
   let prev = sha256(header);
   const chained = sorted.map((e, seq) => {
@@ -182,8 +201,6 @@ export function checkTimeline(t) {
   return null;
 }
 
-/** @param {string} at */
-const day = (at) => String(at).slice(0, 10);
 
 /**
  * The readable copy. The JSON is the one that verifies.
@@ -221,15 +238,33 @@ export function renderMarkdown(t, jsonName) {
 }
 
 /**
- * `name.ext`, or `name-2.ext`, `name-3.ext` ... whichever is free. Never overwrite.
+ * Write a set of files under the first free base name. Exclusive create
+ * ('wx'), so an existing file, or a symlink planted in its place (dangling or
+ * not), is never written through: that name is taken and the next one is tried.
+ *
  * @param {string} dir
  * @param {string} base
+ * @param {(b: string) => [string, string][]} filesFor
+ * @returns {string} the base that was used
  */
-export function freeBase(dir, base) {
-  for (let n = 1; ; n++) {
+export function writeFree(dir, base, filesFor) {
+  for (let n = 1; n < 10000; n++) {
     const b = n === 1 ? base : `${base}-${n}`;
-    if (!existsSync(join(dir, `${b}.json`)) && !existsSync(join(dir, `${b}.md`))) return b;
+    const files = filesFor(b);
+    /** @type {string[]} */
+    const written = [];
+    try {
+      for (const [name, data] of files) {
+        writeFileSync(join(dir, name), data, { flag: 'wx' });
+        written.push(name);
+      }
+      return b;
+    } catch (/** @type {any} */ e) {
+      if (e?.code !== 'EEXIST') throw e;
+      for (const name of written) rmSync(join(dir, name), { force: true });
+    }
   }
+  throw new Error(`no free name for ${base} in ${dir}`);
 }
 
 const HELP = `promptcite timeline: put this assignment's receipts and git commits in date order, hash-chained
@@ -300,10 +335,18 @@ export async function runTimeline(argv, io = {}) {
   /** @type {{ file: string, receipt: any }[]} */
   const receipts = [];
   for (const file of files) {
-    try { receipts.push({ file, receipt: JSON.parse(readFileSync(file, 'utf8')) }); } catch (/** @type {any} */ e) {
+    let receipt;
+    try { receipt = JSON.parse(readFileSync(file, 'utf8')); } catch (/** @type {any} */ e) {
       err(`error: can't read receipt ${basename(file)}: ${e.message}`);
       return 1;
     }
+    const problems = validateSchema(receipt);
+    if (problems.length) {
+      err(`error: ${basename(file)} isn't a valid receipt, so it can't go in a timeline. Run promptcite-verify on it:`);
+      for (const p of problems.slice(0, 5)) err(`  ${p}`);
+      return 1;
+    }
+    receipts.push({ file, receipt });
   }
   const titles = [...new Set(receipts.map((r) => JSON.stringify([r.receipt.assignment?.course ?? null, r.receipt.assignment?.title ?? null])))];
   if (titles.length > 1) {
@@ -335,9 +378,10 @@ export async function runTimeline(argv, io = {}) {
     sources: { receipts: receipts.map((r) => basename(r.file)), git: git.skipped === null, git_skipped: git.skipped, ledger: ledger.length > 0 },
     entries: [...receiptEntries(receipts), ...git.entries, ...ledger],
   });
-  const base = freeBase(cwd, 'promptcite-timeline');
-  writeFileSync(join(cwd, `${base}.json`), `${JSON.stringify(timeline, null, 2)}\n`);
-  writeFileSync(join(cwd, `${base}.md`), renderMarkdown(timeline, `${base}.json`));
+  const base = writeFree(cwd, 'promptcite-timeline', (b) => [
+    [`${b}.json`, `${JSON.stringify(timeline, null, 2)}\n`],
+    [`${b}.md`, renderMarkdown(timeline, `${b}.json`)],
+  ]);
   if (git.skipped) log(`git: skipped, ${git.skipped}.`);
   if (receipts.length === 0) log('receipts: none found here (pass --receipt <file> to add one).');
   log(`wrote ${base}.json and ${base}.md`);

@@ -204,3 +204,51 @@ test('`promptcite timeline` is reachable from the main CLI', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// --- audit fixes ------------------------------------------------------------------
+
+test('an entry with a missing field still verifies after the file round trip', () => {
+  const t = buildTimeline({ generatedAt: '2026-11-08T00:00:00Z', assignment: null, student: null, sources: { receipts: [], git: false, git_skipped: 'x', ledger: false }, entries: [{ at: '2026-11-01', kind: 'ledger', tool: 'claude-code', model: undefined }] });
+  assert.equal(checkTimeline(JSON.parse(JSON.stringify(t))), null);
+});
+
+test('a receipt that does not validate is refused, not chained', async () => {
+  await withAssignment(async (dir) => {
+    const r = JSON.parse(readFileSync(join(dir, 'ai-receipt.json'), 'utf8'));
+    delete r.ai_use[0].model;
+    writeFileSync(join(dir, 'ai-receipt.json'), JSON.stringify(r));
+    const out = await run(dir);
+    assert.equal(out.code, 1);
+    assert.match(out.out, /isn't a valid receipt/);
+    assert.ok(!existsSync(join(dir, 'promptcite-timeline.json')));
+  });
+});
+
+test('a planted symlink is never written through', async () => {
+  await withAssignment(async (dir) => {
+    const { symlinkSync } = await import('node:fs');
+    const outside = mkdtempSync(join(tmpdir(), 'pc-tl-out-'));
+    try {
+      symlinkSync(join(outside, 'planted.json'), join(dir, 'promptcite-timeline.json'));
+      const out = await run(dir);
+      assert.equal(out.code, 0, out.out);
+      assert.match(out.out, /wrote promptcite-timeline-2\.json/);
+      assert.ok(!existsSync(join(outside, 'planted.json')), 'wrote through the symlink');
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+test('entries sort by their own calendar day, so an evening commit stays on its day', () => {
+  const t = buildTimeline({ generatedAt: '2026-11-08T00:00:00Z', assignment: null, student: null, sources: { receipts: [], git: false, git_skipped: 'x', ledger: false }, entries: [
+    { at: '2026-11-01', kind: 'receipt_session' },
+    { at: '2026-10-31T20:00:00-06:00', kind: 'commit' },
+  ] });
+  assert.deepEqual(t.entries.map((e) => e.kind), ['commit', 'receipt_session']);
+});
+
+test('git log runs with every config-driven command turned off', () => {
+  const src = readFileSync(new URL('../bin/timeline.js', import.meta.url), 'utf8');
+  for (const flag of ['--no-ext-diff', '--no-textconv', '--no-show-signature']) assert.ok(src.includes(`'${flag}'`), flag);
+});

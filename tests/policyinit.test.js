@@ -145,3 +145,28 @@ test('`promptcite policy init` is reachable from the main CLI', () => {
   const out = execFileSync(process.execPath, [fileURLToPath(new URL('../bin/install.js', import.meta.url)), 'policy', 'init', '--help'], { encoding: 'utf8' });
   assert.match(out, /--scale aias\|lanes/);
 });
+
+test('an empty lane 1 answer is refused, not read as "none"', async () => {
+  await inFolder(async (dir) => {
+    const r = await run(dir, ['--scale', 'lanes', '--level', '1', '--allows', '  ', '--quote', RULE, '--yes']);
+    assert.equal(r.code, 1);
+    assert.match(r.out, /say which uses lane 1 allows/);
+    assert.ok(!existsSync(policyFile(dir)));
+  });
+});
+
+test('policy check reads allowed_categories: over for a use outside it, within only when both agree', async () => {
+  await inFolder(async (dir) => {
+    writeFileSync(policyFile(dir), JSON.stringify({ allowed_categories: ['brainstorm', 'outline', 'search'], ai_level: { level: 2, quote: RULE } }));
+    const cli = fileURLToPath(new URL('../bin/install.js', import.meta.url));
+    const check = (/** @type {string[]} */ uses) => execFileSync(process.execPath, [cli, 'policy', 'check', ...uses, '--no-color'], { cwd: dir, encoding: 'utf8' });
+    const explain = check(['explain']);
+    assert.match(explain, /^over: explain$/m);
+    assert.match(explain, /allows brainstorm, outline, search\. You logged explain/);
+    assert.match(check(['brainstorm']), /^within: brainstorm$/m);
+    writeFileSync(policyFile(dir), JSON.stringify({ allowed_categories: ['brainstorm'] }));
+    const listOnly = check(['draft']);
+    assert.match(listOnly, /^over: draft$/m);
+    assert.match(listOnly, /Disclose it anyway/);
+  });
+});
