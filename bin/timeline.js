@@ -82,7 +82,9 @@ export function receiptEntries(receipts) {
  * @returns {{ entries: Entry[], skipped: string | null }}
  */
 export function gitEntries(cwd, { since = null } = {}) {
-  const args = ['-C', cwd, 'log', '--reverse', '--no-color', '--format=%x1e%H%x1f%aI%x1f%s', '--numstat'];
+  // --no-ext-diff and --no-textconv: --numstat runs a diff, and git config can
+  // attach commands to diffs. Reading history must never run one.
+  const args = ['-C', cwd, 'log', '--reverse', '--no-color', '--no-ext-diff', '--no-textconv', '--format=%x1e%H%x1f%aI%x1f%s', '--numstat'];
   if (since) args.push(`--since=${since}`);
   args.push('--', '.');
   let out;
