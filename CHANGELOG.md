@@ -10,7 +10,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * ai levels per assignment ([05dc4fd](https://github.com/camadkins/promptcite/commit/05dc4fdd6a32804097e36a5bd39650f8287f053e))
-* attest mode, check gate, ledger picker, discipline profiles ([#96](https://github.com/camadkins/promptcite/issues/96)) ([3b2fb79](https://github.com/camadkins/promptcite/commit/3b2fb79c0cceabfd79ba1b49c5995ffc5cad67c2))
+* attest mode, check gate, ledger picker, discipline profiles ([3b2fb79](https://github.com/camadkins/promptcite/commit/3b2fb79c0cceabfd79ba1b49c5995ffc5cad67c2))
 * cite the course rule in the disclosure ([e54592f](https://github.com/camadkins/promptcite/commit/e54592f7f863ba80e59e93c734454a2d5c2ce7f7))
 * course policies, session hook ([#35](https://github.com/camadkins/promptcite/issues/35)) ([cbaebcf](https://github.com/camadkins/promptcite/commit/cbaebcfb7d92d2f661c5bce31a6a72e98c61cf12))
 * disclosure strings in per-language locale files ([#4](https://github.com/camadkins/promptcite/issues/4)) ([f15f116](https://github.com/camadkins/promptcite/commit/f15f116bbc634905cda83bc42a7f6de89c6d8f94))
@@ -30,6 +30,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * citation styles ([#33](https://github.com/camadkins/promptcite/issues/33)) ([f2df884](https://github.com/camadkins/promptcite/commit/f2df8840d9e20be092b7755ef0e17c075f245a82))
 * file modes, policy init write race, timeline table escaping ([492c4f5](https://github.com/camadkins/promptcite/commit/492c4f55342be69d88a8b36f4215f7d20408299a))
+* hashing recipe matches verify on non-ascii receipts ([#43](https://github.com/camadkins/promptcite/issues/43)) ([f5f5708](https://github.com/camadkins/promptcite/commit/f5f570890e103174a84b09e0bb416ae6ee36c63e))
 * policy init reads the policy file instead of checking it first ([f2b8722](https://github.com/camadkins/promptcite/commit/f2b8722e453a58a448a4b324b98dcace54d14786))
 * timeline and policy check edge cases ([0b4fb25](https://github.com/camadkins/promptcite/commit/0b4fb25fdc1ad930f5a44ce7f84e380a74a384c7))
 * timeline never runs git diff drivers ([4f1914b](https://github.com/camadkins/promptcite/commit/4f1914be796a630cea7e34f6f7fb22dc0a30febe))
@@ -47,6 +48,26 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * schema 2.2 in the rule, ledger and timeline wording ([547937b](https://github.com/camadkins/promptcite/commit/547937b9f8046d3a551ab6280913ebe46acc26ca))
 * update example citations ([#39](https://github.com/camadkins/promptcite/issues/39)) ([b1a1020](https://github.com/camadkins/promptcite/commit/b1a1020d7e8bf933efc99841df697f746b4286ad))
 * update threat model ([0333115](https://github.com/camadkins/promptcite/commit/0333115b182d181a741d404f55430c1a1dc9c2e7))
+
+
+### Removed
+
+- **npm publishing.** The publish workflow is gone and PromptCite is not on the
+  npm registry. It never published successfully — npm refused the credential
+  because publishing from CI needs an Automation-type token to bypass 2FA — and
+  the human review gate did not work as designed, since release-please creates
+  its own GitHub Release and that fired the publish on merge rather than on a
+  deliberate click. Installing from GitHub needs no registry account and no
+  long-lived token sitting in repo secrets, so the trade was not worth it.
+
+  Nothing about how anyone installs PromptCite changes:
+  `npx -y github:camadkins/promptcite` is what the docs have always said.
+
+  Kept from that work, because none of it was npm-specific: the CLI
+  entry-point fix (below), the smaller published tree — `npm install
+  github:...` honours `package.json` `files` exactly as the registry would, so
+  a GitHub install is 12 files rather than 18 — and the signed provenance
+  bundle attached to each GitHub Release.
 
 ## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
 
