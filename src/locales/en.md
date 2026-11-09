@@ -61,6 +61,11 @@ I independently verified those sources against {verified_against}.
 ## search.not_verified
 I did not independently verify those sources; consult them directly before relying on any referenced claim.
 
+## search.partly_verified
+I independently verified {confirmed} against {verified_against}, but not {unconfirmed}; consult those directly before relying on them.
+
+> {confirmed} and {unconfirmed} name the sources as the student listed them, e.g. "the Smith (2019) study".
+
 ## search.cited
 The sources are cited in this submission's bibliography directly, not through the AI.
 

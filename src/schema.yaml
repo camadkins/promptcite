@@ -30,7 +30,7 @@ fields:
       2.1 is 2.0 plus an optional per-session `verification` block, so a
       2.0 receipt is already a valid 2.1 receipt and needs no migration.
       2.2 adds optional per-session `stage`, `extent`, and
-      `verification.methods`, and optional `outputs.short_statement` and
+      `verification.methods`, and `sources`, and optional `outputs.short_statement` and
       `outputs.journal_statement`, and optional top-level `reflection` and
       `code_files`; every 2.1 receipt is a valid 2.2 receipt.
       See docs/SCHEMA-CHANGELOG.md for the version history.
@@ -237,6 +237,38 @@ fields:
           in those workflows, and the field stays null in the JSON output.
           The disclosure paragraph's "I independently verified ..."
           sentence renders only when this field is `true`.
+
+          When `sources` is present (2.2), this is its summary: true when
+          every listed source is confirmed, false otherwise. The verifier
+          rejects a receipt where the two disagree.
+      sources:
+        type: array
+        required: false
+        item_type: object
+        description: |
+          Added in 2.2, optional. The sources the AI pointed the student
+          to in this session, as the student listed them, each with
+          whether they found and checked it themselves. Only on sessions
+          where `source_verification` applies (`search`, and `draft` with
+          factual claims). AI tools invent plausible sources, so an
+          unconfirmed one is flagged to the student before output and
+          named in the verify report. Nothing here is looked up or checked
+          by PromptCite.
+        fields:
+          ref:
+            type: string
+            required: true
+            description: The source as the student names it (author and year, a title, a URL).
+            max_length: 300
+          confirmed:
+            type: boolean
+            required: true
+            description: Whether the student found the source and checked it says what the AI said.
+          how:
+            type: string
+            required: false
+            description: Where they confirmed it, in their words. Only with confirmed true.
+            max_length: 300
       stage:
         type: string
         required: false
@@ -571,6 +603,12 @@ validation:
       statement.
   - rule: outputs_complete
     message: outputs.disclosure_statement must be present and non-empty.
+  - rule: sources_agree
+    message: |
+      ai_use[].sources, when present, must be a non-empty list of
+      {ref, confirmed, how?}, and source_verification must be true exactly
+      when every listed source is confirmed. `how` needs confirmed true.
+      Unconfirmed sources are reported as advisory notes, never as errors.
   - rule: code_files_shape
     message: |
       code_files, when present, must be a non-empty list. Each row needs a
@@ -635,7 +673,7 @@ migration:
           the student checked before keeping the AI output. No field removed
           or re-typed; every 2.0 receipt is a valid 2.1 receipt. See ADR 0008.
     2.2 — additive: optional per-session ai_use[].stage, ai_use[].extent, and
-          ai_use[].verification.methods, plus optional outputs.short_statement,
+          ai_use[].verification.methods, ai_use[].sources, plus optional outputs.short_statement,
           outputs.journal_statement, a top-level reflection, and a
           top-level code_files table. No field removed or re-typed; every
           2.1 receipt is a valid 2.2 receipt. See ADR 0012.

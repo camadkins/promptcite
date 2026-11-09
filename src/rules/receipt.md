@@ -1115,7 +1115,7 @@ not import from other rows.
 |---|---|:-:|
 | `brainstorm` | (1) One-sentence summary of what you asked the AI to brainstorm. (2) Did any AI-generated text appear verbatim in your submission? (almost always "no" for brainstorm) | no — field is null |
 | `outline` | (1) Summary of the outline you asked for. (2) Did the structure of your submission follow the AI's outline closely, loosely, or not at all? (3) Did any AI-generated text appear verbatim? | no — field is null |
-| `search` | (1) Summary of what you asked the AI to find. (2) Did you verify those sources independently? (3) Are those sources cited in your submission's bibliography (not via AI)? | **yes — required** |
+| `search` | (1) Summary of what you asked the AI to find. (2) Which sources did it point you to, and did you find and check each one yourself? (see *Sources* below) (3) Are those sources cited in your submission's bibliography (not via AI)? | **yes — required** |
 | `explain` | (1) Summary of the concept you asked about. (2) Confirm no AI-generated content appears in your submission. | no — field is null |
 | `edit` | (1) Summary of what you asked the AI to edit. (2) Did the AI rewrite paragraphs / change voice / restructure, or only fix small issues? (3) Did any AI-rewritten text appear verbatim in your submission? | no — field is null |
 | `debug` | (1) Summary of the bug or problem you asked about. (2) Did the AI generate any code you kept, or only explain what was wrong? (3) For high-stakes assignments: would you like to attach a diff or test output? (opt-in only) | no — field is null |
@@ -1128,6 +1128,20 @@ verified ..." sentence renders only when the field is `true`. For
 categories where the AI did not provide sources or factual claims
 (brainstorm, outline, explain, edit, debug, draft without claims), the
 sentence does not render and the field stays null.
+
+**Sources (schema 2.2).** Wherever `source_verification` is asked, ask the
+student to list the sources the AI pointed them to and, for each, whether
+they found it and checked it says what the AI said. Record them in the
+session's `sources` as `{ "ref": "<as they name it>", "confirmed": true|false }`,
+with `how` (their words: "found it in the library database") when they
+confirmed one. Then set `source_verification` from the list: true only when
+every source is confirmed. A student who'd rather answer the plain yes/no is
+fine: leave `sources` out and record the answer. When the instructor policy
+lists the category under `require_source_verification`, ask for the list,
+not just the yes/no.
+
+Take the student's word on each one. Never look a source up, never mark one
+confirmed on their behalf, and never drop one because it seems unlikely.
 
 **The profile's extra question.** Add the one question from the profile that
 fits *this session* (see *Profiles* — the receipt-level profile is the default,
@@ -1267,6 +1281,21 @@ past it, and the `quote` word for word. Never shorten or soften the quote.
 
 Do not ask the student to change their answers because of it. The warning
 is information for them, and the receipt records what happened.
+
+### Step 4c — Source check (only when a source isn't confirmed)
+
+Before any output, if a session has a source with `confirmed: false`, or
+`source_verification: false` with no list, flag it once:
+
+> Before you submit: you haven't confirmed **"Smith (2019)"** or
+> **"the 2021 USDA crop report"**. AI tools make up sources that look real.
+> Find each one in the library or the original before you cite it, or take it
+> out of your paper.
+
+Name each unconfirmed source; don't count them. Then go on to Step 5. The
+flag doesn't block the receipt and isn't a reason to change the student's
+answers. If they go check one and tell you they found it, update that source
+to `confirmed: true` with `how`, and recompute `source_verification`.
 
 ### Step 5 — Output
 
@@ -1474,7 +1503,8 @@ statement>` is the student's `revision_statement`, omitted when empty.
   `outline.not_followed` · `outline.content_not_used` or
   `outline.content_used` by `direct_content_used` · `<Revision statement>`.
 - **`search`:** `search.lead` · `search.verified` if `source_verification`
-  is true, or `search.not_verified` if false · `search.cited` ·
+  is true, `search.partly_verified` when the session's `sources` has some
+  confirmed and some not, or `search.not_verified` if false · `search.cited` ·
   `<Revision statement>`.
 - **`explain`:** `explain.lead` · `explain.content` · `<Revision statement>`.
 - **`edit`:** `edit.lead` · what the AI changed: `edit.scope_grammar`,
@@ -1629,6 +1659,7 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
       "direct_content_used": <true|false>,
       "revision_statement": "...",
       "source_verification": <true|false|null>,
+      "sources": [{ "ref": "...", "confirmed": <true|false>, "how": "..." }],
       "stage": "planning | researching | drafting | revising | checking",
       "extent": {
         "ai_share": "none | small | part | most",
@@ -1693,6 +1724,10 @@ make a claim, which is different from claiming they didn't check. Never write
 this field from your own reading of the code, never summarize their answer into
 it, and never set `attested: true` on the strength of anything but the student
 saying so.
+
+**`sources` is optional (schema 2.2)** and only on sessions where
+`source_verification` applies. When present, `source_verification` must
+agree with it.
 
 **`stage`, `extent`, and `verification.methods` are optional (schema 2.2).** Each
 is present only when the student picked it in Step 3. The template above shows
@@ -1890,6 +1925,8 @@ End with one short line:
 - Write, reword, or summarize a reflection answer, or push for a longer one.
 - Pick a file's role for the student, or put a line or marker count in the
   file table.
+- Look up a source, mark one confirmed that the student didn't confirm, or
+  leave out a source they listed.
 - Set `verification.attested` to true, or write a `statement`, on anything
   other than the student telling you what they checked.
 - Look for AI-written code that carries no marker. A missing marker is not a

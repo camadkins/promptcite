@@ -1,0 +1,55 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-08T01:20:00Z",
+  "content_hash": "3a5d8302641eb18a6d5ce49ba2b45795765a5d183784d44ba2e515c271ecc5f4",
+  "submission_hash": null,
+  "student": "L. Moreno",
+  "assignment": {
+    "course": "AGRO 153",
+    "instructor": "Dr. Example",
+    "title": "Lab report 4: Cover crops and soil nitrogen"
+  },
+  "ai_use": [
+    {
+      "tool": "ChatGPT",
+      "model": "GPT-4o",
+      "date": "2026-11-07",
+      "metadata_source": "agent_reported",
+      "category": "search",
+      "stage": "researching",
+      "prompt_summary": "Studies on cereal rye and soil nitrogen in the Great Plains",
+      "direct_content_used": false,
+      "revision_statement": "I read the two studies I could find and cited them myself.",
+      "source_verification": false,
+      "sources": [
+        {
+          "ref": "Ruis et al. (2019), Agronomy Journal",
+          "confirmed": true,
+          "how": "found it through the UNL library database"
+        },
+        {
+          "ref": "the Nebraska Extension cover crop guide (2020)",
+          "confirmed": true,
+          "how": "downloaded it from the Extension site"
+        },
+        {
+          "ref": "Hansen and Kirk (2017), Soil Science Society of America Journal",
+          "confirmed": false
+        }
+      ],
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Studies on cereal rye and soil nitrogen in the Great Plains\" prompt. *ChatGPT*, model GPT-4o, OpenAI, 7 Nov. 2026, chatgpt.com.",
+        "apa": "OpenAI. (2026). *ChatGPT* [Large language model]. https://chatgpt.com/",
+        "chicago": "Response to \"Studies on cereal rye and soil nitrogen in the Great Plains,\" ChatGPT GPT-4o, OpenAI, November 7, 2026.",
+        "ieee": "[1] ChatGPT, \"Studies on cereal rye and soil nitrogen in the Great Plains,\" GPT-4o, OpenAI, Nov. 7, 2026.",
+        "harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model]."
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used ChatGPT (GPT-4o) on November 7, 2026 to search for studies on cereal rye and soil nitrogen in the Great Plains. I independently verified the Ruis et al. (2019) study and the Nebraska Extension cover crop guide against the UNL library database and the Extension site, but not Hansen and Kirk (2017); consult that one directly before relying on it. The sources are cited in this submission's bibliography directly, not through the AI. I read the two studies I could find and cited them myself. This receipt was generated inside ChatGPT itself, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}
