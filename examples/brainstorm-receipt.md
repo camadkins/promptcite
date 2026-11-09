@@ -79,9 +79,10 @@ Tamper-evident speed bump, not tamper-proof. Honest about its limits.
 - The **`agent_reported` metadata path:** the AI filled in its own
   identity, and the disclosure paragraph mentions this for the
   instructor's awareness
-- All **three citation styles** generated from one interview pass —
-  the student picks one for their paper's style guide; the others are
-  there for the instructor if they prefer a different format
+- All **five citation styles** (MLA, APA, Chicago, IEEE, Harvard) are
+  stored from one interview pass. Three are shown above; the student
+  pastes the one their course uses, and the instructor can use any of
+  the others
 - **`source_verification: null`** — brainstorm didn't involve sources,
   so the field stays null. The disclosure paragraph does not include
   a "I independently verified..." sentence for this category.

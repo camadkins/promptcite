@@ -97,7 +97,7 @@ same directory; it found the existing receipt for this assignment and offered to
 add the session to it. **Nothing was overwritten.**
 
 If the first receipt had been schema 1.x, adding a session would have upgraded it
-to 2.0 in place — `ai_use` becomes `ai_use[0]`, top-level `metadata_source` moves
+to the current schema (2.2) in place — `ai_use` becomes `ai_use[0]`, top-level `metadata_source` moves
 onto it, `outputs.citation_*` become `ai_use[0].citations.*`. Mechanical and
 lossless. See [`docs/SCHEMA-CHANGELOG.md`](../docs/SCHEMA-CHANGELOG.md) for the
 field-by-field mapping and

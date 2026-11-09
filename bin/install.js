@@ -1412,7 +1412,7 @@ COMMANDS
                          to promptcite.policy.json. See "policy init --help".
   timeline               Put this folder's receipts and git commits in date
                          order, hash-chained. See "timeline --help".
-  timeline verify <file> Check a timeline hasn't been edited since it was made.
+  timeline verify <file> Check a timeline's hash chain.
   help [student|instructor]
                          Getting started for students or for instructors.
 

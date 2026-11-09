@@ -108,7 +108,8 @@ Chicago 17 strings, still validates and verifies.
 
 **Additive. Every 2.1 receipt is a valid 2.2 receipt and needs no migration.**
 
-Added three optional per-session fields:
+Added three optional per-session fields (a fourth, `sources`, is under
+**Sources** below):
 
 ```json
 "stage": "drafting",
@@ -135,15 +136,15 @@ ended up in the work. 2.1 could answer the first. The second and third lived
 only in free text, and the interview already asked drafts for a rough
 percentage and had nowhere to keep it. See ADR 0012.
 
-**Validation.** The verifier checks each field whenever it's present, plus two
+**Validation.** The verifier checks each field whenever it's present, plus three
 cross-checks: `ai_share: "none"` with `direct_content_used: true` is a
-contradiction and is invalid, and `methods` without `attested: true` is
-invalid. Nothing is measured. Every value is the student's pick.
+contradiction and is invalid, `methods` without `attested: true` is invalid,
+and `methods` with `other` needs a `statement`. Nothing is measured. Every value is the student's pick.
 
 **Other forms.** 2.2 also adds two optional strings under `outputs`:
 `short_statement` (one line for an LMS comment box, at most 300 characters) and
 `journal_statement` (a journal's AI declaration, Elsevier's wording by
-default). Each is written only when the student asks for it, covers every
+default, at most 2000 characters). Each is written only when the student asks for it, covers every
 session, and never replaces `disclosure_statement`. See ADR 0014.
 
 **Reflection.** 2.2 also adds an optional top-level `reflection` object, with
