@@ -8,8 +8,8 @@ says and can't catch a student who leaves something out.
 ## 1. Check a receipt
 
 ```
-npx -y github:camadkins/promptcite promptcite-verify ai-receipt.json
-npx -y github:camadkins/promptcite promptcite-verify receipts/
+npx -y -p github:camadkins/promptcite promptcite-verify ai-receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify receipts/
 ```
 
 INTACT means the receipt hasn't been edited since it was made. MISMATCH means

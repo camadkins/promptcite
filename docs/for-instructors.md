@@ -154,7 +154,7 @@ time.
 
 **What this does NOT tell you:** after the JSON was generated, it
 landed on the student's local disk as an editable file. The student
-could have edited any field before submitting to you. PromptCite v1
+could have edited any field before submitting to you. PromptCite
 has no cryptographic signing or transparency log to make this
 tamper-resistant. Treat `agent_reported` as a transparency marker,
 not a forensic proof.
@@ -184,7 +184,7 @@ serialization of all other fields. You can detect casual editing
 by running:
 
 ```bash
-npx -y github:camadkins/promptcite promptcite-verify path/to/receipt.json
+npx -y -p github:camadkins/promptcite promptcite-verify path/to/receipt.json
 ```
 
 The verifier also validates the receipt against the schema and prints a
@@ -197,8 +197,13 @@ It accepts both 1.x and 2.x receipts. Anything the student left unset prints as
 "not stated"; that is not a flag. The tool reports what was disclosed. It does
 not count, score, or rank it.
 
-The schema check covers the shape of every field, including that dates are real
-ISO 8601 dates and that an attestation, when present, has the right form. A
+The schema check covers required fields, types, the closed lists (category,
+stage, extent, methods, file roles), the documented cross-field rules, that
+dates are real ISO 8601 dates, and that an attestation, when present, has the
+right form. Two things in the schema are guidance and aren't enforced: the
+length limits (except on the newer fields: short and journal statements,
+sources, reflection), and that a `search` session answers
+`source_verification`. A
 `Note:` line appears if the sessions are not listed oldest first. That is
 advisory only: students may disclose out of order, and it never changes the
 verdict or the exit code.
@@ -271,7 +276,7 @@ integrations.
 
 ## Use categories — what to look for per category
 
-The student picked one of seven `use_category` values. Here's what
+The student picked one of seven `category` values. Here's what
 each typically signals and what to scan for in the receipt:
 
 | Category | What it means | What to look for |
@@ -282,7 +287,7 @@ each typically signals and what to scan for in the receipt:
 | `explain` | Asked AI to explain a concept the student didn't keep in the submission | `direct_content_used` should be `false`. Useful signal that AI was a learning tool, not a writing tool. |
 | `edit` | Asked AI to edit, reword, or improve existing student work | Check whether the student says the AI "only fixed small issues" vs "rewrote paragraphs / changed voice / restructured." |
 | `debug` | Used AI to find or fix errors in code or logic | Check whether the student says the AI "only explained" or "generated code I kept." For high-stakes assignments, a diff/test-log appendix may be attached. |
-| `draft` | Used AI to draft prose, code, or content that may appear in the submission | This is the highest-disclosure category. Check the percentage of verbatim content, the revision statement, and whether a share link or excerpt is attached for higher-stakes writing. |
+| `draft` | Used AI to draft prose, code, or content that may appear in the submission | This is the highest-disclosure category. Check `direct_content_used`, the session's `extent` (how much came from the AI, and what the student did with it), the revision statement, and whether a share link or excerpt is attached for higher-stakes writing. |
 
 ## Setting an AI policy that references receipts
 

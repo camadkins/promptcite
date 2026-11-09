@@ -14,6 +14,10 @@ npx -y github:camadkins/promptcite
 That adds `/receipt` to the agents it finds on your machine, and tells you if
 one needs an extra step. Open a new session in your agent afterward.
 
+For the `promptcite` commands below, also run
+`npm install -g github:camadkins/promptcite` once. Or put
+`npx -y -p github:camadkins/promptcite` in front of any of them.
+
 ## 2. Two ways to use it
 
 **On your own.** Your instructor allows AI and wants it cited, or you just
