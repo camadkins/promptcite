@@ -211,6 +211,9 @@ promptcite policy check draft --assignment final      # one assignment in the bo
 promptcite policy check --course engl-150             # just show the level
 ```
 
+Instructors write an assignment's level with `promptcite policy init` (see
+[docs/for-instructors.md](./docs/for-instructors.md)).
+
 A course file is your reading of the syllabus, for your screen. It is never
 written into a receipt, and the syllabus and your instructor stay the
 authority. The one exception is yours to make: when a rule allows what you

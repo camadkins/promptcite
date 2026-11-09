@@ -64,6 +64,10 @@ is responsible for accuracy; the reader evaluates plausibility.
   characters, for an LMS comment box) and `outputs.journal_statement` (a
   journal's AI declaration, Elsevier's wording by default). Optional, written
   only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **`policy init`** — the instructor command that writes an assignment's
+  `promptcite.policy.json`: an AIAS level or a lane (lanes are written as a
+  custom scale, with Lane 1's allowed uses chosen by the instructor) and the
+  rule word for word. Validated before writing. See ADR 0019.
 - **Sources** — a session's optional `sources` list: each AI-suggested source
   as the student names it, and whether they confirmed it. Summarized by
   `source_verification`; unconfirmed ones are flagged before output and
