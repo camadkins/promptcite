@@ -900,3 +900,9 @@ test('the shipped sources example verifies and carries its flag', async () => {
   assert.match(advisoryNotes(r).join('\n'), /not confirmed: "Hansen and Kirk \(2017\)/);
   assert.match(formatReport(r, 'INTACT', []), /source: Hansen and Kirk \(2017\).*\(NOT confirmed by the student\)/);
 });
+
+test('a journal statement over 2000 characters is invalid', () => {
+  const base = v22([session()]);
+  assert.ok(validateSchema({ ...base, outputs: { ...base.outputs, journal_statement: 'x'.repeat(2001) } }).some((e) => e.includes('at most 2000')));
+  assert.deepEqual(validateSchema({ ...base, outputs: { ...base.outputs, journal_statement: 'x'.repeat(2000) } }), []);
+});

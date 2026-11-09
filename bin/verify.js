@@ -80,6 +80,7 @@ export const AI_SHARES = ['none', 'small', 'part', 'most'];
 export const STUDENT_CHANGES = ['kept', 'edited', 'reworked'];
 export const SHORT_MAX = 300;
 export const SOURCE_MAX = 300;
+export const JOURNAL_MAX = 2000;
 /** Reflection questions (schema 2.2), in the order the interview asks them. */
 export const REFLECTION_KEYS = ['tried_first', 'why_ai', 'what_changed', 'use_again'];
 export const REFLECTION_MAX = 1000;
@@ -332,6 +333,9 @@ export function validateSchema(receipt) {
         if (o[opt] !== undefined && (typeof o[opt] !== 'string' || o[opt].length === 0)) {
           errs.push(`outputs.${opt}, when present, must be a non-empty string`);
         }
+      }
+      if (typeof o.journal_statement === 'string' && o.journal_statement.length > JOURNAL_MAX) {
+        errs.push(`outputs.journal_statement must be at most ${JOURNAL_MAX} characters (it has ${o.journal_statement.length})`);
       }
       if (typeof o.short_statement === 'string' && o.short_statement.length > SHORT_MAX) {
         errs.push(`outputs.short_statement must be at most ${SHORT_MAX} characters (it has ${o.short_statement.length})`);

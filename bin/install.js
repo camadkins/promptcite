@@ -1332,18 +1332,32 @@ async function runPolicy(ctx, args, opts) {
   }
 
   const resolved = resolveAiLevel({ policy: read?.policy, course, assignment });
-  if (!resolved) {
-    ctx.log('no AI level is set for this work.');
+  // allowed_categories warns the same way a level does, so `within:` means
+  // within everything the policy says, which is what a cited rule relies on.
+  const allowedFrom = Array.isArray(read?.policy?.allowed_categories)
+    ? { list: read.policy.allowed_categories, from: 'assignment policy' }
+    : Array.isArray(course?.policy?.allowed_categories) ? { list: course.policy.allowed_categories, from: 'course policy' } : null;
+  if (!resolved && !allowedFrom) {
+    ctx.log('no AI level or allowed uses are set for this work.');
     return 0;
   }
-  ctx.log(`level: ${describeLevel(resolved.aiLevel)}, from the ${resolved.from}`);
+  if (resolved) ctx.log(`level: ${describeLevel(resolved.aiLevel)}, from the ${resolved.from}`);
+  if (allowedFrom) ctx.log(`allowed uses: ${allowedFrom.list.join(', ') || 'none'}, from the ${allowedFrom.from}`);
   if (categories.length === 0) return 0;
-  const result = checkUses(resolved.aiLevel, categories);
-  if (result.warning) {
-    ctx.log(`${c.yellow('over:')} ${result.over.join(', ')}`);
-    ctx.log(result.warning);
-  } else {
-    ctx.log(`${c.green('within:')} ${[...new Set(categories)].join(', ')}`);
+  const uses = [...new Set(categories)];
+  const result = resolved ? checkUses(resolved.aiLevel, uses) : null;
+  const outside = allowedFrom ? uses.filter((u) => !allowedFrom.list.includes(u)) : [];
+  const over = [...new Set([...(result?.over ?? []), ...outside])];
+  if (over.length === 0) {
+    ctx.log(`${c.green('within:')} ${uses.join(', ')}`);
+    return 0;
+  }
+  ctx.log(`${c.yellow('over:')} ${over.join(', ')}`);
+  if (result?.warning) ctx.log(result.warning);
+  if (outside.length) {
+    const list = allowedFrom?.list.length ? allowedFrom.list.join(', ') : 'no AI use';
+    ctx.log(`This assignment's policy allows ${list}. You logged ${outside.join(', ')}, which ${outside.length === 1 ? "isn't" : "aren't"} on that list.`);
+    if (!result?.warning) ctx.log('Disclose it anyway. An honest receipt is still the right one, and your instructor decides what it means.');
   }
   return 0;
 }
@@ -1620,13 +1634,20 @@ All commands and flags: promptcite --help`);
 async function main(argv) {
   // `timeline` has its own flags, so it gets its own parser. See bin/timeline.js.
   if (argv[0] === 'help') return printGuide(argv[1]);
-  if (argv[0] === 'policy' && argv[1] === 'init') {
-    const { runPolicyInit } = await import('./policyinit.js');
-    return runPolicyInit(argv.slice(2));
-  }
-  if (argv[0] === 'timeline') {
-    const { runTimeline } = await import('./timeline.js');
-    return runTimeline(argv.slice(1));
+  // These two parse their own flags. An unexpected throw is an internal error,
+  // exit 2, as their --help says.
+  try {
+    if (argv[0] === 'policy' && argv[1] === 'init') {
+      const { runPolicyInit } = await import('./policyinit.js');
+      return await runPolicyInit(argv.slice(2));
+    }
+    if (argv[0] === 'timeline') {
+      const { runTimeline } = await import('./timeline.js');
+      return await runTimeline(argv.slice(1));
+    }
+  } catch (error) {
+    console.error(`${c.red('error:')} ${formatError(error)}`);
+    return 2;
   }
   let parsed;
   try {

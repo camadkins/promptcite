@@ -934,10 +934,13 @@ receipt sessions and git commits in date order, each entry hash-chained to
 the one before. Tell the student which files it wrote and the head hash.
 
 - **The ledger stays out** unless the student asks for it. Then run
-  `promptcite timeline --with-ledger`, which lists the entries and asks
-  before adding them. Never pass `--yes` for the student. `/receipt` clears
-  ledger entries once a receipt uses them, so this only finds what hasn't
-  gone into a receipt yet.
+  `promptcite timeline --with-ledger` once: it lists the entries and, with no
+  terminal to ask in, leaves them out. Show the student that list and ask
+  whether to include it. Only on their explicit yes, run it again with
+  `--with-ledger --yes`, and tell them the first file (without the ledger)
+  is still there. Never add `--yes` on your own. `/receipt` clears ledger
+  entries once a receipt uses them, so this only finds what hasn't gone
+  into a receipt yet.
 - **Call it evidence of process**, and say what it can't show: that the
   list is complete, when the file was made, or that git history wasn't
   changed before. Never call it proof.
@@ -1285,8 +1288,11 @@ past it, and the `quote` word for word. Never shorten or soften the quote.
 Do not ask the student to change their answers because of it. The warning
 is information for them, and the receipt records what happened.
 
-**`allowed_categories` too.** If the policy lists allowed uses and a logged
-use isn't on it, warn the same way, without a quote since the list has none:
+**`allowed_categories` too.** `promptcite policy check` reads the policy's
+allowed uses as well, so its `over:` line includes any logged use outside
+them, and `within:` means within both the level and the list. Without the
+command, if the policy lists allowed uses and a logged use isn't on it, warn
+the same way, without a quote since the list has none:
 *"This assignment's policy allows brainstorm, outline, and search. You logged
 draft, which isn't on that list. Disclose it anyway. Your instructor decides
 what it means."* This runs whether or not an `ai_level` applies.
@@ -1552,7 +1558,8 @@ words exactly. On no, or no answer, use the plain recipe. Offer only:
 - a course `guidance` quote that plainly allows the session's category,
   when no `ai_level` applies.
 
-Never offer one when any use is over the level, when the topic is in the
+Never offer one when any use is over the level or outside the policy's
+`allowed_categories`, when the topic is in the
 course's `unclear` list, or when you'd have to read permission into the
 quote. A disclosure must never claim the policy allows something the policy
 doesn't say. In a multi-session paragraph, cite once, on the first session

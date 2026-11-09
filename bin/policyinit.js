@@ -68,6 +68,8 @@ export function buildAiLevel({ scale, level, quote, where = null, allows = null 
 /** @param {string | undefined} raw */
 function parseAllows(raw) {
   if (raw === undefined) return null;
+  // Empty is not "none": lane 1 isn't automatically no AI, so say which.
+  if (!raw.trim()) throw new Error('say which uses lane 1 allows, comma-separated, or "none"');
   if (raw.trim().toLowerCase() === 'none') return [];
   return raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 }
