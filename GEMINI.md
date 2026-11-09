@@ -1039,7 +1039,7 @@ not import from other rows.
 | `explain` | (1) Summary of the concept you asked about. (2) Confirm no AI-generated content appears in your submission. | no — field is null |
 | `edit` | (1) Summary of what you asked the AI to edit. (2) Did the AI rewrite paragraphs / change voice / restructure, or only fix small issues? (3) Did any AI-rewritten text appear verbatim in your submission? | no — field is null |
 | `debug` | (1) Summary of the bug or problem you asked about. (2) Did the AI generate any code you kept, or only explain what was wrong? (3) For high-stakes assignments: would you like to attach a diff or test output? (opt-in only) | no — field is null |
-| `draft` | (1) Summary of what you asked the AI to draft. (2) What percentage roughly appears verbatim in your submission? (3) What did you change, reject, or rewrite? (4) For high-stakes writing: would you like to attach a share link or excerpt? (opt-in only) | optional — ask only if the student says AI text appears verbatim AND the section contains factual claims |
+| `draft` | (1) Summary of what you asked the AI to draft. (2) Does any of its text appear verbatim in your submission? (how much is asked in the stage-and-extent item below) (3) What did you change, reject, or rewrite? (4) For high-stakes writing: would you like to attach a share link or excerpt? (opt-in only) | optional — ask only if the student says AI text appears verbatim AND the section contains factual claims |
 
 **`source_verification` scope:** the field is `true`/`false` only for
 `search` (required) and `draft` with factual claims (optional); **null**
@@ -1054,6 +1054,46 @@ fits *this session* (see *Profiles* — the receipt-level profile is the default
 not a decision already made) to this same packed turn. One question, not a second turn —
 the profile shapes the interview without lengthening it, and a two-minute
 interview is a hard rule rather than an aspiration.
+
+**Stage, extent, and checking (schema 2.2).** Add one more item to the same
+packed turn, as three quick picks the student can answer in a few words or
+skip:
+
+> (a) **Stage:** I'd put this at *drafting*. Right, or planning / research /
+> revising / checking?
+> (b) **How much of what you hand in came from the AI this time?** none / a
+> few lines / a section or more / most of it. If any: did you keep it as is,
+> edit it, or rework it?
+> (c) **How did you check it?** read it through / checked the sources /
+> checked against course material / asked someone / something else / haven't
+> checked yet
+
+Propose the stage from the category so the student only corrects it:
+`brainstorm` and `outline` → planning, `search` and `explain` → researching,
+`draft` → drafting, `edit` and `debug` → revising. Word the picks for the
+profile. For `code`, say design / research / building / debugging or
+refactoring / testing or review (stored as planning / researching / drafting /
+revising / checking), and offer *ran the code* and *ran tests* in (c) in place
+of *checked the sources*.
+
+Record what they pick, and nothing they didn't:
+
+- (a) → `stage`.
+- (b) → `extent`: `ai_share` is `none`, `small`, `part`, or `most`. When it
+  isn't `none`, `student_change` is `kept`, `edited`, or `reworked`. When it is
+  `none`, leave `student_change` out. `none` can't sit with
+  `direct_content_used: true`; if the answers disagree, ask which is right.
+  For `draft`, this replaces asking for a percentage: map the student's rough
+  answer onto the four values and confirm it in one line.
+- (c) → `verification.methods` (`read_through`, `checked_sources`,
+  `checked_course_material`, `asked_someone`, `ran_code`, `ran_tests`,
+  `other`), with `attested: true`. *Something else* is `other`, and the
+  student's words for it go in `verification.statement`. *Haven't checked
+  yet* is `attested: false` with no methods. If they already attested this
+  session in the attest flow, keep that statement and add the methods.
+
+If the student skips an item, leave its field out. Skipped is not "none", and
+a receipt without these fields is still a complete receipt.
 
 **Policy overrides:** if an instructor policy lists the chosen category
 under `require_source_verification`, ask the source-verification question
@@ -1405,7 +1445,7 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 
 ```json
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "generated_at": "<ISO 8601 timestamp — when this file was last written>",
   "content_hash": "<sha256 of canonical other-fields, or null>",
   "submission_hash": "<sha256 of the submitted file's bytes, or null>",
@@ -1426,6 +1466,11 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
       "direct_content_used": <true|false>,
       "revision_statement": "...",
       "source_verification": <true|false|null>,
+      "stage": "planning | researching | drafting | revising | checking",
+      "extent": {
+        "ai_share": "none | small | part | most",
+        "student_change": "kept | edited | reworked"
+      },
       "citations": {
         "mla": "...",
         "apa": "...",
@@ -1435,7 +1480,8 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
       },
       "verification": {
         "attested": <true|false>,
-        "statement": "<what the student checked, their words>"
+        "statement": "<what the student checked, their words>",
+        "methods": ["read_through", "..."]
       }
     }
   ],
@@ -1456,6 +1502,13 @@ make a claim, which is different from claiming they didn't check. Never write
 this field from your own reading of the code, never summarize their answer into
 it, and never set `attested: true` on the strength of anything but the student
 saying so.
+
+**`stage`, `extent`, and `verification.methods` are optional (schema 2.2).** Each
+is present only when the student picked it in Step 3. The template above shows
+every field; leave out what the student skipped, and leave out
+`student_change` when `ai_share` is `none`. When you add a session to an older
+2.x receipt, write `"schema_version": "2.2"`: the change is additive, so the
+earlier sessions stay valid exactly as they are and are not re-asked.
 
 Three things moved in schema 2.0 and are easy to get wrong from memory:
 `metadata_source` is now **per session**, the citation strings live on the session

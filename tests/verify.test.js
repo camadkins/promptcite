@@ -7,7 +7,7 @@ import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } fr
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes, STAGES, AI_SHARES, STUDENT_CHANGES, CHECK_METHODS } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -682,8 +682,85 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
+});
+
+// --- schema 2.2: stage, extent, verification.methods ------------------------
+
+const v22 = (/** @type {any} */ sessions) => ({ ...v2(sessions), schema_version: '2.2' });
+
+test('the 2.2 vocabularies match src/schema.yaml', async () => {
+  const { readFileSync } = await import('node:fs');
+  const yaml = readFileSync(new URL('../src/schema.yaml', import.meta.url), 'utf8');
+  /** @param {string} field */
+  const enumOf = (field) => {
+    const at = yaml.indexOf(`\n      ${field}:`) >= 0 ? yaml.indexOf(`\n      ${field}:`) : yaml.indexOf(`\n          ${field}:`);
+    assert.ok(at >= 0, `${field} missing from schema.yaml`);
+    const block = yaml.slice(at).split('enum:')[1].split(/\n\s*\n|\n {0,10}[a-z_]+:/)[0];
+    return [...block.matchAll(/- ([a-z_]+)/g)].map((m) => m[1]);
+  };
+  assert.deepEqual(enumOf('stage'), STAGES);
+  assert.deepEqual(enumOf('ai_share'), AI_SHARES);
+  assert.deepEqual(enumOf('student_change'), STUDENT_CHANGES);
+  assert.deepEqual(enumOf('methods'), CHECK_METHODS);
+  assert.match(yaml, /^schema_version: "2\.2"$/m);
+});
+
+test('a 2.2 session with stage, extent and methods validates', () => {
+  assert.deepEqual(validateSchema(v22([session({
+    stage: 'drafting',
+    category: 'draft',
+    direct_content_used: true,
+    extent: { ai_share: 'part', student_change: 'edited' },
+    verification: { attested: true, methods: ['read_through', 'ran_tests'] },
+  })])), []);
+  assert.deepEqual(validateSchema(v22([session({ extent: { ai_share: 'none' } })])), []);
+});
+
+test('every older receipt still validates: the 2.2 fields are optional', () => {
+  for (const r of [example, v2(), v21([session()]), v22([session()])]) assert.deepEqual(validateSchema(r), []);
+});
+
+test('stage must come from the list', () => {
+  assert.match(validateSchema(v22([session({ stage: 'writing' })])).join('\n'), /ai_use\[0\]\.stage, when present, must be one of: planning, researching/);
+});
+
+test('extent: ai_share from the list, student_change required unless none', () => {
+  const errs = (/** @type {any} */ extent, over = {}) => validateSchema(v22([session({ extent, ...over })])).join('\n');
+  assert.match(errs({ ai_share: 'lots' }), /extent\.ai_share must be one of: none, small, part, most/);
+  assert.match(errs({ ai_share: 'most' }), /extent\.student_change must be one of kept, edited, reworked when ai_share is "most"/);
+  assert.match(errs({ ai_share: 'none', student_change: 'kept' }), /student_change must be absent when ai_share is "none"/);
+  assert.match(errs('some'), /extent, when present, must be an object/);
+});
+
+test('extent none with verbatim AI text kept is a contradiction', () => {
+  const errs = validateSchema(v22([session({ direct_content_used: true, extent: { ai_share: 'none' } })])).join('\n');
+  assert.match(errs, /ai_share is "none" but direct_content_used is true/);
+});
+
+test('verification.methods: from the list, only when attested, "other" needs a statement', () => {
+  const errs = (/** @type {any} */ verification) => validateSchema(v22([session({ verification })])).join('\n');
+  assert.match(errs({ attested: true, methods: ['vibes'] }), /methods, when present, must be a non-empty list drawn from/);
+  assert.match(errs({ attested: true, methods: [] }), /methods, when present, must be a non-empty list/);
+  assert.match(errs({ attested: false, methods: ['read_through'] }), /methods needs attested true/);
+  assert.match(errs({ attested: true, methods: ['other'] }), /has "other", so verification\.statement must say what it was/);
+  assert.equal(errs({ attested: true, methods: ['other'], statement: 'Compared it to the textbook proof.' }), '');
+});
+
+test('the report shows stage, extent and methods in plain words, and nothing when absent', () => {
+  const r = v22([session({
+    stage: 'revising',
+    direct_content_used: true,
+    extent: { ai_share: 'small', student_change: 'reworked' },
+    verification: { attested: true, statement: 'Ran it.', methods: ['ran_code', 'checked_course_material'] },
+  })]);
+  const out = formatReport(r, 'UNVERIFIABLE', []);
+  assert.match(out, /stage: revising/);
+  assert.match(out, /AI share of the submission: a few lines or phrases, reworked by the student/);
+  assert.match(out, /how: ran the code, checked against course material/);
+  const plain = formatReport(v2(), 'UNVERIFIABLE', []);
+  assert.doesNotMatch(plain, /stage:|AI share|how:/);
 });

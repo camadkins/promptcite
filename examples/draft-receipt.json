@@ -1,0 +1,70 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-06T21:12:00Z",
+  "content_hash": "946529cb02f5bf8f6505d12684e67733af74c26a277b9e0566486385f91f9393",
+  "submission_hash": null,
+  "student": "J. Rivera",
+  "assignment": {
+    "course": "ENGL 150",
+    "instructor": "Dr. Example",
+    "title": "Final Project: Community Profile"
+  },
+  "ai_use": [
+    {
+      "tool": "Claude",
+      "model": "Claude Sonnet 4.6",
+      "date": "2026-11-02",
+      "metadata_source": "agent_reported",
+      "category": "outline",
+      "stage": "planning",
+      "prompt_summary": "Asked for three ways to organize a profile of the Lincoln farmers market",
+      "direct_content_used": false,
+      "revision_statement": "Picked the second structure and changed the order of the last two sections.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Three ways to organize a profile of the Lincoln farmers market\" prompt. *Claude*, model Claude Sonnet 4.6, Anthropic, 2 Nov. 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"Three ways to organize a profile of the Lincoln farmers market,\" Claude Sonnet 4.6, Anthropic, November 2, 2026.",
+        "ieee": "[1] Claude, \"Three ways to organize a profile of the Lincoln farmers market,\" Claude Sonnet 4.6, Anthropic, Nov. 2, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
+      }
+    },
+    {
+      "tool": "Claude",
+      "model": "Claude Sonnet 4.6",
+      "date": "2026-11-05",
+      "metadata_source": "agent_reported",
+      "category": "draft",
+      "stage": "drafting",
+      "prompt_summary": "Asked for a first draft of the opening paragraph from my interview notes",
+      "direct_content_used": true,
+      "revision_statement": "Kept two of its sentences, rewrote the rest, and replaced its made-up quote with a real one from my notes.",
+      "source_verification": true,
+      "extent": {
+        "ai_share": "small",
+        "student_change": "reworked"
+      },
+      "verification": {
+        "attested": true,
+        "statement": "Checked every fact in the paragraph against my interview notes and removed a quote it invented.",
+        "methods": [
+          "read_through",
+          "checked_sources"
+        ]
+      },
+      "citations": {
+        "mla": "\"First draft of my opening paragraph from interview notes\" prompt. *Claude*, model Claude Sonnet 4.6, Anthropic, 5 Nov. 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"First draft of my opening paragraph from interview notes,\" Claude Sonnet 4.6, Anthropic, November 5, 2026.",
+        "ieee": "[2] Claude, \"First draft of my opening paragraph from interview notes,\" Claude Sonnet 4.6, Anthropic, Nov. 5, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used Claude (Claude Sonnet 4.6) on November 2, 2026 to outline this profile, and my submission follows a structure it suggested, with the last two sections reordered. On November 5 I used Claude to draft the opening paragraph from my interview notes. Two of its sentences appear in my opening paragraph; I rewrote the rest. I independently verified the facts against my interview notes and replaced a quote the AI made up with a real one. Both sessions were recorded inside Claude."
+  }
+}

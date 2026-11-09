@@ -75,7 +75,8 @@ is responsible for accuracy; the reader evaluates plausibility.
 - **Attestation** — the student's statement of what they did to check the AI's
   output before keeping it. Written in their own words, into the marker by
   `/receipt attest` and optionally into the receipt as `ai_use[].verification`
-  (schema 2.1). Never generated, never validated, never scored. Distinct from
+  (schema 2.1; 2.2 adds `methods`, a pick list of how they checked). Never
+  generated, never scored, and only its shape is validated. Distinct from
   **verification**, which is what an instructor does to a *receipt* with
   `promptcite-verify`: attestation is the student's claim about their work,
   verification is a reader's check on an artifact. See ADR 0008.

@@ -103,3 +103,41 @@ marked as common conventions. Only the descriptions changed. The fields, their
 types, their validation, and the `content_hash` input are untouched, so every
 existing receipt, including ones holding the older MLA 2023 / APA 2023 /
 Chicago 17 strings, still validates and verifies.
+
+## 2.2
+
+**Additive. Every 2.1 receipt is a valid 2.2 receipt and needs no migration.**
+
+Added three optional per-session fields:
+
+```json
+"stage": "drafting",
+"extent": { "ai_share": "small", "student_change": "reworked" },
+"verification": {
+  "attested": true,
+  "statement": "Checked every fact against my interview notes.",
+  "methods": ["read_through", "checked_sources"]
+}
+```
+
+- `stage` is where in the work the session happened: `planning`,
+  `researching`, `drafting`, `revising`, or `checking`. `category` already said
+  what the AI did. This says when.
+- `extent.ai_share` is how much of the submission came from the AI in that
+  session: `none`, `small`, `part`, or `most`. `extent.student_change` is what
+  the student did with it: `kept`, `edited`, or `reworked`. It's required when
+  `ai_share` isn't `none` and absent when it is.
+- `verification.methods` is how the student checked, from a short list. It
+  needs `attested: true`, and `other` needs a `statement`.
+
+**Why.** Instructors asked what kind of help, at what stage, and how much of it
+ended up in the work. 2.1 could answer the first. The second and third lived
+only in free text, and the interview already asked drafts for a rough
+percentage and had nowhere to keep it. See ADR 0012.
+
+**Validation.** The verifier checks each field whenever it's present, plus two
+cross-checks: `ai_share: "none"` with `direct_content_used: true` is a
+contradiction and is invalid, and `methods` without `attested: true` is
+invalid. Nothing is measured. Every value is the student's pick.
+
+**Field mapping from 2.1:** none. No field was renamed, removed, or re-typed.

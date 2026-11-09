@@ -25,7 +25,7 @@ Required structure:
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.2",
   "generated_at": "2026-05-27T14:30:00Z",
   "content_hash": "<sha256 of the receipt fields, or null>",
   "submission_hash": "<sha256 of the submitted file, or null>",
@@ -40,13 +40,27 @@ Required structure:
       "direct_content_used": true | false,
       "revision_statement": "<student-written>",
       "source_verification": true | false | null,
+      "stage": "planning|researching|drafting|revising|checking",
+      "extent": { "ai_share": "none|small|part|most",
+                  "student_change": "kept|edited|reworked" },
       "citations": { "mla": "...", "apa": "...", "chicago": "...",
-                     "ieee": "...", "harvard": "..." }
+                     "ieee": "...", "harvard": "..." },
+      "verification": { "attested": true, "statement": "...",
+                        "methods": ["read_through", "ran_tests"] }
     }
   ],
   "outputs": { "disclosure_statement": "..." }
 }
 ```
+
+**Stage, extent, and how it was checked (2.2, optional).** `stage` says when
+in the work a session happened, `extent` says how much of the submission came
+from the AI and what the student did with it, and `verification.methods` says
+how they checked it. The student picks each one from a short list, and
+nothing measures them, so read them the way you'd read the rest of the
+receipt: as what the student says. They're absent on older receipts and
+whenever a student skipped the question. Absent is not "none". See
+[ADR 0012](./adr/0012-stage-and-extent.md).
 
 **`ai_use` is a list.** One receipt covers one *assignment*, and an assignment is
 routinely worked across several days — an outline on Monday, a debug session on

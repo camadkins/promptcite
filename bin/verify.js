@@ -74,6 +74,19 @@ function isIsoDateTime(v) {
 }
 
 const USE_CATEGORIES = ['brainstorm', 'outline', 'draft', 'edit', 'debug', 'explain', 'search'];
+// Schema 2.2. Keep in step with src/schema.yaml (tests/verify.test.js checks it).
+export const STAGES = ['planning', 'researching', 'drafting', 'revising', 'checking'];
+export const AI_SHARES = ['none', 'small', 'part', 'most'];
+export const STUDENT_CHANGES = ['kept', 'edited', 'reworked'];
+export const CHECK_METHODS = ['read_through', 'ran_code', 'ran_tests', 'checked_sources', 'checked_course_material', 'asked_someone', 'other'];
+
+/** Plain words for the report. */
+const SHARE_WORDS = { none: 'none', small: 'a few lines or phrases', part: 'a section or more', most: 'most of it' };
+const METHOD_WORDS = {
+  read_through: 'read it through', ran_code: 'ran the code', ran_tests: 'ran tests',
+  checked_sources: 'checked the sources', checked_course_material: 'checked against course material',
+  asked_someone: 'asked someone', other: 'other (see statement)',
+};
 const HEX64 = /^[a-f0-9]{64}$/;
 
 /**
@@ -120,6 +133,39 @@ function validateSession(u, path, str, errs, sessionScopedProvenance) {
       if (v.statement !== undefined && typeof v.statement !== 'string') {
         errs.push(`${path}.verification.statement, when present, must be a string`);
       }
+      // Methods (schema 2.2): picked from a list, still the student's claim.
+      if (v.methods !== undefined) {
+        if (!Array.isArray(v.methods) || v.methods.length === 0
+            || !v.methods.every((/** @type {unknown} */ m) => typeof m === 'string' && CHECK_METHODS.includes(m))) {
+          errs.push(`${path}.verification.methods, when present, must be a non-empty list drawn from: ${CHECK_METHODS.join(', ')}`);
+        } else {
+          if (v.attested !== true) errs.push(`${path}.verification.methods needs attested true: a method is a claim that the student checked`);
+          if (v.methods.includes('other') && !(typeof v.statement === 'string' && v.statement.trim())) {
+            errs.push(`${path}.verification.methods has "other", so verification.statement must say what it was`);
+          }
+        }
+      }
+    }
+  }
+
+  // Stage and extent (schema 2.2): optional, picked by the student, never
+  // measured. Checked whenever present; no older emitter wrote them.
+  if (u.stage !== undefined && !STAGES.includes(u.stage)) {
+    errs.push(`${path}.stage, when present, must be one of: ${STAGES.join(', ')}`);
+  }
+  if (u.extent !== undefined) {
+    const e = u.extent;
+    if (!e || typeof e !== 'object' || Array.isArray(e)) {
+      errs.push(`${path}.extent, when present, must be an object`);
+    } else if (!AI_SHARES.includes(e.ai_share)) {
+      errs.push(`${path}.extent.ai_share must be one of: ${AI_SHARES.join(', ')}`);
+    } else if (e.ai_share === 'none') {
+      if (e.student_change !== undefined) errs.push(`${path}.extent.student_change must be absent when ai_share is "none"`);
+      if (u.direct_content_used === true) {
+        errs.push(`${path}.extent.ai_share is "none" but direct_content_used is true: the two can't both be right`);
+      }
+    } else if (!STUDENT_CHANGES.includes(e.student_change)) {
+      errs.push(`${path}.extent.student_change must be one of ${STUDENT_CHANGES.join(', ')} when ai_share is "${e.ai_share}"`);
     }
   }
 
@@ -371,6 +417,14 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
       lines.push(`            revision: ${hang(u.revision_statement)}`);
       lines.push(`            sources checked by the student: ${u.source_verification === true ? 'yes' : u.source_verification === false ? 'no' : NOT_STATED}`);
       lines.push(`            appendix: ${appendixKinds(u.appendix)}`);
+      // Stage and extent (schema 2.2) print only when the student gave them.
+      // Older receipts don't have them, and that is not a gap in the receipt.
+      if (typeof u.stage === 'string') lines.push(`            stage: ${u.stage}`);
+      const e = u.extent;
+      if (e && typeof e === 'object' && typeof e.ai_share === 'string') {
+        const share = /** @type {Record<string, string>} */ (SHARE_WORDS)[e.ai_share] ?? e.ai_share;
+        lines.push(`            AI share of the submission: ${share}${e.student_change ? `, ${e.student_change} by the student` : ''}`);
+      }
       // Attestation (schema 2.1) is what the student says they checked before
       // keeping the output. Absent on most receipts, and absence means the
       // student didn't use the feature — never that they skipped the reading.
@@ -379,6 +433,10 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
         lines.push(v.attested
           ? `            verified by the student: ${v.statement || '(no detail given)'}`
           : '            the student has not marked this as verified');
+        if (v.attested && Array.isArray(v.methods) && v.methods.length) {
+          const words = v.methods.map((/** @type {string} */ m) => /** @type {Record<string, string>} */ (METHOD_WORDS)[m] ?? m);
+          lines.push(`            how: ${words.join(', ')}`);
+        }
       }
     });
   }
