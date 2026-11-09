@@ -4,6 +4,71 @@ All notable changes to this project documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/camadkins/promptcite/compare/v2.0.0...v2.1.0) (2026-11-09)
+
+
+### Added
+
+* ai levels per assignment ([05dc4fd](https://github.com/camadkins/promptcite/commit/05dc4fdd6a32804097e36a5bd39650f8287f053e))
+* attest mode, check gate, ledger picker, discipline profiles ([3b2fb79](https://github.com/camadkins/promptcite/commit/3b2fb79c0cceabfd79ba1b49c5995ffc5cad67c2))
+* cite the course rule in the disclosure ([e54592f](https://github.com/camadkins/promptcite/commit/e54592f7f863ba80e59e93c734454a2d5c2ce7f7))
+* course policies, session hook ([#35](https://github.com/camadkins/promptcite/issues/35)) ([cbaebcf](https://github.com/camadkins/promptcite/commit/cbaebcfb7d92d2f661c5bce31a6a72e98c61cf12))
+* disclosure strings in per-language locale files ([#4](https://github.com/camadkins/promptcite/issues/4)) ([f15f116](https://github.com/camadkins/promptcite/commit/f15f116bbc634905cda83bc42a7f6de89c6d8f94))
+* flag unconfirmed sources ([c7da5f4](https://github.com/camadkins/promptcite/commit/c7da5f4b3681fb2c4329a6434f0e73787a1b75cb))
+* more agents, offline help ([#32](https://github.com/camadkins/promptcite/issues/32)) ([d29e3fc](https://github.com/camadkins/promptcite/commit/d29e3fceb3682dc749fc8d5a344d83d3f9ba5412))
+* per-file ai table for code ([1956c8d](https://github.com/camadkins/promptcite/commit/1956c8d24daccd3dcd145d2b53788c83bfd96bb5))
+* policy init for instructors ([24c4fb4](https://github.com/camadkins/promptcite/commit/24c4fb46a2770840c972e0ccd2d099abd2271c2e))
+* process timeline ([549e51f](https://github.com/camadkins/promptcite/commit/549e51f70d3d60c8b0978a6e4cc6db6428562de4))
+* promptcite help for students and instructors ([f218921](https://github.com/camadkins/promptcite/commit/f218921ffe8598e8114c110a730f07ad06cca87d))
+* reflection questions ([d5a6b30](https://github.com/camadkins/promptcite/commit/d5a6b30aaecaf314a695b7b0cfb6410ecb87b669))
+* short, journal and no-ai statements ([b86ac13](https://github.com/camadkins/promptcite/commit/b86ac13dd8e44c3e50775f81009f2afb73e1c4b4))
+* stage and extent per session ([c9286ef](https://github.com/camadkins/promptcite/commit/c9286ef527773ea2eb6bd4b84c111cd0e75b88f0))
+* verify for instructors ([#34](https://github.com/camadkins/promptcite/issues/34)) ([1c3d703](https://github.com/camadkins/promptcite/commit/1c3d703be4e6e0ae14d1e5c711b8ff79bdb394f6))
+
+
+### Fixed
+
+* citation styles ([#33](https://github.com/camadkins/promptcite/issues/33)) ([f2df884](https://github.com/camadkins/promptcite/commit/f2df8840d9e20be092b7755ef0e17c075f245a82))
+* file modes, policy init write race, timeline table escaping ([492c4f5](https://github.com/camadkins/promptcite/commit/492c4f55342be69d88a8b36f4215f7d20408299a))
+* hashing recipe matches verify on non-ascii receipts ([#43](https://github.com/camadkins/promptcite/issues/43)) ([f5f5708](https://github.com/camadkins/promptcite/commit/f5f570890e103174a84b09e0bb416ae6ee36c63e))
+* policy init reads the policy file instead of checking it first ([f2b8722](https://github.com/camadkins/promptcite/commit/f2b8722e453a58a448a4b324b98dcace54d14786))
+* timeline and policy check edge cases ([0b4fb25](https://github.com/camadkins/promptcite/commit/0b4fb25fdc1ad930f5a44ce7f84e380a74a384c7))
+* timeline never runs git diff drivers ([4f1914b](https://github.com/camadkins/promptcite/commit/4f1914be796a630cea7e34f6f7fb22dc0a30febe))
+* timeline skips ledger session pointers ([0b04484](https://github.com/camadkins/promptcite/commit/0b04484d835071c7ed72a7b885b7c1680597ace9))
+* warn on uses outside allowed_categories instead of narrowing them ([57aca4a](https://github.com/camadkins/promptcite/commit/57aca4a5d02850c98e51d45c8d029406f18a98ea))
+
+
+### Docs
+
+* add edit and explain example receipts ([#30](https://github.com/camadkins/promptcite/issues/30)) ([9cf585f](https://github.com/camadkins/promptcite/commit/9cf585f81afa2cd918f2354e4429f081c928c0e9))
+* add instructor policy examples for writing, CS, and lab courses ([#41](https://github.com/camadkins/promptcite/issues/41)) ([fb81af9](https://github.com/camadkins/promptcite/commit/fb81af9e8c3f08748d12e261886123b97a57aef4))
+* fix install, verify and flag docs ([543cafd](https://github.com/camadkins/promptcite/commit/543cafdf59b29db6998b66a45e4ab5f916a1f4ea))
+* readme for 2.1.0 ([2e78032](https://github.com/camadkins/promptcite/commit/2e780325fec90d31e5b08941c41165adafcfb25c))
+* refresh edit and explain examples ([e7781f6](https://github.com/camadkins/promptcite/commit/e7781f690939994f5c69378c2eb983fc1387fe18))
+* schema 2.2 in the rule, ledger and timeline wording ([547937b](https://github.com/camadkins/promptcite/commit/547937b9f8046d3a551ab6280913ebe46acc26ca))
+* update example citations ([#39](https://github.com/camadkins/promptcite/issues/39)) ([b1a1020](https://github.com/camadkins/promptcite/commit/b1a1020d7e8bf933efc99841df697f746b4286ad))
+* update threat model ([0333115](https://github.com/camadkins/promptcite/commit/0333115b182d181a741d404f55430c1a1dc9c2e7))
+
+
+### Removed
+
+- **npm publishing.** The publish workflow is gone and PromptCite is not on the
+  npm registry. It never published successfully — npm refused the credential
+  because publishing from CI needs an Automation-type token to bypass 2FA — and
+  the human review gate did not work as designed, since release-please creates
+  its own GitHub Release and that fired the publish on merge rather than on a
+  deliberate click. Installing from GitHub needs no registry account and no
+  long-lived token sitting in repo secrets, so the trade was not worth it.
+
+  Nothing about how anyone installs PromptCite changes:
+  `npx -y github:camadkins/promptcite` is what the docs have always said.
+
+  Kept from that work, because none of it was npm-specific: the CLI
+  entry-point fix (below), the smaller published tree — `npm install
+  github:...` honours `package.json` `files` exactly as the registry would, so
+  a GitHub install is 12 files rather than 18 — and the signed provenance
+  bundle attached to each GitHub Release.
+
 ## [2.0.0](https://github.com/camadkins/promptcite/compare/v1.1.0...v2.0.0) (2026-08-01)
 
 ### BREAKING
