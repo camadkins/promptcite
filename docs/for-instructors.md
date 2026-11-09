@@ -341,6 +341,14 @@ prevent dishonesty (a student can ignore or edit the file). Same trust
 model as everything else here. Where a student's saved settings conflict
 with your policy, the policy wins.
 
+**Reflection questions.** Set `"reflection": true` and `/receipt` asks the
+student four questions about the assignment: what they tried before AI, why
+they turned to it, what they changed, and whether they'd use it the same way
+again. The answers land in the receipt's `reflection` object exactly as the
+student typed them. They can skip any question, and a short answer is a real
+one, so read it as their account rather than a score. See
+[ADR 0016](./adr/0016-reflection-questions.md).
+
 **AI levels.** If you grade on the AI Assessment Scale (AIAS), or your own
 scale, set the level for the assignment and paste your rule with it:
 

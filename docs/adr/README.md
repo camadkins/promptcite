@@ -24,3 +24,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0013](./0013-students-may-cite-the-course-rule.md) | A student may choose to cite the course rule in their disclosure | Accepted |
 | [0014](./0014-other-forms-and-the-no-ai-declaration.md) | Other forms of the disclosure, and a no-AI declaration that isn't a receipt | Accepted |
 | [0015](./0015-process-timeline.md) | Process timeline: the student's own record, hash-chained, ledger only on request | Accepted |
+| [0016](./0016-reflection-questions.md) | Reflection questions: four fixed questions, one answer set per receipt, verbatim | Accepted |

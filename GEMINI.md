@@ -137,6 +137,7 @@ All keys are optional:
   "flow": "full",
   "profile": "code",
   "extra_statements": ["short"],
+  "reflection": true,
   "ledger": { "enabled": false, "ttl_days": 30 },
   "markers": { "enabled": false, "style": "line", "min_lines": 5, "attest": false }
 }
@@ -152,6 +153,9 @@ Step 5b); leave it out for English.
 paragraph: `short` (one line for an LMS comment box) and `journal` (a
 journal's AI declaration). See *Other forms* in Step 5b. The student can also ask for one in
 the moment ("give me the short version too").
+
+`reflection` turns on the reflection questions (Step 4a) for every receipt in
+this folder. An instructor policy can turn them on too.
 
 `course` binds this folder to one of the student's course files (see *Course
 files* below). `promptcite course use <id>` writes it and `promptcite course
@@ -210,6 +214,7 @@ match. All keys are optional:
   "disclosure_language": "en",
   "require_source_verification": ["search", "draft"],
   "required_appendix": { "draft": "share_link_or_excerpt", "debug": "diff_or_test_log" },
+  "reflection": true,
   "require_ledger": true,
   "require_markers": false,
   "require_attestation": false,
@@ -238,6 +243,9 @@ How each key steers the interview:
   for that appendix (`share_link_or_excerpt`, `full_transcript`, or
   `diff_or_test_log`) and include it; it is required, not opt-in, for
   this assignment.
+- **`reflection`** — ask the reflection questions (Step 4a) for this
+  assignment. The instructor is asking, not requiring: the student can
+  still skip any of them.
 - **`disclosure_language`** — write the disclosure paragraph in this
   language (see Step 5b). Overrides the student's own setting, since the
   instructor decides what a valid disclosure reads like.
@@ -1188,6 +1196,32 @@ Capture the student's response verbatim into the `revision_statement`
 field. If they say "nothing" or similar, leave the field empty and
 move on.
 
+### Step 4a — Reflection (only when turned on or asked for)
+
+Ask this when `reflection` is true in an instructor policy, a course file's
+policy, or the student's settings, or when the student asks to reflect.
+Otherwise skip it. One packed turn:
+
+> A few questions about how this assignment went. Answer in your own words,
+> or say "skip" for any of them:
+> 1. What did you try before using AI?
+> 2. Why did you turn to AI at that point?
+> 3. What did you change about what it gave you, and why?
+> 4. Would you use AI the same way next time? Why or why not?
+
+Store each answer **verbatim** in the receipt's top-level `reflection` object
+as `tried_first`, `why_ai`, `what_changed`, and `use_again`. Leave out any
+the student skipped, and leave out the whole object if they skipped all four.
+Never write, summarize, or improve an answer, and never ask a follow-up to
+get a "better" one. A short answer is a real answer.
+
+The reflection covers the **whole assignment**, so there is one per receipt.
+When you add a session to a receipt that already has one, keep it exactly as
+it is and ask once: *"Want to update your reflection now that there's
+another session?"* On yes, ask the four again with their old answers shown,
+and replace the object with the new answers. The reflection stays in the
+JSON. It never goes into the disclosure paragraph or the other forms.
+
 ### Step 4b — Level check (only when an `ai_level` applies)
 
 Before any output, check every use category in this receipt (all sessions,
@@ -1643,6 +1677,18 @@ Generate the JSON object matching `src/schema.yaml`. Required fields:
 }
 ```
 
+**`reflection` is optional (schema 2.2).** A top-level object, present only
+when Step 4a ran and the student answered at least one question:
+
+```json
+"reflection": {
+  "tried_first": "<their words>",
+  "why_ai": "<their words>",
+  "what_changed": "<their words>",
+  "use_again": "<their words>"
+}
+```
+
 **`outputs.short_statement` and `outputs.journal_statement` are optional
 (schema 2.2).** Include each only when that form was written in Step 5b. When
 you add a session to a receipt that has one, rewrite it to cover the new
@@ -1850,6 +1896,7 @@ End with one short line:
   metric.
 - Suggest that the student leave AI use out of a receipt, or treat a
   deselected ledger entry as though the AI use behind it never happened.
+- Write, reword, or summarize a reflection answer, or push for a longer one.
 - Set `verification.attested` to true, or write a `statement`, on anything
   other than the student telling you what they checked.
 - Look for AI-written code that carries no marker. A missing marker is not a

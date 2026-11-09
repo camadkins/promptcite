@@ -1,0 +1,74 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-07T18:30:00Z",
+  "content_hash": "bde3265530c85597bb16be87bd03b2f30cc10e5e02dcdc9a16408e95d77d2408",
+  "submission_hash": null,
+  "student": "D. Brooks",
+  "assignment": {
+    "course": "HIST 210",
+    "instructor": "Dr. Example",
+    "title": "Paper 2: The 1918 influenza in Nebraska"
+  },
+  "ai_use": [
+    {
+      "tool": "Gemini",
+      "model": "Gemini 2.5 Pro",
+      "date": "2026-10-30",
+      "metadata_source": "student_claimed",
+      "category": "search",
+      "stage": "researching",
+      "prompt_summary": "Newspapers that covered the 1918 flu in Lincoln",
+      "direct_content_used": false,
+      "revision_statement": "I only used the sources I could find in the library archive.",
+      "source_verification": true,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Newspapers that covered the 1918 flu in Lincoln\" prompt. *Gemini*, model Gemini 2.5 Pro, Google, 30 Oct. 2026, gemini.google.com.",
+        "apa": "Google. (2026). *Gemini* [Large language model]. https://gemini.google.com/",
+        "chicago": "Response to \"Newspapers that covered the 1918 flu in Lincoln,\" Gemini 2.5 Pro, Google, October 30, 2026.",
+        "ieee": "[1] Gemini, \"Newspapers that covered the 1918 flu in Lincoln,\" Gemini 2.5 Pro, Google, Oct. 30, 2026.",
+        "harvard": "Google (2026) Gemini (Gemini 2.5 Pro) [Large language model]."
+      },
+      "verification": {
+        "attested": true,
+        "statement": "Found each paper in the Nebraska Newspapers archive before citing it.",
+        "methods": [
+          "checked_sources"
+        ]
+      }
+    },
+    {
+      "tool": "ChatGPT",
+      "model": "GPT-4o",
+      "date": "2026-11-07",
+      "metadata_source": "agent_reported",
+      "category": "outline",
+      "stage": "planning",
+      "prompt_summary": "Ways to structure a paper on the 1918 flu in Nebraska",
+      "direct_content_used": false,
+      "revision_statement": "I used my own order in the end, closer to a timeline.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Ways to structure a paper on the 1918 flu in Nebraska\" prompt. *ChatGPT*, model GPT-4o, OpenAI, 7 Nov. 2026, chatgpt.com.",
+        "apa": "OpenAI. (2026). *ChatGPT* [Large language model]. https://chatgpt.com/",
+        "chicago": "Response to \"Ways to structure a paper on the 1918 flu in Nebraska,\" ChatGPT GPT-4o, OpenAI, November 7, 2026.",
+        "ieee": "[1] ChatGPT, \"Ways to structure a paper on the 1918 flu in Nebraska,\" GPT-4o, OpenAI, Nov. 7, 2026.",
+        "harvard": "OpenAI (2026) ChatGPT (GPT-4o) [Large language model]."
+      }
+    }
+  ],
+  "reflection": {
+    "tried_first": "I searched the library catalog and only found national histories, nothing about Lincoln.",
+    "why_ai": "I was stuck on where local coverage would even be.",
+    "what_changed": "Two of the papers it named did not exist, so I only kept the ones I found in the archive. I ignored its outline and went in time order.",
+    "use_again": "Yes for finding where to look. No for the outline, my own was better."
+  },
+  "outputs": {
+    "disclosure_statement": "I used Gemini (Gemini 2.5 Pro) on October 30, 2026 to search for newspapers that covered the 1918 flu in Lincoln, and I independently verified those sources against the Nebraska Newspapers archive. The sources are cited in this submission's bibliography directly, not through the AI. On November 7 I used ChatGPT (GPT-4o) to outline the paper, and my submission did not follow the AI's outline. None of the AI-generated text appears in the final submission. I used my own order in the end, closer to a timeline. The November 7 session was recorded inside ChatGPT; the October 30 details are from my own notes."
+  }
+}

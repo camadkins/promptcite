@@ -64,6 +64,10 @@ is responsible for accuracy; the reader evaluates plausibility.
   characters, for an LMS comment box) and `outputs.journal_statement` (a
   journal's AI declaration, Elsevier's wording by default). Optional, written
   only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **Reflection** — the receipt's optional top-level `reflection` object: the
+  student's verbatim answers to four questions about the whole assignment.
+  Turned on by `reflection: true` in a policy, course file, or settings. One
+  per receipt, never in the disclosure paragraph. See ADR 0016.
 - **Process timeline** — what `promptcite timeline` writes: receipt sessions
   and git commits (and ledger notes only on request) in date order, each
   entry hash-chained to the one before. Evidence of process, never proof.

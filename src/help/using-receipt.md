@@ -56,6 +56,14 @@ When a course rule allows what you did, `/receipt` can offer to start your
 disclosure with it, quoted: "Per the CSCE 423 AI policy (...), I used ...".
 You see the sentence first, and it only goes in if you say yes.
 
+## Reflection
+
+If your instructor turned it on, or you set `"reflection": true` in
+`promptcite.config.json`, `/receipt` asks four short questions about the
+assignment: what you tried first, why AI, what you changed, and whether you'd
+do it the same way again. Your answers go in the receipt word for word. Say
+"skip" to any of them.
+
 ## Other forms
 
 Need a one-liner for a Canvas comment box, or a journal's AI declaration? Ask

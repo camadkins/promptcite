@@ -21,6 +21,7 @@
     "draft": "share_link_or_excerpt",
     "debug": "diff_or_test_log"
   },
+  "reflection": true,
   "require_ledger": true,
   "require_markers": true,
   "require_attestation": true

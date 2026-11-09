@@ -47,6 +47,7 @@ export const COURSE_POLICY_KEYS = [
   'require_source_verification',
   'required_appendix',
   'ai_level',
+  'reflection',
 ];
 
 /**
@@ -168,6 +169,9 @@ function checkPolicy(policy, errors, { prefix = 'policy.', assignmentFile = fals
         break;
       case 'ai_level':
         checkAiLevel(value, `${prefix}ai_level`, errors);
+        break;
+      case 'reflection':
+        if (typeof value !== 'boolean') at('reflection must be true or false');
         break;
     }
   }

@@ -146,4 +146,12 @@ invalid. Nothing is measured. Every value is the student's pick.
 default). Each is written only when the student asks for it, covers every
 session, and never replaces `disclosure_statement`. See ADR 0014.
 
+**Reflection.** 2.2 also adds an optional top-level `reflection` object, with
+the student's answers to four questions about the whole assignment:
+`tried_first`, `why_ai`, `what_changed`, `use_again`. It's asked only when an
+instructor policy, a course file, or the student's settings turn on
+`reflection`, every answer is stored verbatim, and skipped questions are left
+out. One per receipt, since it's about the assignment, not a session. See
+ADR 0016.
+
 **Field mapping from 2.1:** none. No field was renamed, removed, or re-typed.

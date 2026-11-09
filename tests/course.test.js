@@ -14,6 +14,7 @@ import {
   loadCourse,
   resolveCoursesDir,
   validateCourse,
+  validatePolicy,
 } from '../bin/course.js';
 
 const cli = new URL('../bin/install.js', import.meta.url).pathname;
@@ -108,9 +109,10 @@ test('policy values are type-checked', () => {
       disclosure_language: 3,
       require_source_verification: 'search',
       required_appendix: { debug: 'screenshot', nap: 'full_transcript' },
+      reflection: 'yes',
     },
   });
-  for (const key of ['profile', 'allowed_categories', 'required_citation_style', 'disclosure_language', 'require_source_verification']) {
+  for (const key of ['profile', 'allowed_categories', 'required_citation_style', 'disclosure_language', 'require_source_verification', 'reflection']) {
     assert.ok(errors.some((e) => e.startsWith(`policy.${key}`)), key);
   }
   assert.ok(errors.some((e) => e.startsWith('policy.required_appendix.debug')));
@@ -282,3 +284,9 @@ test('course use --dry-run writes nothing', () => sandbox(({ run, addCourse, cwd
   assert.equal(run(['course', 'use', 'csce-423', '--dry-run']).code, 0);
   assert.equal(existsSync(join(cwd, 'promptcite.config.json')), false);
 }));
+
+test('reflection is a course policy key and takes true or false', () => {
+  assert.deepEqual(validateCourse({ ...fixture(), policy: { reflection: true } }).errors, []);
+  assert.deepEqual(validatePolicy({ reflection: false }).errors, []);
+  assert.deepEqual(validatePolicy({ reflection: 'on' }).errors, ['reflection must be true or false']);
+});
