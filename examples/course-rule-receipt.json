@@ -1,0 +1,39 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-04T19:40:00Z",
+  "content_hash": "469045d71cb30187684c4607a86acd68852431d0b2a1d3e4a2eb022dacded42c",
+  "submission_hash": null,
+  "student": "A. Nguyen",
+  "assignment": {
+    "course": "CSCE 423",
+    "instructor": "Dr. Example",
+    "title": "Homework 6: Recurrences"
+  },
+  "ai_use": [
+    {
+      "tool": "Claude",
+      "model": "Claude Sonnet 4.6",
+      "date": "2026-11-04",
+      "metadata_source": "agent_reported",
+      "category": "explain",
+      "stage": "researching",
+      "prompt_summary": "Asked why case 2 of the master theorem adds a log factor",
+      "direct_content_used": false,
+      "revision_statement": "I worked every homework problem myself after the explanation.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "none"
+      },
+      "citations": {
+        "mla": "\"Why case 2 of the master theorem adds a log factor\" prompt. *Claude*, model Claude Sonnet 4.6, Anthropic, 4 Nov. 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"Why case 2 of the master theorem adds a log factor,\" Claude Sonnet 4.6, Anthropic, November 4, 2026.",
+        "ieee": "[1] Claude, \"Why case 2 of the master theorem adds a log factor,\" Claude Sonnet 4.6, Anthropic, Nov. 4, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Sonnet 4.6) [Large language model]."
+      }
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "Per the CSCE 423 AI policy (\"Generative AI tools may be used to help you understand course concepts.\"), I used Claude (Claude Sonnet 4.6) on November 4, 2026 to have case 2 of the master theorem explained. No AI-generated content appears in the final submission. I worked every homework problem myself after the explanation. This receipt was generated inside Claude itself, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}

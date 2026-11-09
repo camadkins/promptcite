@@ -57,8 +57,9 @@ is responsible for accuracy; the reader evaluates plausibility.
   `unclear` (what the syllabus leaves open), and an optional `policy` with the
   assignment-policy keys minus `require_ledger` / `require_markers` /
   `require_attestation`. Student-owned configuration: advises, never enforces,
-  never part of a receipt. Precedence: **assignment policy > course policy >
-  settings**. See ADR 0009.
+  never part of a receipt, except one rule the student chooses to cite in
+  their disclosure (ADR 0013). Precedence: **assignment policy > course
+  policy > settings**. See ADR 0009.
 - **Course binding** — the `"course": "<id>"` key in a folder's
   `promptcite.config.json`, written by `promptcite course use <id>` and removed
   by `promptcite course clear`. It makes that course active in that folder

@@ -116,6 +116,29 @@ Approximately {percent} appears verbatim in the final submission.
 ## draft.verified
 I independently verified the factual claims against {verified_against}.
 
+## extent.small
+A few lines of AI-generated text appear in the final submission.
+
+## extent.part
+A section or more of the final submission came from the AI.
+
+## extent.most
+Most of the final submission came from the AI.
+
+## extent.kept
+I kept that text as the AI wrote it.
+
+## extent.edited
+I edited that text before keeping it.
+
+## extent.reworked
+I reworked most of that text myself.
+
+## cite.rule
+Per the {course} AI policy ("{quote}"), {lead}
+
+> {lead} is the session's lead sentence, filled in as usual. If your language needs it to start lowercase after a comma, lowercase it. {quote} is the instructor's words exactly as the student confirmed them, never translated.
+
 ## provenance.agent_reported
 This receipt was generated inside {tool} itself, so the tool, model, and date fields above were agent-verified rather than student-reported.
 

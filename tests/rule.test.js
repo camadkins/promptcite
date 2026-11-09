@@ -52,7 +52,7 @@ test('every category the rule names has a lead string', () => {
 test('every key the rule references exists in en.md, and every en.md key is referenced', () => {
   const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
   const keys = [...parseLocale(en, 'src/locales/en.md').strings.keys()];
-  const referenced = new Set([...rule.matchAll(/`((?:brainstorm|outline|search|explain|edit|debug|draft|provenance|multi)\.\w+)`/g)].map((m) => m[1]));
+  const referenced = new Set([...rule.matchAll(/`((?:brainstorm|outline|search|explain|edit|debug|draft|provenance|multi|extent|cite)\.\w+)`/g)].map((m) => m[1]));
   for (const key of referenced) assert.ok(keys.includes(key), `rule references ${key}, which en.md lacks`);
   for (const key of keys) assert.ok(referenced.has(key), `en.md has ${key}, which the rule never uses`);
 });
@@ -97,4 +97,24 @@ test('the composed rule has the strings in place of the marker', async () => {
 test('GEMINI.md is the composed rule', async () => {
   const gemini = readFileSync(new URL('../GEMINI.md', import.meta.url), 'utf8');
   assert.equal(gemini, await buildGemini(repoRoot), 'run: node bin/rule.js --write-gemini');
+});
+
+test('cite.rule carries the course, the quote, and the lead, and the rule only offers it on a yes', () => {
+  const strings = parseLocale(en, 'src/locales/en.md').strings;
+  const cite = strings.get('cite.rule') ?? '';
+  for (const p of ['{course}', '{quote}', '{lead}']) assert.ok(cite.includes(p), `cite.rule lacks ${p}`);
+  const rule = readFileSync(new URL('../src/rules/receipt.md', import.meta.url), 'utf8');
+  assert.match(rule, /\*\*Citing the course rule \(opt-in, one quote per paragraph\)\.\*\*/);
+  assert.match(rule, /Never offer one when any use is over the level/);
+  assert.match(rule, /Cite a course rule in a disclosure without the student's yes/);
+});
+
+test('the course-rule example quotes its syllabus word for word, and the draft example cites nothing', () => {
+  const read = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
+  const course = read('./fixtures/csce-423.json');
+  const cited = read('../examples/course-rule-receipt.json').outputs.disclosure_statement;
+  const m = /^Per the CSCE 423 AI policy \("([^"]+)"\), I used /.exec(cited);
+  assert.ok(m, cited);
+  assert.ok(course.guidance.some((g) => g.quote.includes(m[1])), `"${m[1]}" is not in the fixture's guidance`);
+  assert.doesNotMatch(read('../examples/draft-receipt.json').outputs.disclosure_statement, /^Per the /);
 });
