@@ -1,19 +1,16 @@
 # Contributing
 
-Thanks for showing up.
+Thanks for showing up. Ideas are as welcome as code. If you have a
+thought about how PromptCite should work, open an issue and say it, even
+if you don't plan to build it.
 
 ## Before you PR
 
-1. Sign the CLA. The [cla-assistant](https://cla-assistant.io) bot
-   prompts on your first PR. **No merges without a signed CLA** —
-   branch protection enforces this.
-2. Read [`CLA.md`](./CLA.md) (individual contributor) or
-   [`CLA-ENTITY.md`](./CLA-ENTITY.md) (you're contributing on behalf
-   of a company) before signing.
-3. Open an issue first for substantive changes. The receipt rule
-   (`src/rules/receipt.md`) is opinionated — discuss design before
-   coding.
-4. Typo fixes still require CLA. No "small change" exception.
+1. Open an issue first for substantive changes. The receipt rule
+   (`src/rules/receipt.md`) is opinionated, so talk design before
+   coding. Small fixes can go straight to a PR.
+2. Your contribution is licensed under AGPL v3, the same as the rest of
+   the project. There's nothing to sign.
 
 ## What's welcome
 
@@ -69,18 +66,17 @@ it survives both install and uninstall.
 
 **4. Wire up the rest, then open the PR.** Add a row to the matrix in
 `INSTALL.md`, run `bun run typecheck && node --test tests/*.test.js`, and
-open the PR with a conventional commit subject (the CLA bot will prompt you).
+open the PR with a conventional commit subject.
 Release Please writes `CHANGELOG.md` from that subject, so don't edit it. If the agent reads `AGENTS.md`, it may already be
 covered — check the `AGENTS.md` family note in `INSTALL.md` first.
 
 ## Review
 
-The maintainer reviews. Branch protection requires the `license/cla`
-status check. Merge after CLA + visual review.
+The maintainer reviews and merges once CI is green.
 
 ## Reporting
 
 - Bugs: [GitHub Issues](https://github.com/camadkins/promptcite/issues)
 - Security: `security@camadkins.com` (see [`SECURITY.md`](./SECURITY.md))
-- Commercial license inquiries: `cam@camadkins.com` (see [`LICENSE-COMMERCIAL`](./LICENSE-COMMERCIAL))
+- Ideas and questions: [GitHub Issues](https://github.com/camadkins/promptcite/issues)
 - Maintainer chain of custody: [`MAINTAINERS.md`](./MAINTAINERS.md)

@@ -9,11 +9,9 @@
 
 # Sensitive paths get explicit ownership flagged.
 /LICENSE*               @camadkins
-/CLA*.md                @camadkins
 /NOTICE.md              @camadkins
 /SECURITY.md            @camadkins
 /MAINTAINERS.md         @camadkins
 /.github/               @camadkins
-/.cla-assistant.json    @camadkins
 /src/rules/receipt.md   @camadkins
 /src/schema.yaml        @camadkins

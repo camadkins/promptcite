@@ -18,7 +18,6 @@
 
 ## Checklist
 
-- [ ] I signed the CLA (or my employer signed CLA-ENTITY.md)
 - [ ] Conventional commit subject (Release Please builds the changelog from it)
 - [ ] `bun run typecheck` and `node --test tests/*.test.js` pass locally
 - [ ] No `console.log` debugging left behind
