@@ -229,10 +229,11 @@ How each key steers the interview:
   quoted word for word. Name the level in one line at the start, and run the
   level check (Step 4b) before output. See *AI levels*.
 
-- **`allowed_categories`** — in Step 2, offer only these categories. If
-  the student picks one outside the list, tell them the instructor's
-  policy doesn't permit it for this assignment and ask them to choose an
-  allowed one.
+- **`allowed_categories`** — the uses this assignment allows. Name them in
+  the opening line and in Step 2, but offer all seven: a student records the
+  use that happened, allowed or not. A use outside the list gets the same
+  treatment as one over an AI level: a warning before output (Step 4b), and
+  the receipt is written anyway.
 - **`required_citation_style`** — use this style and skip the Step 1
   citation-style question. (You still generate all five `citation_*`
   outputs; this only sets which one is highlighted.)
@@ -850,8 +851,8 @@ until an instructor is comparing submissions that don't line up.
 **A profile never restricts what the student can disclose.** If they used AI in
 a way their profile doesn't list, take it. Categories are the seven in Step 2
 regardless of profile; a profile decides what you *offer first*, not what is
-permitted. Only an instructor's `allowed_categories` actually restricts, and
-that is the instructor's call rather than yours.
+permitted. An instructor's `allowed_categories` doesn't restrict it either: it
+decides what the warning in Step 4b says, never what the student may record.
 
 ## Verify flow
 
@@ -1089,9 +1090,11 @@ Ask exactly this:
 > What did you use the AI for? Pick the closest:
 > **brainstorm** / **outline** / **draft** / **edit** / **debug** / **explain** / **search**
 
-**If an instructor policy set `allowed_categories`,** offer only those
-options here, and if the student names one outside the list, explain the
-policy doesn't permit it for this assignment and ask for an allowed one.
+**If an instructor policy set `allowed_categories`,** say which uses it allows
+(*"This assignment allows brainstorm, outline, and search."*) and still offer
+all seven. If the student names one outside the list, record it. Never ask
+them to pick an allowed one instead: that turns a disclosure into a
+different, false one.
 
 Definitions for the student if asked:
 
@@ -1265,7 +1268,7 @@ another session?"* On yes, ask the four again with their old answers shown,
 and replace the object with the new answers. The reflection stays in the
 JSON. It never goes into the disclosure paragraph or the other forms.
 
-### Step 4b — Level check (only when an `ai_level` applies)
+### Step 4b — Level check (only when an `ai_level` or `allowed_categories` applies)
 
 Before any output, check every use category in this receipt (all sessions,
 including ones already in an existing receipt) against the level. Run:
@@ -1283,6 +1286,12 @@ past it, and the `quote` word for word. Never shorten or soften the quote.
 
 Do not ask the student to change their answers because of it. The warning
 is information for them, and the receipt records what happened.
+
+**`allowed_categories` too.** If the policy lists allowed uses and a logged
+use isn't on it, warn the same way, without a quote since the list has none:
+*"This assignment's policy allows brainstorm, outline, and search. You logged
+draft, which isn't on that list. Disclose it anyway. Your instructor decides
+what it means."* This runs whether or not an `ai_level` applies.
 
 ### Step 4c — Source check (only when a source isn't confirmed)
 
