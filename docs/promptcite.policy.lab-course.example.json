@@ -1,0 +1,7 @@
+{
+  "_comment": "Example instructor policy for a science lab course (BIOL 210, lab reports). Copy this file to promptcite.policy.json in the assignment folder and /receipt steers the interview to it. All keys optional. This is configuration, not a receipt. See docs/for-instructors.md.",
+  "allowed_categories": ["explain", "brainstorm", "outline", "search"],
+  "required_citation_style": "APA",
+  "disclosure_language": "en",
+  "require_source_verification": ["search"]
+}

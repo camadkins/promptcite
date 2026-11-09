@@ -1,0 +1,9 @@
+{
+  "_comment": "Example instructor policy for an intro computer science course (CSCE 423, programming assignments). Copy this file to promptcite.policy.json in the assignment folder and /receipt steers the interview to it. All keys optional. This is configuration, not a receipt. See docs/for-instructors.md.",
+  "allowed_categories": ["explain", "brainstorm", "search", "debug"],
+  "required_citation_style": "IEEE",
+  "disclosure_language": "en",
+  "require_source_verification": ["search"],
+  "required_appendix": { "debug": "diff_or_test_log" },
+  "require_attestation": true
+}

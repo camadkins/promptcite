@@ -1,0 +1,7 @@
+{
+  "_comment": "Example instructor policy for a first year writing course (ENGL 251, Policy Analysis Essay). Copy this file to promptcite.policy.json in the assignment folder and /receipt steers the interview to it. All keys optional. This is configuration, not a receipt. See docs/for-instructors.md.",
+  "allowed_categories": ["brainstorm", "outline", "search", "edit"],
+  "required_citation_style": "MLA",
+  "disclosure_language": "en",
+  "require_source_verification": ["search"]
+}
