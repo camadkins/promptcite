@@ -154,4 +154,11 @@ instructor policy, a course file, or the student's settings turn on
 out. One per receipt, since it's about the assignment, not a session. See
 ADR 0016.
 
+**File table.** 2.2 also adds an optional top-level `code_files` list for code:
+one row per file the AI touched, with `file`, `tools`, `role` (`generated`,
+`improved`, or `both`, the student's answer), and `source` (`marker`,
+`ledger`, or `student`). Rows are listed from `promptcite-check --files` and
+the ledger and confirmed by the student. Nothing in it is counted. See ADR
+0017.
+
 **Field mapping from 2.1:** none. No field was renamed, removed, or re-typed.

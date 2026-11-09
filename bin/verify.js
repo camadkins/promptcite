@@ -82,6 +82,11 @@ export const SHORT_MAX = 300;
 /** Reflection questions (schema 2.2), in the order the interview asks them. */
 export const REFLECTION_KEYS = ['tried_first', 'why_ai', 'what_changed', 'use_again'];
 export const REFLECTION_MAX = 1000;
+/** File table (schema 2.2): what the AI did to each file, and where the row came from. */
+export const FILE_ROLES = ['generated', 'improved', 'both'];
+export const FILE_SOURCES = ['marker', 'ledger', 'student'];
+/** @type {Record<string, string>} */
+const FILE_ROLE_WORDS = { generated: 'AI wrote it', improved: 'AI improved the student\'s code', both: 'some of each' };
 /** @type {Record<string, string>} */
 const REFLECTION_LABELS = {
   tried_first: 'tried first',
@@ -306,6 +311,25 @@ export function validateSchema(receipt) {
         errs.push(`outputs.short_statement must be at most ${SHORT_MAX} characters (it has ${o.short_statement.length})`);
       }
     }
+    // 2.2: optional per-file table for code.
+    if (r.code_files !== undefined) {
+      if (!Array.isArray(r.code_files) || r.code_files.length === 0) {
+        errs.push('code_files, when present, must be a non-empty list');
+      } else {
+        const seen = new Set();
+        r.code_files.forEach((/** @type {any} */ f, /** @type {number} */ i) => {
+          const at = `code_files[${i}]`;
+          if (!f || typeof f !== 'object') { errs.push(`${at} must be an object`); return; }
+          if (typeof f.file !== 'string' || f.file.length === 0) errs.push(`${at}.file must be a non-empty path`);
+          else if (/^([a-zA-Z]:)?[\\/]/.test(f.file) || f.file.split(/[\\/]/).includes('..')) errs.push(`${at}.file must be relative to the project, without ".."`);
+          else if (seen.has(f.file)) errs.push(`${at}.file "${f.file}" is listed twice`);
+          else seen.add(f.file);
+          if (!Array.isArray(f.tools) || f.tools.length === 0 || !f.tools.every((/** @type {unknown} */ t) => typeof t === 'string' && t.length > 0)) errs.push(`${at}.tools must be a non-empty list of tool names`);
+          if (!FILE_ROLES.includes(f.role)) errs.push(`${at}.role must be one of ${FILE_ROLES.join(', ')}`);
+          if (!FILE_SOURCES.includes(f.source)) errs.push(`${at}.source must be one of ${FILE_SOURCES.join(', ')}`);
+        });
+      }
+    }
     // 2.2: optional assignment-level reflection, the student's own words.
     if (r.reflection !== undefined) {
       const f = r.reflection;
@@ -484,6 +508,14 @@ export function formatReport(receipt, hashStatus, schemaErrors) {
   lines.push(`            ${hang(o.disclosure_statement)}`);
   if (o.short_statement) lines.push(`Short form: ${hang(o.short_statement)}`);
   if (o.journal_statement) lines.push(`Journal:    ${hang(o.journal_statement)}`);
+  if (Array.isArray(r.code_files) && r.code_files.length) {
+    lines.push('Files (the student said what the AI did to each):');
+    for (const f of r.code_files) {
+      if (!f || typeof f !== 'object') continue;
+      const tools = Array.isArray(f.tools) ? f.tools.join(', ') : '?';
+      lines.push(`  ${f.file}: ${FILE_ROLE_WORDS[f.role] ?? f.role}, ${tools}${f.source === 'student' ? ' (added by the student)' : ''}`);
+    }
+  }
   if (r.reflection && typeof r.reflection === 'object') {
     lines.push('Reflection (the student\'s own words, for the whole assignment):');
     for (const k of REFLECTION_KEYS) {

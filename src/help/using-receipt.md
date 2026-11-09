@@ -56,6 +56,13 @@ When a course rule allows what you did, `/receipt` can offer to start your
 disclosure with it, quoted: "Per the CSCE 423 AI policy (...), I used ...".
 You see the sentence first, and it only goes in if you say yes.
 
+## File table (code)
+
+On a code assignment, `/receipt` runs `promptcite-check --files`, shows you
+the files with AI markers, and asks whether the AI wrote each one, improved
+your code, or both. You can add files that have no marker. Nothing gets
+counted.
+
 ## Reflection
 
 If your instructor turned it on, or you set `"reflection": true` in

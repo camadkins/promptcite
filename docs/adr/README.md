@@ -25,3 +25,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0014](./0014-other-forms-and-the-no-ai-declaration.md) | Other forms of the disclosure, and a no-AI declaration that isn't a receipt | Accepted |
 | [0015](./0015-process-timeline.md) | Process timeline: the student's own record, hash-chained, ledger only on request | Accepted |
 | [0016](./0016-reflection-questions.md) | Reflection questions: four fixed questions, one answer set per receipt, verbatim | Accepted |
+| [0017](./0017-file-table-for-code.md) | File table for code: markers say where, the student says what | Accepted |

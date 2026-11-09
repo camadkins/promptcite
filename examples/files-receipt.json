@@ -1,0 +1,97 @@
+{
+  "schema_version": "2.2",
+  "generated_at": "2026-11-06T03:10:00Z",
+  "content_hash": "155652a7e93ac1fdb8a7b9b236a91c04cb7a12b793d60be6e46e00eefc5a3fb2",
+  "submission_hash": null,
+  "student": "S. Patel",
+  "assignment": {
+    "course": "CSCE 310",
+    "instructor": "Dr. Example",
+    "title": "Project 3: Merge sort and a CSV parser"
+  },
+  "ai_use": [
+    {
+      "tool": "Claude",
+      "model": "Claude Opus 5",
+      "date": "2026-11-03",
+      "metadata_source": "agent_reported",
+      "category": "debug",
+      "stage": "checking",
+      "prompt_summary": "Why my merge step drops the last element",
+      "direct_content_used": true,
+      "revision_statement": "I kept its fix to the loop bound after tracing it by hand.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "small",
+        "student_change": "kept"
+      },
+      "citations": {
+        "mla": "\"Why my merge step drops the last element\" prompt. *Claude*, model Claude Opus 5, Anthropic, 3 Nov. 2026, claude.ai.",
+        "apa": "Anthropic. (2026). *Claude* [Large language model]. https://claude.ai/",
+        "chicago": "Response to \"Why my merge step drops the last element,\" Claude Opus 5, Anthropic, November 3, 2026.",
+        "ieee": "[1] Claude, \"Why my merge step drops the last element,\" Claude Opus 5, Anthropic, Nov. 3, 2026.",
+        "harvard": "Anthropic (2026) Claude (Claude Opus 5) [Large language model]."
+      },
+      "verification": {
+        "attested": true,
+        "statement": "Traced the merge by hand on a five-element list and ran the tests.",
+        "methods": [
+          "read_through",
+          "ran_tests"
+        ]
+      }
+    },
+    {
+      "tool": "Copilot",
+      "model": "GPT-4.1",
+      "date": "2026-11-04",
+      "metadata_source": "agent_reported",
+      "category": "draft",
+      "stage": "drafting",
+      "prompt_summary": "A CSV line parser that handles quoted commas",
+      "direct_content_used": true,
+      "revision_statement": "I rewrote the escape handling and wrote most of the tests myself.",
+      "source_verification": null,
+      "extent": {
+        "ai_share": "part",
+        "student_change": "edited"
+      },
+      "citations": {
+        "mla": "\"A CSV line parser that handles quoted commas\" prompt. *Copilot*, model GPT-4.1, GitHub, 4 Nov. 2026, github.com/features/copilot.",
+        "apa": "GitHub. (2026). *Copilot* [Large language model]. https://github.com/features/copilot/",
+        "chicago": "Response to \"A CSV line parser that handles quoted commas,\" Copilot GPT-4.1, GitHub, November 4, 2026.",
+        "ieee": "[1] Copilot, \"A CSV line parser that handles quoted commas,\" GPT-4.1, GitHub, Nov. 4, 2026.",
+        "harvard": "GitHub (2026) Copilot (GPT-4.1) [Large language model]."
+      }
+    }
+  ],
+  "code_files": [
+    {
+      "file": "src/sort.py",
+      "tools": [
+        "Claude Opus 5"
+      ],
+      "role": "improved",
+      "source": "marker"
+    },
+    {
+      "file": "src/parse.py",
+      "tools": [
+        "Copilot (GPT-4.1)"
+      ],
+      "role": "generated",
+      "source": "marker"
+    },
+    {
+      "file": "tests/test_parse.py",
+      "tools": [
+        "Copilot (GPT-4.1)"
+      ],
+      "role": "both",
+      "source": "student"
+    }
+  ],
+  "outputs": {
+    "disclosure_statement": "I used Claude (Claude Opus 5) on November 3, 2026 to debug why my merge step dropped the last element, and the AI generated code I kept: a few lines of AI-generated text appear in the final submission, kept as the AI wrote it. On November 4 I used Copilot (GPT-4.1) to draft a CSV line parser that handles quoted commas; a section or more of the final submission came from the AI, and I edited that text before keeping it. I rewrote the escape handling and wrote most of the tests myself. This receipt was generated inside the tools themselves, so the tool, model, and date fields above were agent-verified rather than student-reported."
+  }
+}

@@ -7,7 +7,7 @@ import { writeFileSync, writeFileSync as wf, mkdirSync, mkdtempSync, rmSync } fr
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes, STAGES, AI_SHARES, STUDENT_CHANGES, CHECK_METHODS, REFLECTION_KEYS } from '../bin/verify.js';
+import { canonicalize, computeHash, runVerify, validateSchema, formatReport, advisoryNotes, STAGES, AI_SHARES, STUDENT_CHANGES, CHECK_METHODS, REFLECTION_KEYS, FILE_ROLES, FILE_SOURCES } from '../bin/verify.js';
 
 const example = {
   schema_version: '1.0',
@@ -682,7 +682,7 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json', 'files-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
@@ -821,4 +821,46 @@ test('the report shows the reflection in question order, only when present', () 
   assert.doesNotMatch(formatReport(base, 'INTACT', []), /Reflection/);
   const out = formatReport({ ...base, reflection: { use_again: 'No.', tried_first: 'Notes.' } }, 'INTACT', []);
   assert.match(out, /Reflection \(the student's own words, for the whole assignment\):\n {2}tried first: Notes\.\n {2}next time: No\./);
+});
+
+// --- schema 2.2: code_files ----------------------------------------------------
+
+test('the file roles and sources match src/schema.yaml', async () => {
+  const { readFileSync } = await import('node:fs');
+  const yaml = readFileSync(new URL('../src/schema.yaml', import.meta.url), 'utf8');
+  const block = yaml.slice(yaml.indexOf('\n  code_files:'), yaml.indexOf('\n  reflection:'));
+  const enumAfter = (/** @type {string} */ field) => {
+    const at = block.indexOf(`\n      ${field}:`);
+    const rest = block.slice(at);
+    return [...rest.slice(rest.indexOf('enum:')).matchAll(/^ {10}- ([a-z_]+)$/gm)].map((m) => m[1]).slice(0, 3);
+  };
+  assert.deepEqual(enumAfter('role'), FILE_ROLES);
+  assert.deepEqual(enumAfter('source'), FILE_SOURCES);
+});
+
+test('a file table validates, and it is optional', () => {
+  const base = v22([session()]);
+  assert.deepEqual(validateSchema({ ...base, code_files: [{ file: 'src/a.py', tools: ['Claude Opus 5'], role: 'improved', source: 'marker' }] }), []);
+  assert.deepEqual(validateSchema(base), []);
+});
+
+test('a bad file table is reported row by row', () => {
+  const base = v22([session()]);
+  const row = { file: 'src/a.py', tools: ['Claude'], role: 'generated', source: 'marker' };
+  const errs = (/** @type {any} */ code_files) => validateSchema({ ...base, code_files });
+  assert.ok(errs([]).some((e) => e.includes('non-empty list')));
+  assert.ok(errs([{ ...row, file: '/home/me/a.py' }]).some((e) => e.includes('relative to the project')));
+  assert.ok(errs([{ ...row, file: '../secret.py' }]).some((e) => e.includes('without ".."')));
+  assert.ok(errs([row, row]).some((e) => e.includes('listed twice')));
+  assert.ok(errs([{ ...row, tools: [] }]).some((e) => e.includes('tools must be')));
+  assert.ok(errs([{ ...row, role: 'mostly' }]).some((e) => e.includes('role must be one of generated, improved, both')));
+  assert.ok(errs([{ ...row, source: 'guess' }]).some((e) => e.includes('source must be one of')));
+});
+
+test('the report shows the file table in plain words', () => {
+  const base = v22([session()]);
+  assert.doesNotMatch(formatReport(base, 'INTACT', []), /^Files/m);
+  const out = formatReport({ ...base, code_files: [{ file: 'a.py', tools: ['Claude'], role: 'improved', source: 'marker' }, { file: 'b.py', tools: ['Copilot'], role: 'generated', source: 'student' }] }, 'INTACT', []);
+  assert.match(out, /^ {2}a\.py: AI improved the student's code, Claude$/m);
+  assert.match(out, /^ {2}b\.py: AI wrote it, Copilot \(added by the student\)$/m);
 });

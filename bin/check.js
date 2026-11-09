@@ -105,6 +105,13 @@ const MARKABLE = new Set([
   '.jsx', '.tsx', '.php', '.vue', '.svelte',
 ]);
 
+/**
+ * Any PromptCite marker the student hasn't disputed, for the file table
+ * (`--files`). Same comment-opening rule as MARKER. `@ai-disputed` is left out
+ * on purpose: it's the student saying the AI didn't write that block.
+ */
+const ANY_MARKER = new RegExp(`^\\s*${COMMENT_OPEN}\\s*@ai-(assisted|unverified|verified)\\b\\s+(\\d{4}-\\d{2}-\\d{2})\\b([^\\n]*?)\\s*${VENDOR}\\s*\\(pc:([0-9a-f]{5,16})\\)`);
+
 /** Big files are generated files. A marker lives in something a person edits. */
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -255,6 +262,59 @@ export function scan(root, { all = false } = {}) {
   return { hits, skipped };
 }
 
+/**
+ * @typedef {{ line: number, state: 'assisted' | 'unverified' | 'verified', date: string, model: string | null, id: string }} FileMarker
+ */
+
+/**
+ * Every marker in `contents`, any state but disputed, 1-indexed. Skips tags
+ * inside strings, the same as pendingLines.
+ *
+ * @param {string} contents
+ * @returns {FileMarker[]}
+ */
+export function markersIn(contents) {
+  /** @type {FileMarker[]} */
+  const out = [];
+  const lines = contents.split('\n');
+  let offset = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (line === undefined) break;
+    const m = ANY_MARKER.exec(line);
+    if (m && !insideStringLiteral(contents.slice(0, offset))) {
+      const model = (m[3] ?? '').trim();
+      out.push({ line: i + 1, state: /** @type {FileMarker['state']} */ (m[1]), date: String(m[2]), model: model || null, id: String(m[4]) });
+    }
+    offset += line.length + 1;
+  }
+  return out;
+}
+
+/**
+ * Files carrying PromptCite markers, for the receipt's file table. Facts from
+ * the markers only: which file, which model, when, and whether each block was
+ * verified. Whether the AI wrote a file or improved the student's is the
+ * student's answer, so nothing here guesses at it, and nothing is counted.
+ *
+ * @param {string} root
+ * @param {{ all?: boolean }} [options]
+ * @returns {{ file: string, models: string[], dates: string[], markers: FileMarker[] }[]}
+ */
+export function markedFiles(root, { all = false } = {}) {
+  const out = [];
+  for (const file of walk(root, { all })) {
+    const contents = readTextFile(file);
+    if (contents === null || !contents.includes(VENDOR)) continue;
+    const markers = markersIn(contents);
+    if (markers.length === 0) continue;
+    const models = [...new Set(markers.map((m) => m.model).filter((m) => m !== null))].sort();
+    const dates = [...new Set(markers.map((m) => m.date))].sort();
+    out.push({ file: (relative(root, file) || file).split('\\').join('/'), models: /** @type {string[]} */ (models), dates, markers });
+  }
+  return out;
+}
+
 function printHelp() {
   console.log(`promptcite-check — find AI-written blocks you haven't verified yet
 
@@ -269,6 +329,8 @@ Options:
   -a, --all     also walk build and dependency directories, which are
                 skipped by default: ${[...SKIP_DIRS].slice(0, 6).join(', ')}, and others
   -q, --quiet   report through the exit code alone
+  --files       list every file with a PromptCite marker, for the receipt's
+                file table (always exits 0). Add --json for the raw list
 
 Exit codes:
   0  nothing pending
@@ -292,6 +354,31 @@ export function runCheck(argv) {
   const all = argv.includes('-a') || argv.includes('--all');
   const args = argv.filter((/** @type {string} */ a) => !a.startsWith('-'));
   const root = resolve(args[0] || process.cwd());
+
+  if (argv.includes('--files')) {
+    let files;
+    try {
+      files = markedFiles(root, { all });
+    } catch {
+      console.error(`error: cannot read ${root}`);
+      return 3;
+    }
+    if (argv.includes('--json')) {
+      console.log(JSON.stringify(files, null, 2));
+      return 0;
+    }
+    if (files.length === 0) {
+      console.log('No PromptCite markers in this project. AI use without a marker is still yours to list.');
+      return 0;
+    }
+    for (const f of files) {
+      console.log(`${f.file}  ${f.models.length ? f.models.join(', ') : 'model not recorded'}  ${f.dates.join(', ')}`);
+      for (const m of f.markers) console.log(`  line ${m.line}: ${m.state}`);
+    }
+    console.log('');
+    console.log('These are the files with markers. Whether the AI wrote each one or improved yours is your answer to give.');
+    return 0;
+  }
 
   /** @type {{ hits: { file: string, line: number }[], skipped: string[] }} */
   let result;

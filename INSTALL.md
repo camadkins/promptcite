@@ -299,6 +299,11 @@ Exit `0` nothing pending, `1` something is still unverified, `3` bad path.
 It needs the hook installed with `markers.attest` (or an instructor's
 `require_attestation`) turned on, since it reads the markers the hook writes.
 A clean run means no pending markers, which is not the same as no AI use.
+
+`promptcite-check --files` lists every file with a PromptCite marker, with
+the model and date from each one, for the receipt's file table. `/receipt`
+runs it on code assignments and asks you what the AI did to each file. Add
+`--json` for the raw list.
 | `--init-config` | Scaffold a starter `promptcite.config.json` in the current directory. |
 | `--force` | Re-run even if already installed. |
 | `--uninstall` | Remove everything. |
