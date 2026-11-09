@@ -286,7 +286,21 @@ at [`docs/promptcite.policy.example.json`](./promptcite.policy.example.json):
 }
 ```
 
-All keys are optional. The policy is **configuration, not a receipt** — it
+More examples, one per kind of course:
+
+- [Writing course](./promptcite.policy.writing-course.example.json) —
+  ENGL 251, a policy analysis essay. Brainstorm, outline, search and
+  edit are allowed, MLA style, and search use must be source verified.
+  No drafting or debugging.
+  - [CS course](./promptcite.policy.cs-course.example.json) —
+    CSCE 423, programming assignments. Explain, brainstorm, search and
+    debug are allowed, IEEE style, debug use needs a diff or test log
+    appendix, and students attest to what they checked.
+    - [Lab course](./promptcite.policy.lab-course.example.json) —
+      BIOL 210, lab reports. Explain, brainstorm, outline and search are
+      allowed, APA style, and search use must be source verified.
+
+      All keys are optional. The policy is **configuration, not a receipt** — it
 is never hashed, never embedded in a student's receipt, and makes no
 network calls. It guides honest disclosure; it does **not** detect or
 prevent dishonesty (a student can ignore or edit the file). Same trust
