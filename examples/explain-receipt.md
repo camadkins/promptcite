@@ -22,8 +22,8 @@ tool/model/date.
 ## Citation (MLA)
 
 ```
-"How a carbon tax works." prompt. *ChatGPT*,
-GPT-4o version, OpenAI, 12 May 2026.
+"How a carbon tax works" prompt. *ChatGPT*, model GPT-4o,
+OpenAI, 12 May 2026, chatgpt.com.
 ```
 
 Drop this in your Works Cited.
@@ -31,15 +31,19 @@ Drop this in your Works Cited.
 ## Citation (APA)
 
 ```
-OpenAI. (2026). ChatGPT (GPT-4o version) [Large language model].
+OpenAI. (2026). *ChatGPT* [Large language model].
+https://chatgpt.com/
 ```
 
 ## Citation (Chicago — notes-bibliography)
 
 ```
-ChatGPT, GPT-4o, response to "How a carbon tax works,"
-May 12, 2026, OpenAI.
+Response to "How a carbon tax works," ChatGPT GPT-4o, OpenAI,
+May 12, 2026.
 ```
+
+Use this as a footnote. Chicago usually leaves AI output out of the
+bibliography.
 
 ## Disclosure paragraph
 
