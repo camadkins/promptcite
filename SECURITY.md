@@ -19,17 +19,29 @@ consent).
 
 ## Threat model
 
-PromptCite is a local-first installer and a markdown rule file. The
-attack surface is intentionally minimal:
+PromptCite is a local-first installer, a markdown rule file, and a few small
+command-line tools. The attack surface is intentionally minimal:
 
-- **No network calls** from the receipt generator itself.
-- **No telemetry** of any kind.
+- **No network calls** from anything PromptCite ships, once installed. The
+  install scripts download PromptCite itself, and the installer may invoke an
+  agent's own CLI (for example to register a Gemini extension).
+- **No telemetry** of any kind, and zero runtime dependencies.
 - **No data leaves the student's machine** except artifacts the student
-  themselves produces (receipt JSON, citation strings, disclosure
-  paragraphs).
-- **The installer's only file writes** are to documented agent config
-  directories (e.g. `~/.claude/`, `~/.cursor/`, `.github/`) and, with
-  `--with-init`, to the current working directory.
+  themselves produces and hands over (receipts, citations, disclosures,
+  declarations, timelines).
+- **File writes, all local and documented:**
+  - the installer, to documented agent config directories (e.g. `~/.claude/`,
+    `~/.cursor/`, `.github/`) and, with `--with-init`, the current directory,
+    plus the help docs in `~/.promptcite/help/`;
+  - the optional hook, to the ledger in `~/.promptcite/ledgers/` and, only when
+    the student turns markers on, a one-line marker comment in a file the agent
+    just edited;
+  - course files in `~/.promptcite/courses/`, only after the student approves;
+  - `promptcite timeline` and `promptcite policy init`, to the current
+    directory, never over an existing timeline.
+- **One subprocess at runtime:** `promptcite timeline` runs `git log` through
+  `execFile` with an argument array (no shell), with external diff and textconv
+  turned off so repository config can't attach a command to it.
 
 In-scope concerns we take seriously:
 
@@ -37,6 +49,10 @@ In-scope concerns we take seriously:
   prior message that hijacks the receipt-generation flow.
 - **Path traversal** in the installer's file-write logic.
 - **Settings.json corruption** during the JSONC merge.
+- **The hook writing somewhere it shouldn't**, or a marker landing inside a
+  string and changing a program's behavior.
+- **Timeline chain weaknesses** beyond the documented limit (a student can
+  recompute the chain after editing; see ADR 0015).
 
 Out-of-scope (per design):
 
