@@ -199,6 +199,18 @@ to confirm. `/receipt course` shows the active course's rules and
 turn recording on: `require_ledger`, `require_markers`, and
 `require_attestation` stay assignment-only.
 
+**AI levels.** If the syllabus gives a level per assignment ("homework is AIAS
+Level 2, the final project is Level 3"), the course file keeps each level
+with its quote. Before writing a receipt, `/receipt` checks what you logged
+against the level and shows the rule if a use goes past it. It still writes
+the receipt. You can run the same check yourself:
+
+```bash
+promptcite policy check draft edit                    # this folder's level
+promptcite policy check draft --assignment final      # one assignment in the bound course
+promptcite policy check --course engl-150             # just show the level
+```
+
 A course file is your reading of the syllabus, for your screen. It is never
 written into a receipt, and the syllabus and your instructor stay the
 authority.

@@ -45,6 +45,11 @@ treats silence as permission. If the assignment folder has a
 Commands: `promptcite course`, `course show <id>`, `course use <id>`,
 `course clear`, `course check <file>`.
 
+If the assignment has an AI level (AIAS 1 to 5, or the instructor's own
+scale), `/receipt` tells you the level at the start and warns before output
+if what you logged goes past it, quoting the rule. It writes the receipt
+anyway. Check by hand with `promptcite policy check <uses>`.
+
 ## Verifying a receipt (for instructors too)
 
 `promptcite-verify receipt.json` checks it. Add `--submission <file>` to check

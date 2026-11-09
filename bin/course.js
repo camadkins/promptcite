@@ -12,6 +12,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
+import { CATEGORIES, checkAiLevel } from './level.js';
 
 /**
  * @typedef {Object} CourseCheck
@@ -28,8 +29,8 @@ import { basename, join } from 'node:path';
  * @property {string[]} warnings
  */
 
-/** Use categories, matching src/schema.yaml. */
-export const CATEGORIES = ['brainstorm', 'outline', 'draft', 'edit', 'debug', 'explain', 'search'];
+/** Use categories, matching src/schema.yaml. Defined in bin/level.js. */
+export { CATEGORIES };
 export const PROFILES = ['code', 'essay', 'lab-report', 'math-proof', 'studio'];
 export const CITATION_STYLES = ['MLA', 'APA', 'Chicago', 'IEEE', 'Harvard'];
 export const APPENDICES = ['share_link_or_excerpt', 'full_transcript', 'diff_or_test_log'];
@@ -45,6 +46,7 @@ export const COURSE_POLICY_KEYS = [
   'disclosure_language',
   'require_source_verification',
   'required_appendix',
+  'ai_level',
 ];
 
 /**
@@ -54,7 +56,7 @@ export const COURSE_POLICY_KEYS = [
  */
 export const ASSIGNMENT_ONLY_KEYS = ['require_ledger', 'require_markers', 'require_attestation'];
 
-const TOP_LEVEL_KEYS = ['id', 'name', 'aliases', 'term', 'instructor', 'policy', 'guidance', 'unclear', 'source'];
+const TOP_LEVEL_KEYS = ['id', 'name', 'aliases', 'term', 'instructor', 'policy', 'assignments', 'guidance', 'unclear', 'source'];
 
 /**
  * Lowercase letters, digits, and single dashes; starts and ends alphanumeric.
@@ -113,47 +115,59 @@ function isIsoDate(v) {
 /**
  * @param {unknown} policy
  * @param {string[]} errors
+ * @param {{ prefix?: string, assignmentFile?: boolean }} [opts]
+ *   `assignmentFile` is true when checking a promptcite.policy.json, where the
+ *   assignment-only keys are allowed.
  */
-function checkPolicy(policy, errors) {
+function checkPolicy(policy, errors, { prefix = 'policy.', assignmentFile = false } = {}) {
   if (!isObject(policy)) {
-    errors.push('policy must be an object');
+    errors.push(`${prefix.replace(/\.$/, '') || 'policy'} must be an object`);
     return;
   }
+  const at = (/** @type {string} */ msg) => errors.push(prefix + msg);
   for (const [key, value] of Object.entries(policy)) {
     if (key === '_comment') continue;
+    if (assignmentFile && ASSIGNMENT_ONLY_KEYS.includes(key)) {
+      if (typeof value !== 'boolean') at(`${key} must be true or false`);
+      continue;
+    }
     if (ASSIGNMENT_ONLY_KEYS.includes(key)) {
-      errors.push(`policy.${key} is assignment-only: it belongs in that assignment's promptcite.policy.json, which is the only file the hook reads`);
+      at(`${key} is assignment-only: it belongs in that assignment's promptcite.policy.json, which is the only file the hook reads`);
       continue;
     }
     if (!COURSE_POLICY_KEYS.includes(key)) {
-      errors.push(`policy.${key} is not a policy key (allowed: ${COURSE_POLICY_KEYS.join(', ')})`);
+      const allowed = assignmentFile ? [...COURSE_POLICY_KEYS, ...ASSIGNMENT_ONLY_KEYS] : COURSE_POLICY_KEYS;
+      at(`${key} is not a policy key (allowed: ${allowed.join(', ')})`);
       continue;
     }
     switch (key) {
       case 'profile':
-        if (!PROFILES.includes(value)) errors.push(`policy.profile must be one of ${PROFILES.join(', ')}`);
+        if (!PROFILES.includes(value)) at(`profile must be one of ${PROFILES.join(', ')}`);
         break;
       case 'required_citation_style':
-        if (!CITATION_STYLES.includes(value)) errors.push(`policy.required_citation_style must be one of ${CITATION_STYLES.join(', ')}`);
+        if (!CITATION_STYLES.includes(value)) at(`required_citation_style must be one of ${CITATION_STYLES.join(', ')}`);
         break;
       case 'disclosure_language':
-        if (!isText(value)) errors.push('policy.disclosure_language must be a language code such as "en"');
+        if (!isText(value)) at('disclosure_language must be a language code such as "en"');
         break;
       case 'allowed_categories':
       case 'require_source_verification':
         if (!Array.isArray(value) || !value.every((c) => CATEGORIES.includes(c))) {
-          errors.push(`policy.${key} must be a list drawn from ${CATEGORIES.join(', ')}`);
+          at(`${key} must be a list drawn from ${CATEGORIES.join(', ')}`);
         }
         break;
       case 'required_appendix':
         if (!isObject(value)) {
-          errors.push('policy.required_appendix must be an object of category → appendix');
+          at('required_appendix must be an object of category → appendix');
           break;
         }
         for (const [cat, appendix] of Object.entries(value)) {
-          if (!CATEGORIES.includes(cat)) errors.push(`policy.required_appendix.${cat} is not a use category`);
-          else if (!APPENDICES.includes(appendix)) errors.push(`policy.required_appendix.${cat} must be one of ${APPENDICES.join(', ')}`);
+          if (!CATEGORIES.includes(cat)) at(`required_appendix.${cat} is not a use category`);
+          else if (!APPENDICES.includes(appendix)) at(`required_appendix.${cat} must be one of ${APPENDICES.join(', ')}`);
         }
+        break;
+      case 'ai_level':
+        checkAiLevel(value, `${prefix}ai_level`, errors);
         break;
     }
   }
@@ -193,6 +207,34 @@ export function validateCourse(course) {
   }
 
   if (course.policy !== undefined) checkPolicy(course.policy, errors);
+
+  if (course.assignments !== undefined) {
+    if (!Array.isArray(course.assignments)) {
+      errors.push('assignments must be a list');
+    } else {
+      /** @type {Map<string, number>} */
+      const names = new Map();
+      course.assignments.forEach((/** @type {unknown} */ a, /** @type {number} */ i) => {
+        if (!isObject(a)) {
+          errors.push(`assignments[${i}] must be an object with name and ai_level`);
+          return;
+        }
+        if (!isText(a.name)) errors.push(`assignments[${i}] has no name, like "Homework"`);
+        if (a.aliases !== undefined && !isTextList(a.aliases)) errors.push(`assignments[${i}].aliases must be a list of non-empty strings`);
+        for (const n of [a.name, ...(isTextList(a.aliases) ? a.aliases : [])].filter(isText)) {
+          const key = n.toLowerCase().replace(/[\s_-]+/g, '');
+          const prev = names.get(key);
+          if (prev !== undefined && prev !== i) errors.push(`assignments[${i}] reuses the name "${n}" from assignments[${prev}]`);
+          else names.set(key, i);
+        }
+        if (a.ai_level === undefined) errors.push(`assignments[${i}] has no ai_level`);
+        else checkAiLevel(a.ai_level, `assignments[${i}].ai_level`, errors);
+        for (const key of Object.keys(a)) {
+          if (!['_comment', 'name', 'aliases', 'ai_level'].includes(key)) warnings.push(`assignments[${i}].${key} is ignored`);
+        }
+      });
+    }
+  }
 
   if (course.guidance !== undefined) {
     if (!Array.isArray(course.guidance)) {
@@ -238,7 +280,8 @@ export function validateCourse(course) {
 
   const hasGuidance = Array.isArray(course.guidance) && course.guidance.length > 0;
   const hasPolicy = isObject(course.policy) && Object.keys(course.policy).some((k) => k !== '_comment');
-  if (!hasGuidance && !hasPolicy && errors.length === 0) {
+  const hasAssignments = Array.isArray(course.assignments) && course.assignments.length > 0;
+  if (!hasGuidance && !hasPolicy && !hasAssignments && errors.length === 0) {
     warnings.push('no guidance and no policy: this course file tells PromptCite nothing yet');
   }
 
@@ -271,6 +314,45 @@ export function readCourseFile(file) {
     return { course: null, errors: ['not valid JSON'], warnings: [] };
   }
   return { course, ...validateCourse(course) };
+}
+
+/**
+ * Check a parsed promptcite.policy.json. Same keys as a course file's policy,
+ * plus the three assignment-only switches. Unknown keys are errors here too:
+ * an instructor's typo silently ignored is a rule the student never sees.
+ *
+ * @param {unknown} policy
+ * @returns {CourseCheck}
+ */
+export function validatePolicy(policy) {
+  /** @type {string[]} */
+  const errors = [];
+  checkPolicy(policy, errors, { prefix: '', assignmentFile: true });
+  return { errors, warnings: [] };
+}
+
+/**
+ * Read and check a promptcite.policy.json. Null when there is no file.
+ *
+ * @param {string} file
+ * @returns {{ policy: any, errors: string[], warnings: string[] } | null}
+ */
+export function readPolicyFile(file) {
+  let raw;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : '';
+    if (code === 'ENOENT') return null;
+    return { policy: null, errors: [`can't read ${file}`], warnings: [] };
+  }
+  let policy;
+  try {
+    policy = JSON.parse(raw);
+  } catch {
+    return { policy: null, errors: ['not valid JSON'], warnings: [] };
+  }
+  return { policy, ...validatePolicy(policy) };
 }
 
 /**

@@ -20,6 +20,13 @@ each installed rule matches this version. It writes nothing.
 - Mention the course the way the file names it (id, name, or an alias), or
   bind the folder: `promptcite course use <id>`.
 
+## It didn't warn about my AI level
+
+- `promptcite policy check` shows which level applies here and where it came
+  from. Add `--assignment <name>` for one assignment in your course file.
+- On AIAS, levels 3, 4, and 5 all allow every use category, so the check
+  can't tell them apart. Read your instructor's quote for what each one means.
+
 ## The receipt missed earlier work
 
 - With `promptcite on` and the hook installed (`promptcite --only claude-hook`

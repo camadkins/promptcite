@@ -193,6 +193,7 @@ match. All keys are optional:
 ```json
 {
   "allowed_categories": ["brainstorm", "outline", "search"],
+  "ai_level": { "level": 2, "quote": "You may use AI to brainstorm and outline. Everything you submit must be your own.", "where": "Assignment 3" },
   "required_citation_style": "APA",
   "disclosure_language": "en",
   "require_source_verification": ["search", "draft"],
@@ -205,6 +206,11 @@ match. All keys are optional:
 ```
 
 How each key steers the interview:
+
+- **`ai_level`** — how much AI this assignment allows, on the AI Assessment
+  Scale (AIAS, levels 1 to 5) or a scale the instructor names, with the rule
+  quoted word for word. Name the level in one line at the start, and run the
+  level check (Step 4b) before output. See *AI levels*.
 
 - **`allowed_categories`** — in Step 2, offer only these categories. If
   the student picks one outside the list, tell them the instructor's
@@ -246,6 +252,41 @@ debug — I'll ask for those."* Policy is **configuration, not a receipt**:
 never hashed, never emitted inside the JSON. If the file is absent or
 malformed, ignore it and run normally.
 
+## AI levels (`ai_level`)
+
+Many instructors state AI rules as a level per assignment rather than a list
+of uses: "Homework is Level 2, the final project is Level 3." An `ai_level`
+holds that level and the instructor's own words for it:
+
+```json
+{ "level": 2, "quote": "You may use AI to brainstorm and outline. Everything you submit must be your own.", "where": "Assignment 3" }
+```
+
+- **`level`** — 1 to 5 on the **AI Assessment Scale (AIAS)**, the default
+  scale: 1 No AI, 2 AI Planning, 3 AI Collaboration, 4 Full AI, 5 AI
+  Exploration. A custom scale goes in `scale` as `{ "name", "levels": [{
+  "level", "label", "allows": [categories] }] }`, and `level` names one of
+  its levels.
+- **`quote`** — required. The rule in its source's words. A level with no
+  quote is a paraphrase nobody can check.
+- **`where`** — optional, the section or page.
+
+PromptCite reads AIAS levels as use categories this way: level 1 allows none,
+level 2 allows `brainstorm`, `outline`, `search`, and `explain`, and levels 3
+to 5 allow all seven. Levels 3 to 5 differ in how much of the work AI may
+produce, which a category can't show, so the check can only catch a use that
+goes past level 1 or 2. Say so if the student asks why a level 4 assignment
+gave no warning that a level 3 one would have needed.
+
+**Where a level comes from**, highest first: the assignment's
+`promptcite.policy.json` > the active course file's matching `assignments`
+entry > the course file's `policy.ai_level`.
+
+**The level check is a warning, never a gate.** It shows the level, the uses
+that go past it, and the quote, and then the receipt goes ahead. A student
+disclosing a use their level doesn't allow is writing exactly the receipt they
+should. Never put an `ai_level`, its quote, or the warning into a receipt.
+
 ## Course files (`~/.promptcite/courses/<id>.json`)
 
 An instructor's rules for AI use usually live in the syllabus, not in a
@@ -281,7 +322,11 @@ the student can read, edit, or delete it at any time.
 - **`policy`** — the same keys as `promptcite.policy.json` **except**
   `require_ledger`, `require_markers`, and `require_attestation`. Those stay
   assignment-only, because the hook reads only the assignment's policy file. A
-  course file cannot switch recording on.
+  course file cannot switch recording on. `policy.ai_level` is the course's
+  default level (see *AI levels*).
+- **`assignments`** — optional, for a syllabus that sets a level per kind of
+  assignment: a list of `{ "name", "aliases", "ai_level" }`, like
+  `{ "name": "Final project", "aliases": ["final"], "ai_level": { "level": 3, "quote": "..." } }`.
 - **`guidance`** — what the syllabus says, one rule per entry. `rule` is a
   plain sentence; `quote` is the syllabus's **verbatim** text that the rule
   comes from; `where` is the section or page. Every rule has a quote.
@@ -310,6 +355,12 @@ Resolve the course once per run, in this order:
 3. **None** — no binding and no match. Run exactly as you would without
    course files. Do not ask the student to set one up unless they ask about
    course rules.
+
+**Which assignment.** When the active course has `assignments`, match the
+assignment the student names (or the Step 1 title) against each entry's
+`name` and `aliases` the same way, and confirm in one line: *"Treating this as
+the Final project, AIAS level 3."* No match means the course's own
+`policy.ai_level`, if any. Never pick an assignment from the directory alone.
 
 If the bound file is missing or fails `promptcite course check`, say so in one
 line, suggest `promptcite course check ~/.promptcite/courses/<id>.json`, and
@@ -353,7 +404,11 @@ syllabus restricts, and an honest receipt is still the right output.
 5. **Fill policy only from explicit text.** Set `policy` keys only where the
    syllabus states them outright (e.g. "cite in IEEE format"). Leave the rest
    out. Never add `require_ledger`, `require_markers`, or
-   `require_attestation`.
+   `require_attestation`. The same goes for AI levels: add `policy.ai_level`
+   or an `assignments` entry only where the syllabus names a level ("AIAS
+   Level 2", "this assignment is amber on our scale"), quoting that sentence.
+   Never turn prose like "AI may help you brainstorm" into a level yourself.
+   That reading goes in `guidance`.
 6. **Ask for the identity fields** you could not read from the syllabus: the
    short `name` the student uses, any `aliases`, and the `id` (suggest one,
    like `csce-423`).
@@ -828,6 +883,9 @@ First, load configuration:
   folder's `course` binding, else a course the student named, confirmed in
   one line. Apply its `policy` beneath the assignment policy and above
   settings, and use its `name` and `instructor` for Step 1.
+- **AI level** — resolve the `ai_level` (see *AI levels* above) and name it in
+  one line: *"This assignment is AIAS level 2, AI Planning."* Nothing set →
+  say nothing about levels.
 - **Profile** — resolve the interview's shape (see *Profiles* above): policy,
   then settings, then your own read of the directory and the assignment. When
   you inferred it, confirm in one line so the student can switch.
@@ -1013,6 +1071,25 @@ Ask one final question:
 Capture the student's response verbatim into the `revision_statement`
 field. If they say "nothing" or similar, leave the field empty and
 move on.
+
+### Step 4b — Level check (only when an `ai_level` applies)
+
+Before any output, check every use category in this receipt (all sessions,
+including ones already in an existing receipt) against the level. Run:
+
+```
+promptcite policy check <category> <category> ... [--course <id>] [--assignment <name>]
+```
+
+Pass `--course` when the course came from what the student said rather than
+a folder binding, and `--assignment` when a course assignment matched. If the
+output has an `over:` line, show the student its warning text **as printed**,
+then go on to Step 5. If the command isn't available, build the same warning
+from *AI levels* yourself: the level and its label, what it allows, the uses
+past it, and the `quote` word for word. Never shorten or soften the quote.
+
+Do not ask the student to change their answers because of it. The warning
+is information for them, and the receipt records what happened.
 
 ### Step 5 — Output
 
@@ -1531,6 +1608,9 @@ End with one short line:
   paraphrase a course rule into something looser than its quote.
 - Put a course file, or any of its guidance or quotes, into a receipt, a
   ledger, or any other output.
+- Assign an AI level the syllabus or instructor didn't state, put a level or
+  its warning into a receipt, or treat a level warning as a reason to change
+  the student's answers.
 - Capture the raw prompt log without explicit student opt-in via the
   `full_transcript` appendix.
 - Embellish the student's answers, fabricate details, or "improve" the
