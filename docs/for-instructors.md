@@ -415,7 +415,7 @@ first, and it's never offered for a use past the rule. See
 [ADR 0013](./adr/0013-students-may-cite-the-course-rule.md).
 
 **Policy that PromptCite explicitly does not support:**
-> ❌ "Submit a PromptCite receipt to verify your AI use." — PromptCite
+> "Submit a PromptCite receipt to verify your AI use." — PromptCite
 > does not verify anything. It is a disclosure artifact, not a
 > verification mechanism. A student who lies on the receipt produces
 > an inaccurate receipt; PromptCite cannot catch that. The same
@@ -539,7 +539,7 @@ PromptCite is usually easier to approve than it looks:
 | Accounts, logins, hosted service? | None. There is no server. |
 | Third-party dependencies? | Zero runtime dependencies — Node built-ins only, CI-enforced. |
 | Where does student data live? | On the student's machine, and nowhere else. |
-| Is the source auditable? | Yes — AGPL-3.0-only, ~1,100 lines, on GitHub. |
+| Is the source auditable? | Yes. AGPL-3.0-only, plain JavaScript with no build step, on GitHub. |
 | What does it install? | One rule file per agent. The hook and the attestation gate are separate and opt-in. |
 | Does the check tool report anywhere? | No. `promptcite-check` reads files, prints to the terminal, and exits. It writes nothing and sends nothing. |
 | Can it be removed cleanly? | Yes — `--uninstall` per agent; the hook removes only its own entry. |

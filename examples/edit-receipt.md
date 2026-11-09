@@ -1,6 +1,6 @@
 # Example — Edit receipt
 
-A sample PromptCite receipt. The full JSON is in
+A sample PromptCite receipt at schema 2.2. The full JSON is in
 [`edit-receipt.json`](./edit-receipt.json). This file
 renders it in the three forms a student actually pastes into a
 submission.
@@ -86,26 +86,23 @@ Tamper-evident speed bump, not tamper-proof. Honest about its limits.
 - The **`agent_reported` metadata path:** the AI filled in its own
   identity, and the disclosure paragraph mentions this for the
   instructor's awareness
-- All **three citation styles** generated from one interview pass —
-  the student picks one for their paper's style guide; the others are
-  there for the instructor if they prefer a different format
+- All **five citation styles** (MLA, APA, Chicago, IEEE, Harvard) are
+  stored on the session from one interview pass. Three are shown above;
+  the student pastes the one their course uses, and the instructor can
+  use any of the others
 - **`source_verification: null`** — editing didn't involve sources,
   so the field stays null. The disclosure paragraph does not include
   a "I independently verified..." sentence for this category.
+- **`extent: none`**: no AI text appears in the submission, so there is
+  no `student_change`
 
 ## Other categories
 
-This is the edit example. The other six `use_category` values
-(`brainstorm`, `outline`, `draft`, `debug`, `explain`, `search`) follow the
-same structural pattern but with different category-specific prompts
-and different optional fields:
-
-- `draft` typically includes a `share_link_or_excerpt` for
-  higher-stakes writing
-- `debug` may include a `diff_or_test_log` appendix for code
-  assignments
-- `search` always includes `source_verification` (required for that
-  category)
+This is the edit example. Others in this folder: [brainstorm](./brainstorm-receipt.md)
+(kept at schema 1.1 to show older receipts still verify), [draft](./draft-receipt.md),
+[search with an unconfirmed source](./sources-receipt.md), [code with a file
+table](./files-receipt.md), [several sessions](./multi-session-receipt.md), and
+[a reflection](./reflection-receipt.md).
 
 See [`src/rules/receipt.md`](../src/rules/receipt.md) for the full
 interview rule and category-specific output templates.

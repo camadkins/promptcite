@@ -682,7 +682,7 @@ test('a full_transcript appendix is not rejected: the opt-in is not recorded in 
 });
 
 test('the shipped examples still validate and verify', async () => {
-  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json', 'files-receipt.json', 'sources-receipt.json']) {
+  for (const f of ['brainstorm-receipt.json', 'multi-session-receipt.json', 'draft-receipt.json', 'edit-receipt.json', 'explain-receipt.json', 'course-rule-receipt.json', 'journal-receipt.json', 'short-receipt.json', 'reflection-receipt.json', 'files-receipt.json', 'sources-receipt.json']) {
     const path = new URL(`../examples/${f}`, import.meta.url).pathname;
     assert.equal(await runVerify([path]), 0, f);
   }
