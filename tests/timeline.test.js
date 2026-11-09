@@ -122,7 +122,7 @@ test('the ledger stays out unless asked, and is shown before it goes in', async 
   await withAssignment(async (dir, home) => {
     const path = resolveLedgerPath(dir, home);
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify({ schema_version: '1.0', event_id: 'abc12', ts: '2026-11-03T15:00:00Z', tool: 'claude-code', file: 'essay.md', lines_added: 12 })}\nnot json\n`);
+    writeFileSync(path, `${JSON.stringify({ schema_version: '1.0', event_id: 'abc12', ts: '2026-11-03T15:00:00Z', tool: 'claude-code', file: 'essay.md', lines_added: 12 })}\nnot json\n${JSON.stringify({ schema_version: '1.0', event_id: 'def34', ts: '2026-11-03T14:00:00Z', tool: 'claude-code', type: 'session', session_id: 's1', transcript_path: '/home/x/t.jsonl' })}\n`);
 
     await run(dir, [], { home });
     assert.ok(readTimeline(dir).entries.every((/** @type {any} */ e) => e.kind !== 'ledger'), 'ledger leaked in without --with-ledger');
@@ -138,6 +138,8 @@ test('the ledger stays out unless asked, and is shown before it goes in', async 
     const t = readTimeline(dir, 'promptcite-timeline-3.json');
     const led = t.entries.filter((/** @type {any} */ e) => e.kind === 'ledger');
     assert.equal(led.length, 1);
+    assert.equal(led[0].event_id, 'abc12', 'a session pointer became an insertion note');
+    assert.doesNotMatch(readFileSync(join(dir, 'promptcite-timeline-3.md'), 'utf8'), /undefined|t\.jsonl/);
     assert.match(led[0].note, /incomplete by design/);
     assert.equal(t.sources.ledger, true);
     assert.match(readFileSync(join(dir, 'promptcite-timeline-3.md'), 'utf8'), /ledger note .* incomplete by design/);

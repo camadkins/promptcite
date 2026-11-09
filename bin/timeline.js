@@ -144,6 +144,9 @@ export function ledgerEntries(cwd, { home = homedir(), since = null } = {}) {
     let ev;
     try { ev = JSON.parse(line); } catch { continue; }
     if (!ev || typeof ev.ts !== 'string' || Date.parse(ev.ts) < floor) continue;
+    // Insertions only. A typed event (`session` pointers, or a type this version
+    // doesn't know) is skipped, as src/ledger.schema.yaml requires of readers.
+    if (ev.type !== undefined || typeof ev.file !== 'string' || !Number.isInteger(ev.lines_added)) continue;
     /** @type {Entry} */
     const e = { at: ev.ts, kind: 'ledger', event_id: ev.event_id, tool: ev.tool, file: ev.file, lines_added: ev.lines_added, note: LEDGER_NOTE };
     if (ev.model) e.model = ev.model;
