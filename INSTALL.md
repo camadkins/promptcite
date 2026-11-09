@@ -217,6 +217,25 @@ authority. The one exception is yours to make: when a rule allows what you
 did, `/receipt` can offer to open your disclosure with it, quoted, and shows
 you the sentence first. Say no and it doesn't.
 
+## Process timeline
+
+If your work gets flagged or questioned, `promptcite timeline` puts this
+folder's receipts and git commits in date order in one file you can hand
+over:
+
+```bash
+promptcite timeline                       # writes promptcite-timeline.json and .md
+promptcite timeline --since 2026-11-01    # only commits from this date on
+promptcite timeline --with-ledger         # add your ledger notes, shown to you first
+promptcite timeline verify promptcite-timeline.json
+```
+
+Each entry is hash-chained to the one before, so an edit shows. It's evidence
+of process, not proof: it can't show the list is complete or when it was made.
+Hand the head hash in with your work and a later copy can be checked against
+it. The ledger never goes in unless you ask, and `/receipt` clears ledger
+entries it has used, so run the timeline first if you want them. See ADR 0015.
+
 ## Manual install (no `curl | bash`)
 
 If you'd rather see exactly what runs:
@@ -312,5 +331,7 @@ PromptCite makes **no network calls** during receipt generation. The
 installer invokes the agent CLIs you already have installed and (with
 `--with-init`) writes to known config directories — nothing else leaves
 your machine. There is no telemetry, no analytics, no install ID.
+`promptcite timeline` reads your local `git log`, and it writes only into the
+current folder.
 
 See [`SECURITY.md`](./SECURITY.md) for the full threat model.

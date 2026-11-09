@@ -3,7 +3,7 @@
 
 # 0006 — The AI-use ledger lives outside the repository
 
-**Status:** Accepted
+**Status:** Accepted, amended by [0015](./0015-process-timeline.md)
 
 ## Context
 

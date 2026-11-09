@@ -14,7 +14,7 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0003](./0003-additive-schema-version-policy.md) | Additive schema-version policy | Accepted |
 | [0004](./0004-zero-runtime-dependencies.md) | Zero runtime dependencies | Accepted |
 | [0005](./0005-single-session-scope.md) | One receipt covers one session | Superseded by 0007 |
-| [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted |
+| [0006](./0006-ledger-outside-the-repository.md) | The AI-use ledger lives outside the repository | Accepted, amended by 0015 |
 | [0007](./0007-multi-session-receipts.md) | One receipt covers a whole assignment | Accepted |
 | [0008](./0008-attestation-over-provenance.md) | Attestation: record the verification, not just the provenance | Accepted |
 | [0009](./0009-course-policies-from-the-syllabus.md) | Course policies come from the syllabus, held by the student | Accepted, amended by 0013 |
@@ -23,3 +23,4 @@ choice. Format: Status / Context / Decision / Consequences.
 | [0012](./0012-stage-and-extent.md) | Stage and extent: closed lists the student picks from | Accepted |
 | [0013](./0013-students-may-cite-the-course-rule.md) | A student may choose to cite the course rule in their disclosure | Accepted |
 | [0014](./0014-other-forms-and-the-no-ai-declaration.md) | Other forms of the disclosure, and a no-AI declaration that isn't a receipt | Accepted |
+| [0015](./0015-process-timeline.md) | Process timeline: the student's own record, hash-chained, ledger only on request | Accepted |

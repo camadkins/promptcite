@@ -64,6 +64,10 @@ is responsible for accuracy; the reader evaluates plausibility.
   characters, for an LMS comment box) and `outputs.journal_statement` (a
   journal's AI declaration, Elsevier's wording by default). Optional, written
   only when asked, never in place of the disclosure paragraph. See ADR 0014.
+- **Process timeline** — what `promptcite timeline` writes: receipt sessions
+  and git commits (and ledger notes only on request) in date order, each
+  entry hash-chained to the one before. Evidence of process, never proof.
+  Format in `src/timeline.schema.yaml`. See ADR 0015.
 - **No-AI declaration** — what `/receipt none` writes: a statement that no AI
   was used, with no JSON and no hash, because a receipt without sessions is
   not a receipt. See ADR 0014.
