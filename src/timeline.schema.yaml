@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Cam Adkins
+#
+# PromptCite Process Timeline
+# ---------------------------
+# Contract for promptcite-timeline.json, written by `promptcite timeline`
+# (bin/timeline.js). Evidence of process the student compiles and chooses to
+# hand over. NOT a receipt (src/schema.yaml) and never folded into one. See
+# docs/adr/0015-process-timeline.md.
+#
+# Hash chain: hash(x) = sha256 of the canonical JSON of x (sorted keys, no
+# whitespace, UTF-8), the same canonicalization as a receipt's content_hash.
+#   header_hash    = hash({timeline_version, generated_at, note, student, assignment, sources})
+#   entries[0].prev = header_hash
+#   entries[i].prev = entries[i-1].hash
+#   entries[i].hash = hash(entries[i] without `hash`)
+#   head            = last entry's hash, or header_hash when there are none
+# Tamper-evident, not tamper-proof: the algorithm is public.
+
+timeline_version: "1.0"
+
+fields:
+  timeline_version: { type: string, required: true, description: 'Currently "1.0".' }
+  generated_at: { type: string, required: true, format: iso8601 }
+  note:
+    type: string
+    required: true
+    description: What the file can and can't show. Written by the tool, the same text every time.
+  student: { type: string, required: true, nullable: true, description: From the first receipt, or null. }
+  assignment:
+    type: object
+    required: true
+    nullable: true
+    description: course and title from the receipts. Receipts for different assignments are refused.
+  sources:
+    type: object
+    required: true
+    fields:
+      receipts: { type: array, item_type: string, description: Receipt file names, no paths. }
+      git: { type: boolean, description: Whether git history was read. }
+      git_skipped: { type: string, nullable: true, description: Why it wasn't. }
+      ledger: { type: boolean, description: True only when the student chose to include ledger notes. }
+  header_hash: { type: string, required: true, pattern: '^[a-f0-9]{64}$' }
+  entries:
+    type: array
+    required: true
+    description: Oldest first. Every entry has seq, at, kind, prev, hash.
+    kinds:
+      receipt_session: [receipt, session, tool, model, category, prompt_summary, share_link (only when the student attached a URL)]
+      commit: [sha, subject, files_changed, insertions, deletions]
+      ledger: [event_id, tool, model (when known), file, lines_added, note ("incomplete by design")]
+  head: { type: string, required: true, pattern: '^[a-f0-9]{64}$' }

@@ -33,6 +33,7 @@ Type these after `/receipt`:
 | `course` | Show which course this folder follows |
 | `ask <question>` | Answer from your course's AI rules, quoting the syllabus |
 | `none` | Write a no-AI declaration for an assignment you did without AI. No receipt |
+| `timeline` | Put this folder's receipts and git commits in date order, hash-chained (`promptcite timeline`) |
 | `help` | A short version of this page |
 
 ## Course rules

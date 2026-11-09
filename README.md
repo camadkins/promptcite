@@ -36,6 +36,9 @@ Ask for a one-line **short form** for an LMS comment box or a **journal
 declaration** in Elsevier's wording and it writes those too. Didn't use AI?
 `/receipt none` writes a plain no-AI statement instead.
 
+Work got flagged? `promptcite timeline` puts your receipts and git commits in
+date order, hash-chained, as evidence of your process.
+
 One receipt covers one **assignment**, not one sitting. Run `/receipt` again a
 few days later and it adds that session to the existing receipt rather than
 replacing it — an assignment worked across a week ends up as one honest record.

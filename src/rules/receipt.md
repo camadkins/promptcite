@@ -107,6 +107,8 @@ or behavior the docs don't state.
   NOT interview or generate a receipt.
 - **`none`** (or `--none`) → write a **no-AI declaration** (see *No-AI
   declaration* below). No receipt JSON is written.
+- **`timeline`** (or `--timeline`) → build a **process timeline** (see
+  *Process timeline* below). Do NOT interview or generate a receipt.
 - **anything else** → treat as the full interview and note once that the
   unrecognized argument was ignored.
 
@@ -905,13 +907,36 @@ and this has none, so no JSON is written and nothing is hashed.
    student, and today's date.
 5. **Display it** under `═══ No-AI Declaration ═══` with one closing line:
    *"This is your statement, not proof of anything. Your drafts and version
-   history are the evidence of your process, so keep them."* Never call the
+   history are the evidence of your process, so keep them."* If the folder
+   is a git repo, mention `promptcite timeline` (see *Process timeline*). Never call the
    declaration proof, evidence, or verification.
 
 Save it only when the student asks, as `ai-declaration.md` in the current
 directory by default, under the same never-overwrite rule as receipts
 (Step 6). If they later use AI on the assignment, the declaration no longer
 holds: say so, and write a receipt.
+
+## Process timeline
+
+When a student wants to show how their work came together (a detector
+flagged it, or an instructor asked), run `promptcite timeline` in the
+assignment folder. It writes `promptcite-timeline.json` and `.md`: the
+receipt sessions and git commits in date order, each entry hash-chained to
+the one before. Tell the student which files it wrote and the head hash.
+
+- **The ledger stays out** unless the student asks for it. Then run
+  `promptcite timeline --with-ledger`, which lists the entries and asks
+  before adding them. Never pass `--yes` for the student. `/receipt` clears
+  ledger entries once a receipt uses them, so this only finds what hasn't
+  gone into a receipt yet.
+- **Call it evidence of process**, and say what it can't show: that the
+  list is complete, when the file was made, or that git history wasn't
+  changed before. Never call it proof.
+- **Anchoring is theirs.** Handing in the head hash with the work makes a
+  later copy checkable with `promptcite timeline verify <file>`. Suggest
+  it; don't do it for them.
+- If the command isn't available, say so. Don't build a timeline by hand,
+  since a hand-made chain can't be checked.
 
 ## Interview flow
 
@@ -1799,6 +1824,8 @@ End with one short line:
   or call a declaration proof that no AI was used.
 - Put a use into the short or journal form that the receipt doesn't record,
   or leave a recorded one out.
+- Put ledger entries into a timeline without the student asking and seeing
+  them first, or call a timeline proof of anything.
 - Capture the raw prompt log without explicit student opt-in via the
   `full_transcript` appendix.
 - Embellish the student's answers, fabricate details, or "improve" the

@@ -1427,6 +1427,7 @@ EXAMPLES
   promptcite off                                 # stop when the assignment is in
   promptcite status                              # what's on here
   promptcite course use csce-423                 # this folder is CSCE 423 work
+  promptcite timeline                            # receipts + commits, in order, hash-chained
   promptcite --init-config                       # scaffold promptcite.config.json
   promptcite --uninstall
 
@@ -1475,7 +1476,7 @@ function parseCli(argv) {
   // /receipt already takes its modes.
   const command = positionals[0] ?? null;
   if (command !== null && !['on', 'off', 'status', 'course', 'policy'].includes(command)) {
-    throw new UserError(`unknown command "${command}". Expected on, off, status, course, or policy.`);
+    throw new UserError(`unknown command "${command}". Expected on, off, status, course, policy, or timeline.`);
   }
   // `course` takes a subcommand and at most one argument, `policy check` takes
   // any number of use categories, and everything else is a single bare word.
@@ -1590,6 +1591,11 @@ function selectProviders(parsed) {
  * @returns {Promise<number>}
  */
 async function main(argv) {
+  // `timeline` has its own flags, so it gets its own parser. See bin/timeline.js.
+  if (argv[0] === 'timeline') {
+    const { runTimeline } = await import('./timeline.js');
+    return runTimeline(argv.slice(1));
+  }
   let parsed;
   try {
     parsed = parseCli(argv);

@@ -25,6 +25,16 @@ hash, nothing to verify. PromptCite won't write one when the student's ledger
 or a receipt for the assignment shows AI use, unless the student says those
 entries are from other work.
 
+A student asked about their process may hand you a **process timeline**
+(`promptcite-timeline.md` and `.json`): their receipt sessions and git commits
+in date order. Each entry is hash-chained to the one before, so
+`promptcite timeline verify <file>` catches an edit after it was made. Read it
+as evidence of process, not proof. Git history can be changed before export,
+and the chain doesn't show when the file was made. If the student handed you
+the head hash earlier, a matching later copy is the same file. Ledger notes
+appear only when the student chose to add them, and they're incomplete by
+design. See [ADR 0015](./adr/0015-process-timeline.md).
+
 You don't need any software to read these. The disclosure and citation
 are plain text. The JSON is structured and human-readable.
 
