@@ -220,7 +220,7 @@ export function renderMarkdown(t, jsonName) {
     '| When | What | Detail |',
     '|---|---|---|',
   ];
-  const cell = (/** @type {unknown} */ s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const cell = (/** @type {unknown} */ s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   for (const entry of t.entries) {
     const e = /** @type {any} */ (entry);
     if (e.kind === 'commit') {

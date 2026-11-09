@@ -128,7 +128,8 @@ export async function runPolicyInit(argv, io = {}) {
   const file = join(cwd, 'promptcite.policy.json');
   /** @type {Record<string, unknown>} */
   let existing = {};
-  if (existsSync(file)) {
+  const existed = existsSync(file);
+  if (existed) {
     try {
       existing = JSON.parse(readFileSync(file, 'utf8'));
     } catch {
@@ -198,12 +199,20 @@ export async function runPolicyInit(argv, io = {}) {
   log(`level: ${describeLevel(choice)}`);
   if (!values.yes) {
     if (!ask) { err('Not writing without a terminal to confirm. Pass --yes.'); return 1; }
-    if (!/^y(es)?$/i.test(await need(`Write ${existsSync(file) ? 'the updated' : 'this'} promptcite.policy.json here? [y/N] `))) {
+    if (!/^y(es)?$/i.test(await need(`Write ${existed ? 'the updated' : 'this'} promptcite.policy.json here? [y/N] `))) {
       log('Nothing written.');
       return 0;
     }
   }
-  writeFileSync(file, text);
+  // A new file is created exclusively, so one that appeared after the check (or
+  // a planted symlink) is never written through. An existing one is the merge.
+  try {
+    writeFileSync(file, text, { flag: existed ? 'w' : 'wx' });
+  } catch (/** @type {any} */ e) {
+    if (e?.code !== 'EEXIST') throw e;
+    err('error: promptcite.policy.json appeared while this ran. Nothing was written; run it again.');
+    return 1;
+  }
   log(`wrote ${file}`);
   log('Students working in this folder get the level and your rule at the start of /receipt, and a warning if a use goes past it.');
   return 0;

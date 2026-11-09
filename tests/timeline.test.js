@@ -252,3 +252,11 @@ test('git log runs with every config-driven command turned off', () => {
   const src = readFileSync(new URL('../bin/timeline.js', import.meta.url), 'utf8');
   for (const flag of ['--no-ext-diff', '--no-textconv', '--no-show-signature']) assert.ok(src.includes(`'${flag}'`), flag);
 });
+
+test('the markdown escapes backslashes and pipes so a subject cannot break the table', async () => {
+  const { renderMarkdown } = await import('../bin/timeline.js');
+  const t = buildTimeline({ generatedAt: '2026-11-08T00:00:00Z', assignment: null, student: null, sources: { receipts: [], git: true, git_skipped: null, ledger: false }, entries: [{ at: '2026-11-01T10:00:00Z', kind: 'commit', sha: 'abcdef1', subject: 'fix a\\|b | c', files_changed: 1, insertions: 1, deletions: 0 }] });
+  const row = renderMarkdown(t, 'x.json').split('\n').find((l) => l.includes('commit `abcdef1`')) ?? '';
+  assert.ok(row.includes('fix a\\\\\\|b \\| c'), row);
+  assert.equal(row.split(/(?<!\\)\|/).length, 5, 'row should have exactly three cells');
+});
