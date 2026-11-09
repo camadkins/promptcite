@@ -306,9 +306,12 @@ some patterns that work:
 You can turn a policy like the one above into a file that `/receipt`
 *follows automatically*. Drop a `promptcite.policy.json` in the
 assignment folder (e.g. the starter repo students clone). When present,
-`/receipt` steers the interview to it — offering only your allowed
-categories, using your required citation style, and requiring the
-source-verification answer or appendix you specify. A starter file lives
+`/receipt` steers the interview to it — naming your allowed categories (and
+warning a student who logs one outside them, while still recording it), using
+your required citation style, and requiring the source-verification answer or
+appendix you specify. PromptCite never blocks a disclosure: a student who used
+AI where your policy says not to still gets an honest receipt, and the call is
+yours. A starter file lives
 at [`docs/promptcite.policy.example.json`](./promptcite.policy.example.json):
 
 ```json
