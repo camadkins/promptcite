@@ -1766,10 +1766,15 @@ the session it came from rather than the receipt. `outputs` holds only
 (Python, bash, JavaScript runtime), compute SHA-256 of the canonical
 JSON serialization of all other fields:
 
-1. Build the receipt object with `content_hash` field absent (or null).
-2. Serialize with sorted keys, no whitespace, UTF-8 (e.g.,
-   `json.dumps(receipt, sort_keys=True, separators=(",",":"))`
-   in Python, or `JSON.stringify` with a sorted-key replacer in JS).
+1. Build the receipt object with `content_hash` and `submission_hash` left
+   out entirely. Not set to null: a null key is still part of the input,
+   and the verifier leaves both keys out.
+2. Serialize with sorted keys at every level, no whitespace, UTF-8, and
+   non-ASCII characters written as themselves, not escaped. In Python:
+   `json.dumps(receipt, sort_keys=True, separators=(",",":"), ensure_ascii=False)`.
+   Without `ensure_ascii=False`, any em dash, curly quote, or accented name
+   is escaped and the hash won't match `promptcite-verify`. In JS, sort the
+   keys of every object recursively before `JSON.stringify`.
 3. SHA-256 the resulting bytes.
 4. Hex-encode the digest (64 lowercase chars).
 5. Set `content_hash` to that string.

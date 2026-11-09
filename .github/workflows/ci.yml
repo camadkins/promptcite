@@ -62,6 +62,16 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      # devDeps only (fast-check for tests/fuzz.test.js). Same install and
+      # reasoning as the typecheck job above.
+      - name: Install devDeps
+        run: bun install
+
       - name: Run unit tests
         run: node --test tests/*.test.js
 
